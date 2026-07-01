@@ -3,6 +3,7 @@ import './App.css'
 
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import BackupExport from './pages/BackupExport.jsx'
 import CreditBook from './pages/CreditBook.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Expenses from './pages/Expenses.jsx'
@@ -82,6 +83,14 @@ function App() {
             element={
               <ProtectedRoute roles={['owner']}>
                 <Reports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/backup-export"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <BackupExport />
               </ProtectedRoute>
             }
           />

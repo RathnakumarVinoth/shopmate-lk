@@ -9,6 +9,7 @@ const ownerLinks = [
   { to: '/stock', label: 'Stock' },
   { to: '/expenses', label: 'Expenses' },
   { to: '/reports', label: 'Reports' },
+  { to: '/backup-export', label: 'Backup / Export' },
   { to: '/staff', label: 'Staff' },
 ]
 

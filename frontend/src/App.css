@@ -731,6 +731,43 @@ th {
   flex: 1;
 }
 
+.export-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.export-button {
+  min-height: 46px;
+  text-align: center;
+}
+
+.backup-guide {
+  display: grid;
+  gap: 14px;
+}
+
+.backup-guide div {
+  display: grid;
+  gap: 7px;
+}
+
+.backup-guide span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.backup-guide code {
+  display: block;
+  overflow-x: auto;
+  border: 1px solid #dfe5ee;
+  border-radius: 8px;
+  padding: 12px;
+  color: #17212b;
+  background: #f8fafc;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -811,7 +848,8 @@ th {
 
   .page-grid,
   .pos-layout,
-  .report-grid {
+  .report-grid,
+  .export-grid {
     grid-template-columns: 1fr;
   }
 
