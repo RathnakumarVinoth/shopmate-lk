@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import api from '../services/api'
 import { formatMoney, getApiMessage, notifyDashboardChanged } from '../utils/formatters'
 
@@ -14,6 +16,202 @@ const paymentTypes = [
   { value: 'qr', label: 'QR' },
   { value: 'credit', label: 'Credit' },
 ]
+
+const formatCurrency = (value) => formatMoney(value)
+
+const formatDateTime = (value) => {
+  const date = value ? new Date(value) : new Date()
+
+  if (Number.isNaN(date.getTime())) {
+    return new Date().toLocaleString()
+  }
+
+  return date.toLocaleString()
+}
+
+const getReceiptDetails = (receipt) => {
+  const saleId = receipt?.sale_id || receipt?.id || 'receipt'
+  const invoiceNo = receipt?.invoice_no || `SALE-${saleId}`
+  const shopName = receipt?.shop_name || 'ShopMate LK'
+  const items = Array.isArray(receipt?.items) ? receipt.items : []
+  const totalBeforeDiscount = Number(receipt?.total_before_discount || 0)
+  const discountAmount = Number(receipt?.discount_amount || 0)
+  const finalTotal = Number(receipt?.final_total || receipt?.total_amount || 0)
+  const paidAmount = Number(receipt?.paid_amount || 0)
+  const balanceAmount = Number(receipt?.balance_amount || 0)
+  const paymentType = receipt?.payment_type || 'cash'
+  const createdAt = receipt?.created_at || new Date().toISOString()
+
+  return {
+    invoiceNo,
+    saleId,
+    shopName,
+    items,
+    totalBeforeDiscount,
+    discountAmount,
+    finalTotal,
+    paidAmount,
+    balanceAmount,
+    paymentType,
+    createdAt,
+  }
+}
+
+const generateInvoicePDF = (receipt) => {
+  const details = getReceiptDetails(receipt)
+  const doc = new jsPDF()
+  const safeInvoiceNo = String(details.invoiceNo).replace(/[^a-zA-Z0-9-_]/g, '_')
+
+  doc.setFontSize(18)
+  doc.text('ShopMate LK Invoice', 14, 18)
+  doc.setFontSize(11)
+  doc.text(details.shopName, 14, 28)
+  doc.text(`Invoice: ${details.invoiceNo}`, 14, 36)
+  doc.text(`Date: ${formatDateTime(details.createdAt)}`, 14, 44)
+  doc.text(`Payment Type: ${details.paymentType}`, 14, 52)
+
+  autoTable(doc, {
+    startY: 62,
+    head: [['Item', 'Qty', 'Unit Price', 'Subtotal']],
+    body: details.items.map((item) => [
+      item.product_name || 'Item',
+      Number(item.quantity || 0),
+      formatCurrency(item.selling_price),
+      formatCurrency(item.subtotal),
+    ]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [15, 118, 110] },
+  })
+
+  const finalY = doc.lastAutoTable?.finalY || 70
+  const totals = [
+    ['Subtotal', formatCurrency(details.totalBeforeDiscount)],
+    ['Discount', formatCurrency(details.discountAmount)],
+    ['Total', formatCurrency(details.finalTotal)],
+    ['Paid', formatCurrency(details.paidAmount)],
+    [details.balanceAmount < 0 ? 'Balance Due' : 'Change', formatCurrency(Math.abs(details.balanceAmount))],
+  ]
+
+  autoTable(doc, {
+    startY: finalY + 10,
+    body: totals,
+    theme: 'plain',
+    styles: { fontSize: 10 },
+    columnStyles: {
+      0: { fontStyle: 'bold' },
+      1: { halign: 'right' },
+    },
+  })
+
+  doc.setFontSize(10)
+  doc.text('Thank you for shopping with us.', 14, 285)
+  doc.save(`invoice_${safeInvoiceNo}.pdf`)
+}
+
+const shareInvoiceWhatsApp = (receipt) => {
+  const details = getReceiptDetails(receipt)
+  const itemLines = details.items
+    .slice(0, 8)
+    .map(
+      (item) =>
+        `- ${item.product_name || 'Item'} x ${Number(item.quantity || 0)} = ${formatCurrency(
+          item.subtotal,
+        )}`,
+    )
+    .join('\n')
+  const moreItems = details.items.length > 8 ? `\n- ...and ${details.items.length - 8} more item(s)` : ''
+  const message = [
+    details.shopName,
+    `Invoice: ${details.invoiceNo}`,
+    `Date: ${formatDateTime(details.createdAt)}`,
+    `Payment: ${details.paymentType}`,
+    '',
+    'Items:',
+    itemLines || '- No items',
+    moreItems,
+    '',
+    `Total: ${formatCurrency(details.finalTotal)}`,
+    `Paid: ${formatCurrency(details.paidAmount)}`,
+    `${details.balanceAmount < 0 ? 'Balance Due' : 'Change'}: ${formatCurrency(
+      Math.abs(details.balanceAmount),
+    )}`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+}
+
+const printReceipt = (receipt) => {
+  const details = getReceiptDetails(receipt)
+  const rows = details.items
+    .map(
+      (item) => `
+        <tr>
+          <td>${item.product_name || 'Item'}</td>
+          <td>${Number(item.quantity || 0)}</td>
+          <td>${formatCurrency(item.selling_price)}</td>
+          <td>${formatCurrency(item.subtotal)}</td>
+        </tr>
+      `,
+    )
+    .join('')
+
+  const printWindow = window.open('', '_blank', 'width=420,height=700')
+
+  if (!printWindow) {
+    window.print()
+    return
+  }
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>${details.invoiceNo}</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #111827; padding: 18px; }
+          .header { text-align: center; margin-bottom: 16px; }
+          .header strong { display: block; font-size: 18px; margin-bottom: 6px; }
+          .meta { color: #4b5563; font-size: 12px; line-height: 1.5; }
+          table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; }
+          th, td { border-bottom: 1px solid #e5e7eb; padding: 7px 4px; text-align: left; }
+          th { color: #4b5563; text-transform: uppercase; font-size: 10px; }
+          .totals { margin-top: 14px; font-size: 13px; }
+          .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
+          .total { border-top: 1px solid #111827; margin-top: 6px; padding-top: 8px !important; font-weight: 700; }
+          .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #4b5563; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <strong>${details.shopName}</strong>
+          <div class="meta">Invoice: ${details.invoiceNo}</div>
+          <div class="meta">Date: ${formatDateTime(details.createdAt)}</div>
+          <div class="meta">Payment: ${details.paymentType}</div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="totals">
+          <div><span>Subtotal</span><strong>${formatCurrency(details.totalBeforeDiscount)}</strong></div>
+          <div><span>Discount</span><strong>${formatCurrency(details.discountAmount)}</strong></div>
+          <div class="total"><span>Total</span><strong>${formatCurrency(details.finalTotal)}</strong></div>
+          <div><span>Paid</span><strong>${formatCurrency(details.paidAmount)}</strong></div>
+          <div><span>${details.balanceAmount < 0 ? 'Balance Due' : 'Change'}</span><strong>${formatCurrency(
+            Math.abs(details.balanceAmount),
+          )}</strong></div>
+        </div>
+        <div class="footer">Thank you for shopping with us.</div>
+      </body>
+    </html>
+  `)
+  printWindow.document.close()
+  printWindow.focus()
+  printWindow.print()
+}
 
 function POS() {
   const [products, setProducts] = useState([])
@@ -360,18 +558,30 @@ function POS() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Receipt</p>
-                <h2>{receipt.invoice_no}</h2>
+                <h2>{getReceiptDetails(receipt).invoiceNo}</h2>
               </div>
-              <button type="button" className="ghost-button no-print" onClick={() => setReceipt(null)}>
-                Close
-              </button>
+              <div className="receipt-actions no-print">
+                <button type="button" onClick={() => generateInvoicePDF(receipt)}>
+                  Download PDF
+                </button>
+                <button type="button" className="ghost-button" onClick={() => shareInvoiceWhatsApp(receipt)}>
+                  Share WhatsApp
+                </button>
+                <button type="button" className="ghost-button" onClick={() => printReceipt(receipt)}>
+                  Print
+                </button>
+                <button type="button" className="ghost-button" onClick={() => setReceipt(null)}>
+                  Close
+                </button>
+              </div>
             </div>
 
             <div className="receipt-print-area">
               <div className="receipt-header">
                 <strong>{receipt.shop_name || 'ShopMate LK'}</strong>
-                <span>{new Date(receipt.created_at).toLocaleString()}</span>
-                <span>Invoice: {receipt.invoice_no}</span>
+                <span>{formatDateTime(receipt.created_at)}</span>
+                <span>Invoice: {getReceiptDetails(receipt).invoiceNo}</span>
+                <span>Payment: {receipt.payment_type || 'cash'}</span>
               </div>
 
               <table className="receipt-table">
@@ -384,12 +594,12 @@ function POS() {
                   </tr>
                 </thead>
                 <tbody>
-                  {receipt.items.map((item) => (
-                    <tr key={item.product_id}>
+                  {(receipt.items || []).map((item, index) => (
+                    <tr key={item.product_id || index}>
                       <td>{item.product_name}</td>
                       <td>{item.quantity}</td>
-                      <td>{formatMoney(item.selling_price)}</td>
-                      <td>{formatMoney(item.subtotal)}</td>
+                      <td>{formatCurrency(item.selling_price)}</td>
+                      <td>{formatCurrency(item.subtotal)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -398,23 +608,23 @@ function POS() {
               <div className="receipt-totals">
                 <div>
                   <span>Subtotal</span>
-                  <strong>{formatMoney(receipt.total_before_discount)}</strong>
+                  <strong>{formatCurrency(receipt.total_before_discount)}</strong>
                 </div>
                 <div>
                   <span>Discount</span>
-                  <strong>{formatMoney(receipt.discount_amount)}</strong>
+                  <strong>{formatCurrency(receipt.discount_amount)}</strong>
                 </div>
                 <div>
                   <span>Total</span>
-                  <strong>{formatMoney(receipt.final_total)}</strong>
+                  <strong>{formatCurrency(receipt.final_total || receipt.total_amount)}</strong>
                 </div>
                 <div>
                   <span>Paid</span>
-                  <strong>{formatMoney(receipt.paid_amount)}</strong>
+                  <strong>{formatCurrency(receipt.paid_amount)}</strong>
                 </div>
                 <div>
                   <span>{Number(receipt.balance_amount) < 0 ? 'Balance Due' : 'Change'}</span>
-                  <strong>{formatMoney(Math.abs(Number(receipt.balance_amount)))}</strong>
+                  <strong>{formatCurrency(Math.abs(Number(receipt.balance_amount || 0)))}</strong>
                 </div>
                 <div>
                   <span>Payment</span>
@@ -422,10 +632,6 @@ function POS() {
                 </div>
               </div>
             </div>
-
-            <button type="button" className="no-print" onClick={() => window.print()}>
-              Print Receipt
-            </button>
           </section>
         </div>
       )}
