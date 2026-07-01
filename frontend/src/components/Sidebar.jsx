@@ -7,6 +7,7 @@ const ownerLinks = [
   { to: '/credits', label: 'Credit Book' },
   { to: '/suppliers', label: 'Suppliers' },
   { to: '/expenses', label: 'Expenses' },
+  { to: '/reports', label: 'Reports' },
   { to: '/staff', label: 'Staff' },
 ]
 

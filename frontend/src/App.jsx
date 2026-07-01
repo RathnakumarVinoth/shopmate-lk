@@ -10,6 +10,7 @@ import Login from './pages/Login.jsx'
 import POS from './pages/POS.jsx'
 import Products from './pages/Products.jsx'
 import Register from './pages/Register.jsx'
+import Reports from './pages/Reports.jsx'
 import Staff from './pages/Staff.jsx'
 import Suppliers from './pages/Suppliers.jsx'
 
@@ -64,6 +65,14 @@ function App() {
             element={
               <ProtectedRoute roles={['owner']}>
                 <Staff />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <Reports />
               </ProtectedRoute>
             }
           />
