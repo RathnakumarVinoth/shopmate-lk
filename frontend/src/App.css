@@ -768,6 +768,12 @@ th {
   background: #f8fafc;
 }
 
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

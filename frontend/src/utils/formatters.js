@@ -1,9 +1,28 @@
-export const formatMoney = (value) =>
-  new Intl.NumberFormat('en-LK', {
-    style: 'currency',
-    currency: 'LKR',
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0))
+export const getShopSettings = () => {
+  try {
+    return JSON.parse(localStorage.getItem('shopSettings') || '{}')
+  } catch {
+    return {}
+  }
+}
+
+export const getShopCurrency = () => getShopSettings().currency || 'LKR'
+
+export const formatMoney = (value, currency = getShopCurrency()) => {
+  try {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: currency || 'LKR',
+      maximumFractionDigits: 2,
+    }).format(Number(value || 0))
+  } catch {
+    return new Intl.NumberFormat('en-LK', {
+      style: 'currency',
+      currency: 'LKR',
+      maximumFractionDigits: 2,
+    }).format(Number(value || 0))
+  }
+}
 
 export const getApiMessage = (error, fallback) => {
   const data = error.response?.data

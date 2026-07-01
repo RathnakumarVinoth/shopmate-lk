@@ -91,7 +91,7 @@ const formatSaleItem = (item) => ({
   profit: Number(item.profit),
 });
 
-const buildReceipt = ({ sale, shopName, items }) => {
+const buildReceipt = ({ sale, shop, items }) => {
   const formattedSale = formatSale(sale);
   const receiptItems = items.map(formatSaleItem);
   const itemsTotal = formatMoney(
@@ -103,7 +103,13 @@ const buildReceipt = ({ sale, shopName, items }) => {
       formattedSale.invoice_no ||
       generateInvoiceNo(formattedSale.id, formattedSale.created_at),
     sale_id: formattedSale.id,
-    shop_name: shopName,
+    shop_name: shop?.shop_name || "ShopMate LK",
+    shop_phone: shop?.phone || null,
+    shop_email: shop?.email || null,
+    shop_address: shop?.address || null,
+    receipt_footer: shop?.receipt_footer || "Thank you for shopping with us.",
+    currency: shop?.currency || "LKR",
+    logo_url: shop?.logo_url || null,
     items: receiptItems.map((item) => ({
       product_id: item.product_id,
       product_name: item.product_name,
@@ -153,7 +159,10 @@ exports.createSale = async (req, res) => {
     await connection.beginTransaction();
 
     const [shops] = await connection.query(
-      "SELECT shop_name FROM shops WHERE id = ? LIMIT 1",
+      `SELECT shop_name, phone, email, address, receipt_footer, currency, logo_url
+       FROM shops
+       WHERE id = ?
+       LIMIT 1`,
       [shopId]
     );
 
@@ -282,7 +291,7 @@ exports.createSale = async (req, res) => {
 
     const receipt = buildReceipt({
       sale: sales[0],
-      shopName: shops[0]?.shop_name || "ShopMate LK",
+      shop: shops[0],
       items: saleItems,
     });
 
@@ -340,7 +349,9 @@ exports.getSaleById = async (req, res) => {
 
   try {
     const [sales] = await db.promise().query(
-      `SELECT sales.*, users.name AS user_name, shops.shop_name
+      `SELECT sales.*, users.name AS user_name,
+              shops.shop_name, shops.phone, shops.email, shops.address,
+              shops.receipt_footer, shops.currency, shops.logo_url
        FROM sales
        LEFT JOIN users ON users.id = sales.user_id
        LEFT JOIN shops ON shops.id = sales.shop_id
@@ -367,7 +378,7 @@ exports.getSaleById = async (req, res) => {
 
     const receipt = buildReceipt({
       sale: sales[0],
-      shopName: sales[0].shop_name || "ShopMate LK",
+      shop: sales[0],
       items,
     });
 

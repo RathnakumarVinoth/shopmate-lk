@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../services/api'
-import { formatMoney, getApiMessage } from '../utils/formatters'
+import { formatMoney, getApiMessage, getShopSettings } from '../utils/formatters'
 
 const initialForm = {
   product_name: '',
@@ -37,6 +37,8 @@ const optionalText = (value) => {
 function Products() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const isOwner = user.role === 'owner'
+  const shopSettings = getShopSettings()
+  const defaultLowStockLimit = Number(shopSettings.default_low_stock_limit ?? 5)
   const [products, setProducts] = useState([])
   const [form, setForm] = useState(initialForm)
   const [editingId, setEditingId] = useState(null)
@@ -87,7 +89,8 @@ function Products() {
       buying_price: Number(form.buying_price),
       selling_price: Number(form.selling_price),
       stock_quantity: Number(form.stock_quantity || 0),
-      low_stock_limit: Number(form.low_stock_limit || 5),
+      low_stock_limit:
+        form.low_stock_limit === '' ? defaultLowStockLimit : Number(form.low_stock_limit),
     }
 
     try {
@@ -208,6 +211,7 @@ function Products() {
                 min="0"
                 value={form.low_stock_limit}
                 onChange={updateField}
+                placeholder={`Default ${defaultLowStockLimit}`}
               />
             </label>
             <button type="submit" className="full-width" disabled={saving}>

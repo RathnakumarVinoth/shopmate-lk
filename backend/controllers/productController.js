@@ -45,6 +45,8 @@ const validateProduct = (body) => {
 
   if (
     body.low_stock_limit !== undefined &&
+    body.low_stock_limit !== "" &&
+    body.low_stock_limit !== null &&
     !isNonNegativeInteger(body.low_stock_limit)
   ) {
     errors.push("low_stock_limit must be a non-negative integer");
@@ -109,6 +111,15 @@ const checkDuplicateCodes = async ({ shopId, productCode, barcode, excludeId }) 
   return "Product code or barcode already exists in this shop";
 };
 
+const getDefaultLowStockLimit = async (shopId) => {
+  const [shops] = await db.promise().query(
+    "SELECT default_low_stock_limit FROM shops WHERE id = ? LIMIT 1",
+    [shopId]
+  );
+
+  return Number(shops[0]?.default_low_stock_limit || 5);
+};
+
 exports.addProduct = async (req, res) => {
   const {
     product_name,
@@ -142,6 +153,12 @@ exports.addProduct = async (req, res) => {
       return res.status(409).json({ message: duplicateMessage });
     }
 
+    const defaultLowStockLimit = await getDefaultLowStockLimit(shopId);
+    const lowStockLimit =
+      low_stock_limit === undefined || low_stock_limit === null || low_stock_limit === ""
+        ? defaultLowStockLimit
+        : Number(low_stock_limit);
+
     const [result] = await db.promise().query(
       `INSERT INTO products
        (shop_id, product_name, product_code, barcode, category, buying_price, selling_price, stock_quantity, low_stock_limit)
@@ -155,7 +172,7 @@ exports.addProduct = async (req, res) => {
         Number(buying_price),
         Number(selling_price),
         stock_quantity === undefined ? 0 : Number(stock_quantity),
-        low_stock_limit === undefined ? 5 : Number(low_stock_limit),
+        lowStockLimit,
       ]
     );
 
@@ -303,7 +320,9 @@ exports.updateProduct = async (req, res) => {
         Number(buying_price),
         Number(selling_price),
         stock_quantity === undefined ? 0 : Number(stock_quantity),
-        low_stock_limit === undefined ? 5 : Number(low_stock_limit),
+        low_stock_limit === undefined || low_stock_limit === null || low_stock_limit === ""
+          ? 5
+          : Number(low_stock_limit),
         productId,
         shopId,
       ]

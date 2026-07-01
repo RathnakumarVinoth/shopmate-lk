@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../services/api'
-import { formatMoney, getApiMessage, notifyDashboardChanged } from '../utils/formatters'
+import { formatMoney, getApiMessage, getShopSettings, notifyDashboardChanged } from '../utils/formatters'
 
 const getProductsFromResponse = (data) => {
   if (Array.isArray(data)) return data
@@ -17,7 +17,7 @@ const paymentTypes = [
   { value: 'credit', label: 'Credit' },
 ]
 
-const formatCurrency = (value) => formatMoney(value)
+const formatCurrency = (value, currency) => formatMoney(value, currency)
 
 const formatDateTime = (value) => {
   const date = value ? new Date(value) : new Date()
@@ -30,9 +30,10 @@ const formatDateTime = (value) => {
 }
 
 const getReceiptDetails = (receipt) => {
+  const settings = getShopSettings()
   const saleId = receipt?.sale_id || receipt?.id || 'receipt'
   const invoiceNo = receipt?.invoice_no || `SALE-${saleId}`
-  const shopName = receipt?.shop_name || 'ShopMate LK'
+  const shopName = receipt?.shop_name || settings.shop_name || 'ShopMate LK'
   const items = Array.isArray(receipt?.items) ? receipt.items : []
   const totalBeforeDiscount = Number(receipt?.total_before_discount || 0)
   const discountAmount = Number(receipt?.discount_amount || 0)
@@ -41,11 +42,20 @@ const getReceiptDetails = (receipt) => {
   const balanceAmount = Number(receipt?.balance_amount || 0)
   const paymentType = receipt?.payment_type || 'cash'
   const createdAt = receipt?.created_at || new Date().toISOString()
+  const currency = receipt?.currency || settings.currency || 'LKR'
+  const receiptFooter =
+    receipt?.receipt_footer || settings.receipt_footer || 'Thank you for shopping with us.'
 
   return {
     invoiceNo,
     saleId,
     shopName,
+    shopPhone: receipt?.shop_phone || settings.phone || '',
+    shopEmail: receipt?.shop_email || settings.email || '',
+    shopAddress: receipt?.shop_address || settings.address || '',
+    logoUrl: receipt?.logo_url || settings.logo_url || '',
+    receiptFooter,
+    currency,
     items,
     totalBeforeDiscount,
     discountAmount,
@@ -65,19 +75,35 @@ const generateInvoicePDF = (receipt) => {
   doc.setFontSize(18)
   doc.text('ShopMate LK Invoice', 14, 18)
   doc.setFontSize(11)
-  doc.text(details.shopName, 14, 28)
-  doc.text(`Invoice: ${details.invoiceNo}`, 14, 36)
-  doc.text(`Date: ${formatDateTime(details.createdAt)}`, 14, 44)
-  doc.text(`Payment Type: ${details.paymentType}`, 14, 52)
+  let metaY = 28
+  doc.text(details.shopName, 14, metaY)
+  metaY += 8
+  if (details.shopAddress) {
+    doc.text(details.shopAddress, 14, metaY)
+    metaY += 8
+  }
+  if (details.shopPhone) {
+    doc.text(`Phone: ${details.shopPhone}`, 14, metaY)
+    metaY += 8
+  }
+  if (details.shopEmail) {
+    doc.text(`Email: ${details.shopEmail}`, 14, metaY)
+    metaY += 8
+  }
+  doc.text(`Invoice: ${details.invoiceNo}`, 14, metaY)
+  metaY += 8
+  doc.text(`Date: ${formatDateTime(details.createdAt)}`, 14, metaY)
+  metaY += 8
+  doc.text(`Payment Type: ${details.paymentType}`, 14, metaY)
 
   autoTable(doc, {
-    startY: 62,
+    startY: metaY + 10,
     head: [['Item', 'Qty', 'Unit Price', 'Subtotal']],
     body: details.items.map((item) => [
       item.product_name || 'Item',
       Number(item.quantity || 0),
-      formatCurrency(item.selling_price),
-      formatCurrency(item.subtotal),
+      formatCurrency(item.selling_price, details.currency),
+      formatCurrency(item.subtotal, details.currency),
     ]),
     styles: { fontSize: 9 },
     headStyles: { fillColor: [15, 118, 110] },
@@ -85,11 +111,11 @@ const generateInvoicePDF = (receipt) => {
 
   const finalY = doc.lastAutoTable?.finalY || 70
   const totals = [
-    ['Subtotal', formatCurrency(details.totalBeforeDiscount)],
-    ['Discount', formatCurrency(details.discountAmount)],
-    ['Total', formatCurrency(details.finalTotal)],
-    ['Paid', formatCurrency(details.paidAmount)],
-    [details.balanceAmount < 0 ? 'Balance Due' : 'Change', formatCurrency(Math.abs(details.balanceAmount))],
+    ['Subtotal', formatCurrency(details.totalBeforeDiscount, details.currency)],
+    ['Discount', formatCurrency(details.discountAmount, details.currency)],
+    ['Total', formatCurrency(details.finalTotal, details.currency)],
+    ['Paid', formatCurrency(details.paidAmount, details.currency)],
+    [details.balanceAmount < 0 ? 'Balance Due' : 'Change', formatCurrency(Math.abs(details.balanceAmount), details.currency)],
   ]
 
   autoTable(doc, {
@@ -104,7 +130,7 @@ const generateInvoicePDF = (receipt) => {
   })
 
   doc.setFontSize(10)
-  doc.text('Thank you for shopping with us.', 14, 285)
+  doc.text(details.receiptFooter, 14, 285)
   doc.save(`invoice_${safeInvoiceNo}.pdf`)
 }
 
@@ -116,12 +142,15 @@ const shareInvoiceWhatsApp = (receipt) => {
       (item) =>
         `- ${item.product_name || 'Item'} x ${Number(item.quantity || 0)} = ${formatCurrency(
           item.subtotal,
+          details.currency,
         )}`,
     )
     .join('\n')
   const moreItems = details.items.length > 8 ? `\n- ...and ${details.items.length - 8} more item(s)` : ''
   const message = [
     details.shopName,
+    details.shopAddress,
+    details.shopPhone ? `Phone: ${details.shopPhone}` : '',
     `Invoice: ${details.invoiceNo}`,
     `Date: ${formatDateTime(details.createdAt)}`,
     `Payment: ${details.paymentType}`,
@@ -130,11 +159,13 @@ const shareInvoiceWhatsApp = (receipt) => {
     itemLines || '- No items',
     moreItems,
     '',
-    `Total: ${formatCurrency(details.finalTotal)}`,
-    `Paid: ${formatCurrency(details.paidAmount)}`,
+    `Total: ${formatCurrency(details.finalTotal, details.currency)}`,
+    `Paid: ${formatCurrency(details.paidAmount, details.currency)}`,
     `${details.balanceAmount < 0 ? 'Balance Due' : 'Change'}: ${formatCurrency(
       Math.abs(details.balanceAmount),
+      details.currency,
     )}`,
+    details.receiptFooter,
   ]
     .filter(Boolean)
     .join('\n')
@@ -150,8 +181,8 @@ const printReceipt = (receipt) => {
         <tr>
           <td>${item.product_name || 'Item'}</td>
           <td>${Number(item.quantity || 0)}</td>
-          <td>${formatCurrency(item.selling_price)}</td>
-          <td>${formatCurrency(item.subtotal)}</td>
+          <td>${formatCurrency(item.selling_price, details.currency)}</td>
+          <td>${formatCurrency(item.subtotal, details.currency)}</td>
         </tr>
       `,
     )
@@ -185,6 +216,9 @@ const printReceipt = (receipt) => {
       <body>
         <div class="header">
           <strong>${details.shopName}</strong>
+          ${details.shopAddress ? `<div class="meta">${details.shopAddress}</div>` : ''}
+          ${details.shopPhone ? `<div class="meta">Phone: ${details.shopPhone}</div>` : ''}
+          ${details.shopEmail ? `<div class="meta">Email: ${details.shopEmail}</div>` : ''}
           <div class="meta">Invoice: ${details.invoiceNo}</div>
           <div class="meta">Date: ${formatDateTime(details.createdAt)}</div>
           <div class="meta">Payment: ${details.paymentType}</div>
@@ -196,15 +230,16 @@ const printReceipt = (receipt) => {
           <tbody>${rows}</tbody>
         </table>
         <div class="totals">
-          <div><span>Subtotal</span><strong>${formatCurrency(details.totalBeforeDiscount)}</strong></div>
-          <div><span>Discount</span><strong>${formatCurrency(details.discountAmount)}</strong></div>
-          <div class="total"><span>Total</span><strong>${formatCurrency(details.finalTotal)}</strong></div>
-          <div><span>Paid</span><strong>${formatCurrency(details.paidAmount)}</strong></div>
+          <div><span>Subtotal</span><strong>${formatCurrency(details.totalBeforeDiscount, details.currency)}</strong></div>
+          <div><span>Discount</span><strong>${formatCurrency(details.discountAmount, details.currency)}</strong></div>
+          <div class="total"><span>Total</span><strong>${formatCurrency(details.finalTotal, details.currency)}</strong></div>
+          <div><span>Paid</span><strong>${formatCurrency(details.paidAmount, details.currency)}</strong></div>
           <div><span>${details.balanceAmount < 0 ? 'Balance Due' : 'Change'}</span><strong>${formatCurrency(
             Math.abs(details.balanceAmount),
+            details.currency,
           )}</strong></div>
         </div>
-        <div class="footer">Thank you for shopping with us.</div>
+        <div class="footer">${details.receiptFooter}</div>
       </body>
     </html>
   `)
@@ -284,6 +319,7 @@ function POS() {
   const discountInvalid = discount > subtotal
   const paidRequired = paymentType !== 'credit'
   const paidInvalid = paidRequired && paidAmount === ''
+  const receiptDetails = receipt ? getReceiptDetails(receipt) : null
 
   const addToCart = (product) => {
     setMessage('')
@@ -653,7 +689,7 @@ function POS() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Receipt</p>
-                <h2>{getReceiptDetails(receipt).invoiceNo}</h2>
+                <h2>{receiptDetails.invoiceNo}</h2>
               </div>
               <div className="receipt-actions no-print">
                 <button type="button" onClick={() => generateInvoicePDF(receipt)}>
@@ -673,10 +709,13 @@ function POS() {
 
             <div className="receipt-print-area">
               <div className="receipt-header">
-                <strong>{receipt.shop_name || 'ShopMate LK'}</strong>
-                <span>{formatDateTime(receipt.created_at)}</span>
-                <span>Invoice: {getReceiptDetails(receipt).invoiceNo}</span>
-                <span>Payment: {receipt.payment_type || 'cash'}</span>
+                <strong>{receiptDetails.shopName}</strong>
+                {receiptDetails.shopAddress && <span>{receiptDetails.shopAddress}</span>}
+                {receiptDetails.shopPhone && <span>Phone: {receiptDetails.shopPhone}</span>}
+                {receiptDetails.shopEmail && <span>Email: {receiptDetails.shopEmail}</span>}
+                <span>{formatDateTime(receiptDetails.createdAt)}</span>
+                <span>Invoice: {receiptDetails.invoiceNo}</span>
+                <span>Payment: {receiptDetails.paymentType}</span>
               </div>
 
               <table className="receipt-table">
@@ -689,12 +728,12 @@ function POS() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(receipt.items || []).map((item, index) => (
+                  {(receiptDetails.items || []).map((item, index) => (
                     <tr key={item.product_id || index}>
                       <td>{item.product_name}</td>
                       <td>{item.quantity}</td>
-                      <td>{formatCurrency(item.selling_price)}</td>
-                      <td>{formatCurrency(item.subtotal)}</td>
+                      <td>{formatCurrency(item.selling_price, receiptDetails.currency)}</td>
+                      <td>{formatCurrency(item.subtotal, receiptDetails.currency)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -703,27 +742,31 @@ function POS() {
               <div className="receipt-totals">
                 <div>
                   <span>Subtotal</span>
-                  <strong>{formatCurrency(receipt.total_before_discount)}</strong>
+                  <strong>{formatCurrency(receiptDetails.totalBeforeDiscount, receiptDetails.currency)}</strong>
                 </div>
                 <div>
                   <span>Discount</span>
-                  <strong>{formatCurrency(receipt.discount_amount)}</strong>
+                  <strong>{formatCurrency(receiptDetails.discountAmount, receiptDetails.currency)}</strong>
                 </div>
                 <div>
                   <span>Total</span>
-                  <strong>{formatCurrency(receipt.final_total || receipt.total_amount)}</strong>
+                  <strong>{formatCurrency(receiptDetails.finalTotal, receiptDetails.currency)}</strong>
                 </div>
                 <div>
                   <span>Paid</span>
-                  <strong>{formatCurrency(receipt.paid_amount)}</strong>
+                  <strong>{formatCurrency(receiptDetails.paidAmount, receiptDetails.currency)}</strong>
                 </div>
                 <div>
-                  <span>{Number(receipt.balance_amount) < 0 ? 'Balance Due' : 'Change'}</span>
-                  <strong>{formatCurrency(Math.abs(Number(receipt.balance_amount || 0)))}</strong>
+                  <span>{receiptDetails.balanceAmount < 0 ? 'Balance Due' : 'Change'}</span>
+                  <strong>{formatCurrency(Math.abs(receiptDetails.balanceAmount), receiptDetails.currency)}</strong>
                 </div>
                 <div>
                   <span>Payment</span>
-                  <strong>{receipt.payment_type}</strong>
+                  <strong>{receiptDetails.paymentType}</strong>
+                </div>
+                <div>
+                  <span>Footer</span>
+                  <strong>{receiptDetails.receiptFooter}</strong>
                 </div>
               </div>
             </div>
