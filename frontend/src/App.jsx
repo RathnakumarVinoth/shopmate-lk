@@ -10,6 +10,7 @@ import Login from './pages/Login.jsx'
 import POS from './pages/POS.jsx'
 import Products from './pages/Products.jsx'
 import Register from './pages/Register.jsx'
+import Staff from './pages/Staff.jsx'
 import Suppliers from './pages/Suppliers.jsx'
 
 function App() {
@@ -34,9 +35,38 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/products" element={<Products />} />
           <Route path="/pos" element={<POS />} />
-          <Route path="/credits" element={<CreditBook />} />
-          <Route path="/suppliers" element={<Suppliers />} />
-          <Route path="/expenses" element={<Expenses />} />
+          <Route
+            path="/credits"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <CreditBook />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/suppliers"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <Suppliers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <Expenses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <Staff />
+              </ProtectedRoute>
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

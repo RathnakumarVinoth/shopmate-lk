@@ -1,16 +1,25 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 
-const links = [
+const ownerLinks = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/products', label: 'Products' },
   { to: '/pos', label: 'POS Billing' },
   { to: '/credits', label: 'Credit Book' },
   { to: '/suppliers', label: 'Suppliers' },
   { to: '/expenses', label: 'Expenses' },
+  { to: '/staff', label: 'Staff' },
+]
+
+const staffLinks = [
+  { to: '/dashboard', label: 'Dashboard' },
+  { to: '/pos', label: 'POS Billing' },
+  { to: '/products', label: 'Products' },
 ]
 
 function Sidebar() {
   const navigate = useNavigate()
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const visibleLinks = user.role === 'staff' ? staffLinks : ownerLinks
 
   const logout = () => {
     localStorage.removeItem('token')
@@ -29,7 +38,7 @@ function Sidebar() {
       </div>
 
       <nav className="sidebar-nav">
-        {links.map((link) => (
+        {visibleLinks.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}

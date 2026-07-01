@@ -26,6 +26,8 @@ const productToForm = (product) => ({
 })
 
 function Products() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const isOwner = user.role === 'owner'
   const [products, setProducts] = useState([])
   const [form, setForm] = useState(initialForm)
   const [editingId, setEditingId] = useState(null)
@@ -122,76 +124,78 @@ function Products() {
   }
 
   return (
-    <section className="page-grid">
-      <section className="panel">
-        <div className="section-heading">
-          <h2>{editingId ? 'Edit Product' : 'Add Product'}</h2>
-          {editingId && (
-            <button type="button" className="ghost-button" onClick={resetForm}>
-              Cancel
+    <section className={isOwner ? 'page-grid' : 'page-stack'}>
+      {isOwner && (
+        <section className="panel">
+          <div className="section-heading">
+            <h2>{editingId ? 'Edit Product' : 'Add Product'}</h2>
+            {editingId && (
+              <button type="button" className="ghost-button" onClick={resetForm}>
+                Cancel
+              </button>
+            )}
+          </div>
+          <form onSubmit={submit} className="form-grid">
+            {error && <div className="alert full-width">{error}</div>}
+            {message && <div className="success full-width">{message}</div>}
+            <label>
+              Product Name
+              <input name="product_name" value={form.product_name} onChange={updateField} required />
+            </label>
+            <label>
+              Category
+              <input name="category" value={form.category} onChange={updateField} />
+            </label>
+            <label>
+              Buying Price
+              <input
+                name="buying_price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.buying_price}
+                onChange={updateField}
+                required
+              />
+            </label>
+            <label>
+              Selling Price
+              <input
+                name="selling_price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.selling_price}
+                onChange={updateField}
+                required
+              />
+            </label>
+            <label>
+              Stock Quantity
+              <input
+                name="stock_quantity"
+                type="number"
+                min="0"
+                value={form.stock_quantity}
+                onChange={updateField}
+              />
+            </label>
+            <label>
+              Low Stock Limit
+              <input
+                name="low_stock_limit"
+                type="number"
+                min="0"
+                value={form.low_stock_limit}
+                onChange={updateField}
+              />
+            </label>
+            <button type="submit" className="full-width" disabled={saving}>
+              {saving ? 'Saving...' : editingId ? 'Update Product' : 'Add Product'}
             </button>
-          )}
-        </div>
-        <form onSubmit={submit} className="form-grid">
-          {error && <div className="alert full-width">{error}</div>}
-          {message && <div className="success full-width">{message}</div>}
-          <label>
-            Product Name
-            <input name="product_name" value={form.product_name} onChange={updateField} required />
-          </label>
-          <label>
-            Category
-            <input name="category" value={form.category} onChange={updateField} />
-          </label>
-          <label>
-            Buying Price
-            <input
-              name="buying_price"
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.buying_price}
-              onChange={updateField}
-              required
-            />
-          </label>
-          <label>
-            Selling Price
-            <input
-              name="selling_price"
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.selling_price}
-              onChange={updateField}
-              required
-            />
-          </label>
-          <label>
-            Stock Quantity
-            <input
-              name="stock_quantity"
-              type="number"
-              min="0"
-              value={form.stock_quantity}
-              onChange={updateField}
-            />
-          </label>
-          <label>
-            Low Stock Limit
-            <input
-              name="low_stock_limit"
-              type="number"
-              min="0"
-              value={form.low_stock_limit}
-              onChange={updateField}
-            />
-          </label>
-          <button type="submit" className="full-width" disabled={saving}>
-            {saving ? 'Saving...' : editingId ? 'Update Product' : 'Add Product'}
-          </button>
-        </form>
-      </section>
+          </form>
+        </section>
+      )}
 
       <section className="panel wide-panel">
         <div className="section-heading">
@@ -204,6 +208,8 @@ function Products() {
           <div className="loading-panel">Loading products...</div>
         ) : (
           <div className="table-wrap">
+            {!isOwner && error && <div className="alert">{error}</div>}
+            {!isOwner && message && <div className="success">{message}</div>}
             <table>
               <thead>
                 <tr>
@@ -213,7 +219,7 @@ function Products() {
                   <th>Sell</th>
                   <th>Stock</th>
                   <th>Low Limit</th>
-                  <th>Action</th>
+                  {isOwner && <th>Action</th>}
                 </tr>
               </thead>
               <tbody>
@@ -232,27 +238,29 @@ function Products() {
                       <td>{formatMoney(product.selling_price)}</td>
                       <td>{product.stock_quantity}</td>
                       <td>{product.low_stock_limit}</td>
-                      <td>
-                        <div className="table-actions">
-                          <button type="button" className="ghost-button" onClick={() => startEdit(product)}>
-                            Edit
-                          </button>
-                          <button
-                            type="button"
-                            className="danger-button"
-                            onClick={() => deleteProduct(product)}
-                            disabled={deletingId === product.id}
-                          >
-                            {deletingId === product.id ? 'Deleting...' : 'Delete'}
-                          </button>
-                        </div>
-                      </td>
+                      {isOwner && (
+                        <td>
+                          <div className="table-actions">
+                            <button type="button" className="ghost-button" onClick={() => startEdit(product)}>
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="danger-button"
+                              onClick={() => deleteProduct(product)}
+                              disabled={deletingId === product.id}
+                            >
+                              {deletingId === product.id ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan="7" className="empty-cell">
+                    <td colSpan={isOwner ? 7 : 6} className="empty-cell">
                       No products found.
                     </td>
                   </tr>
