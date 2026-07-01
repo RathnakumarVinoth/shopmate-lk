@@ -417,6 +417,21 @@ th {
   margin-bottom: 14px;
 }
 
+.barcode-scanner {
+  margin-bottom: 14px;
+  border: 1px solid #d7e3ee;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fbfd;
+}
+
+.scanner-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
 .product-tile {
   display: grid;
   gap: 6px;
@@ -440,6 +455,12 @@ th {
 
 .product-tile small {
   color: #64748b;
+}
+
+.product-code-line {
+  overflow-wrap: anywhere;
+  color: #475569 !important;
+  font-size: 12px;
 }
 
 .low-stock-tile {
@@ -812,7 +833,8 @@ th {
   }
 
   .cart-row,
-  .inline-action {
+  .inline-action,
+  .scanner-row {
     grid-template-columns: 1fr;
   }
 

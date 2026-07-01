@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../services/api'
@@ -217,6 +217,7 @@ function POS() {
   const [products, setProducts] = useState([])
   const [cart, setCart] = useState({})
   const [search, setSearch] = useState('')
+  const [codeInput, setCodeInput] = useState('')
   const [paymentType, setPaymentType] = useState('cash')
   const [discountAmount, setDiscountAmount] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
@@ -225,6 +226,8 @@ function POS() {
   const [error, setError] = useState('')
   const [loadingProducts, setLoadingProducts] = useState(true)
   const [savingSale, setSavingSale] = useState(false)
+  const [scanningCode, setScanningCode] = useState(false)
+  const codeInputRef = useRef(null)
 
   const loadProducts = async () => {
     setLoadingProducts(true)
@@ -242,6 +245,10 @@ function POS() {
 
   useEffect(() => {
     loadProducts()
+  }, [])
+
+  useEffect(() => {
+    codeInputRef.current?.focus()
   }, [])
 
   useEffect(() => {
@@ -299,6 +306,68 @@ function POS() {
         [product.id]: { ...product, quantity: nextQuantity },
       }
     })
+  }
+
+  const addScannedProductToCart = (product) => {
+    const stock = Number(product.stock_quantity)
+    const current = cart[product.id]
+
+    if (stock <= 0) {
+      setError('Product out of stock')
+      codeInputRef.current?.focus()
+      return false
+    }
+
+    if (current && current.quantity >= stock) {
+      setError(`Stock limit reached for ${product.product_name}`)
+      codeInputRef.current?.focus()
+      return false
+    }
+
+    setCart((currentCart) => ({
+      ...currentCart,
+      [product.id]: {
+        ...product,
+        quantity: currentCart[product.id] ? currentCart[product.id].quantity + 1 : 1,
+      },
+    }))
+
+    setMessage(`${product.product_name} added to cart`)
+    setError('')
+    setCodeInput('')
+    codeInputRef.current?.focus()
+    return true
+  }
+
+  const addByCode = async () => {
+    const code = codeInput.trim()
+
+    if (!code) {
+      setError('Scan barcode or enter product code')
+      codeInputRef.current?.focus()
+      return
+    }
+
+    setScanningCode(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await api.get(`/products/search-code/${encodeURIComponent(code)}`)
+      addScannedProductToCart(response.data)
+    } catch (err) {
+      setError(getApiMessage(err, 'Product not found'))
+      codeInputRef.current?.focus()
+    } finally {
+      setScanningCode(false)
+    }
+  }
+
+  const handleCodeKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      addByCode()
+    }
   }
 
   const setQuantity = (productId, value) => {
@@ -405,6 +474,25 @@ function POS() {
           </button>
         </div>
 
+        <section className="barcode-scanner">
+          <label>
+            Barcode / Product Code
+            <div className="scanner-row">
+              <input
+                ref={codeInputRef}
+                value={codeInput}
+                onChange={(event) => setCodeInput(event.target.value)}
+                onKeyDown={handleCodeKeyDown}
+                placeholder="Scan barcode or enter product code"
+                autoFocus
+              />
+              <button type="button" onClick={addByCode} disabled={scanningCode}>
+                {scanningCode ? 'Adding...' : 'Add by Code'}
+              </button>
+            </div>
+          </label>
+        </section>
+
         <label className="search-field">
           Search products
           <input
@@ -433,6 +521,13 @@ function POS() {
                   <strong>{product.product_name}</strong>
                   <span>{formatMoney(product.selling_price)}</span>
                   <small>{product.category || 'Uncategorized'}</small>
+                  {(product.product_code || product.barcode) && (
+                    <small className="product-code-line">
+                      {product.product_code ? `SKU ${product.product_code}` : ''}
+                      {product.product_code && product.barcode ? ' | ' : ''}
+                      {product.barcode ? `Barcode ${product.barcode}` : ''}
+                    </small>
+                  )}
                   <small className={lowStock ? 'stock-warning' : ''}>
                     Stock {stock}
                     {lowStock ? ' - Low stock' : ''}

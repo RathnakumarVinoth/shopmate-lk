@@ -4,6 +4,8 @@ import { formatMoney, getApiMessage } from '../utils/formatters'
 
 const initialForm = {
   product_name: '',
+  product_code: '',
+  barcode: '',
   category: '',
   buying_price: '',
   selling_price: '',
@@ -18,12 +20,19 @@ const getProductsFromResponse = (data) => {
 
 const productToForm = (product) => ({
   product_name: product.product_name || '',
+  product_code: product.product_code ?? '',
+  barcode: product.barcode ?? '',
   category: product.category || '',
   buying_price: product.buying_price ?? '',
   selling_price: product.selling_price ?? '',
   stock_quantity: product.stock_quantity ?? '',
   low_stock_limit: product.low_stock_limit ?? '',
 })
+
+const optionalText = (value) => {
+  const trimmed = String(value ?? '').trim()
+  return trimmed || null
+}
 
 function Products() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
@@ -71,7 +80,10 @@ function Products() {
     setSaving(true)
 
     const payload = {
-      ...form,
+      product_name: form.product_name.trim(),
+      product_code: optionalText(form.product_code),
+      barcode: optionalText(form.barcode),
+      category: optionalText(form.category),
       buying_price: Number(form.buying_price),
       selling_price: Number(form.selling_price),
       stock_quantity: Number(form.stock_quantity || 0),
@@ -141,6 +153,14 @@ function Products() {
             <label>
               Product Name
               <input name="product_name" value={form.product_name} onChange={updateField} required />
+            </label>
+            <label>
+              Product Code / SKU
+              <input name="product_code" value={form.product_code} onChange={updateField} />
+            </label>
+            <label>
+              Barcode
+              <input name="barcode" value={form.barcode} onChange={updateField} />
             </label>
             <label>
               Category
@@ -214,6 +234,8 @@ function Products() {
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Code / SKU</th>
+                  <th>Barcode</th>
                   <th>Category</th>
                   <th>Buy</th>
                   <th>Sell</th>
@@ -233,6 +255,8 @@ function Products() {
                         <strong>{product.product_name}</strong>
                         {isLowStock && <span className="warning-badge">Low stock</span>}
                       </td>
+                      <td>{product.product_code || '-'}</td>
+                      <td>{product.barcode || '-'}</td>
                       <td>{product.category || '-'}</td>
                       <td>{formatMoney(product.buying_price)}</td>
                       <td>{formatMoney(product.selling_price)}</td>
@@ -260,7 +284,7 @@ function Products() {
                 })}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan={isOwner ? 7 : 6} className="empty-cell">
+                    <td colSpan={isOwner ? 9 : 8} className="empty-cell">
                       No products found.
                     </td>
                   </tr>
