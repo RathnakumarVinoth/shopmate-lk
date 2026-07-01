@@ -5,6 +5,8 @@ const links = [
   { to: '/products', label: 'Products' },
   { to: '/pos', label: 'POS Billing' },
   { to: '/credits', label: 'Credit Book' },
+  { to: '/suppliers', label: 'Suppliers' },
+  { to: '/expenses', label: 'Expenses' },
 ]
 
 function Sidebar() {

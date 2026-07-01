@@ -5,10 +5,12 @@ import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import CreditBook from './pages/CreditBook.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import Expenses from './pages/Expenses.jsx'
 import Login from './pages/Login.jsx'
 import POS from './pages/POS.jsx'
 import Products from './pages/Products.jsx'
 import Register from './pages/Register.jsx'
+import Suppliers from './pages/Suppliers.jsx'
 
 function App() {
   const hasToken = Boolean(localStorage.getItem('token'))
@@ -33,6 +35,8 @@ function App() {
           <Route path="/products" element={<Products />} />
           <Route path="/pos" element={<POS />} />
           <Route path="/credits" element={<CreditBook />} />
+          <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/expenses" element={<Expenses />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -53,6 +53,10 @@ function Dashboard() {
     { label: 'Low Stock Count', value: dashboard.low_stock_count },
     { label: 'Credit Balance', value: formatMoney(dashboard.total_credit_balance) },
     { label: 'Total Customers', value: dashboard.total_customers },
+    { label: 'Today Expenses', value: formatMoney(dashboard.today_expenses) },
+    { label: 'Month Expenses', value: formatMoney(dashboard.month_expenses) },
+    { label: 'Supplier Balance', value: formatMoney(dashboard.supplier_balance) },
+    { label: 'Net Profit Today', value: formatMoney(dashboard.net_profit_today) },
   ]
 
   return (
