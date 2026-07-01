@@ -12,6 +12,7 @@ const productRoutes = require("./routes/productRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const saleRoutes = require("./routes/saleRoutes");
 const staffRoutes = require("./routes/staffRoutes");
+const stockRoutes = require("./routes/stockRoutes");
 const supplierRoutes = require("./routes/supplierRoutes");
 
 const app = express();
@@ -31,6 +32,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/staff", staffRoutes);
+app.use("/api/stock", stockRoutes);
 app.use("/api/suppliers", supplierRoutes);
 
 const PORT = process.env.PORT || 5000;

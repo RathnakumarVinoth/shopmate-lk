@@ -333,6 +333,15 @@ th {
   color: #718096;
 }
 
+.empty-state {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  background: #f8fafc;
+}
+
 .table-actions {
   display: flex;
   flex-wrap: wrap;

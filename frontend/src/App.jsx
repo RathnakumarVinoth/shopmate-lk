@@ -12,6 +12,7 @@ import Products from './pages/Products.jsx'
 import Register from './pages/Register.jsx'
 import Reports from './pages/Reports.jsx'
 import Staff from './pages/Staff.jsx'
+import Stock from './pages/Stock.jsx'
 import Suppliers from './pages/Suppliers.jsx'
 
 function App() {
@@ -49,6 +50,14 @@ function App() {
             element={
               <ProtectedRoute roles={['owner']}>
                 <Suppliers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/stock"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <Stock />
               </ProtectedRoute>
             }
           />

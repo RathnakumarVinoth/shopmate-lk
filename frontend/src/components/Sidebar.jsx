@@ -6,6 +6,7 @@ const ownerLinks = [
   { to: '/pos', label: 'POS Billing' },
   { to: '/credits', label: 'Credit Book' },
   { to: '/suppliers', label: 'Suppliers' },
+  { to: '/stock', label: 'Stock' },
   { to: '/expenses', label: 'Expenses' },
   { to: '/reports', label: 'Reports' },
   { to: '/staff', label: 'Staff' },
