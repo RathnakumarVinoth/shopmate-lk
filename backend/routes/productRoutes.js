@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
   addProduct,
@@ -11,10 +12,10 @@ const {
   deleteProduct,
 } = require("../controllers/productController");
 
-router.post("/", authMiddleware, addProduct);
-router.get("/", authMiddleware, getProducts);
-router.get("/low-stock", authMiddleware, getLowStockProducts);
-router.put("/:id", authMiddleware, updateProduct);
-router.delete("/:id", authMiddleware, deleteProduct);
+router.post("/", authMiddleware, allowRoles("owner"), addProduct);
+router.get("/", authMiddleware, allowRoles("owner", "staff"), getProducts);
+router.get("/low-stock", authMiddleware, allowRoles("owner", "staff"), getLowStockProducts);
+router.put("/:id", authMiddleware, allowRoles("owner"), updateProduct);
+router.delete("/:id", authMiddleware, allowRoles("owner"), deleteProduct);
 
 module.exports = router;

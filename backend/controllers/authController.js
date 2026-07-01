@@ -47,7 +47,7 @@ exports.register = async (req, res) => {
     await connection.beginTransaction();
 
     const [userResult] = await connection.query(
-      "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
+      "INSERT INTO users (name, email, password, role, is_active) VALUES (?, ?, ?, ?, 1)",
       [name, email, hashedPassword, "owner"]
     );
 
@@ -57,6 +57,11 @@ exports.register = async (req, res) => {
       "INSERT INTO shops (owner_id, shop_name, phone, address) VALUES (?, ?, ?, ?)",
       [ownerId, shop_name, phone, address]
     );
+
+    await connection.query("UPDATE users SET shop_id = ? WHERE id = ?", [
+      shopResult.insertId,
+      ownerId,
+    ]);
 
     await connection.commit();
 
@@ -102,7 +107,7 @@ exports.login = async (req, res) => {
   try {
     const [users] = await db.promise().query(
       `SELECT users.id, users.name, users.email, users.password, users.role,
-              shops.id AS shop_id
+              users.is_active, COALESCE(users.shop_id, shops.id) AS shop_id
        FROM users
        LEFT JOIN shops ON shops.owner_id = users.id
        WHERE users.email = ?
@@ -115,6 +120,11 @@ exports.login = async (req, res) => {
     }
 
     const user = users[0];
+
+    if (!user.is_active) {
+      return res.status(403).json({ message: "Account is inactive" });
+    }
+
     const passwordMatches = await bcrypt.compare(password, user.password);
 
     if (!passwordMatches) {

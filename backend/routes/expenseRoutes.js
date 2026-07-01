@@ -8,13 +8,16 @@ const {
   updateExpense,
 } = require("../controllers/expenseController");
 const authMiddleware = require("../middleware/authMiddleware");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.post("/", authMiddleware, addExpense);
-router.get("/", authMiddleware, getExpenses);
-router.get("/summary", authMiddleware, getExpenseSummary);
-router.put("/:id", authMiddleware, updateExpense);
-router.delete("/:id", authMiddleware, deleteExpense);
+router.use(authMiddleware, allowRoles("owner"));
+
+router.post("/", addExpense);
+router.get("/", getExpenses);
+router.get("/summary", getExpenseSummary);
+router.put("/:id", updateExpense);
+router.delete("/:id", deleteExpense);
 
 module.exports = router;

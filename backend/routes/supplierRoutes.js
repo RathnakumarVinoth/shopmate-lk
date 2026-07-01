@@ -11,17 +11,20 @@ const {
   updateSupplier,
 } = require("../controllers/supplierController");
 const authMiddleware = require("../middleware/authMiddleware");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.post("/", authMiddleware, addSupplier);
-router.get("/", authMiddleware, getSuppliers);
-router.put("/:id", authMiddleware, updateSupplier);
-router.delete("/:id", authMiddleware, deleteSupplier);
+router.use(authMiddleware, allowRoles("owner"));
 
-router.post("/transactions", authMiddleware, addSupplierTransaction);
-router.get("/transactions", authMiddleware, getSupplierTransactions);
-router.put("/transactions/:id/pay", authMiddleware, paySupplierTransaction);
-router.get("/summary", authMiddleware, getSupplierSummary);
+router.post("/", addSupplier);
+router.get("/", getSuppliers);
+router.put("/:id", updateSupplier);
+router.delete("/:id", deleteSupplier);
+
+router.post("/transactions", addSupplierTransaction);
+router.get("/transactions", getSupplierTransactions);
+router.put("/transactions/:id/pay", paySupplierTransaction);
+router.get("/summary", getSupplierSummary);
 
 module.exports = router;
