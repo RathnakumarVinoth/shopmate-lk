@@ -1,8 +1,13 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
 
+import AdminLayout from './components/AdminLayout.jsx'
 import Layout from './components/Layout.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import AdminDashboard from './pages/AdminDashboard.jsx'
+import AdminLogin from './pages/AdminLogin.jsx'
+import AdminShopDetails from './pages/AdminShopDetails.jsx'
+import AdminShops from './pages/AdminShops.jsx'
 import BackupExport from './pages/BackupExport.jsx'
 import CreditBook from './pages/CreditBook.jsx'
 import Dashboard from './pages/Dashboard.jsx'
@@ -22,19 +27,22 @@ import Suppliers from './pages/Suppliers.jsx'
 
 function App() {
   const hasToken = Boolean(localStorage.getItem('token'))
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const homePath = user.role === 'admin' ? '/admin/dashboard' : '/dashboard'
 
   return (
     <BrowserRouter>
       <Routes>
         <Route
           path="/"
-          element={<Navigate to={hasToken ? '/dashboard' : '/login'} replace />}
+          element={<Navigate to={hasToken ? homePath : '/login'} replace />}
         />
         <Route path="/login" element={<Login />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/register" element={<Register />} />
         <Route
           element={
-            <ProtectedRoute>
+            <ProtectedRoute roles={['owner', 'staff']}>
               <Layout />
             </ProtectedRoute>
           }
@@ -130,6 +138,17 @@ function App() {
               </ProtectedRoute>
             }
           />
+        </Route>
+        <Route
+          element={
+            <ProtectedRoute roles={['admin']}>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/shops" element={<AdminShops />} />
+          <Route path="/admin/shops/:id" element={<AdminShopDetails />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

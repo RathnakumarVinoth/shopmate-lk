@@ -107,9 +107,12 @@ exports.login = async (req, res) => {
   try {
     const [users] = await db.promise().query(
       `SELECT users.id, users.name, users.email, users.password, users.role,
-              users.is_active, COALESCE(users.shop_id, shops.id) AS shop_id
+              users.is_active, COALESCE(users.shop_id, shops.id) AS shop_id,
+              shops.is_enabled, shops.subscription_status,
+              shops.subscription_expiry_date
        FROM users
        LEFT JOIN shops ON shops.owner_id = users.id
+         OR shops.id = users.shop_id
        WHERE users.email = ?
        LIMIT 1`,
       [email]
@@ -131,12 +134,45 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    if (user.role !== "admin") {
+      if (!user.shop_id) {
+        return res.status(403).json({ message: "Shop account not found" });
+      }
+
+      if (user.is_enabled !== null && Number(user.is_enabled) === 0) {
+        return res
+          .status(403)
+          .json({ message: "Shop account is disabled. Contact support." });
+      }
+
+      if (user.subscription_status === "suspended") {
+        return res
+          .status(403)
+          .json({ message: "Subscription suspended. Contact support." });
+      }
+
+      if (user.subscription_status === "expired") {
+        return res
+          .status(403)
+          .json({ message: "Subscription expired. Please renew." });
+      }
+
+      if (
+        user.subscription_expiry_date &&
+        new Date(user.subscription_expiry_date) < new Date()
+      ) {
+        return res
+          .status(403)
+          .json({ message: "Subscription expired. Please renew." });
+      }
+    }
+
     const tokenUser = {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
-      shop_id: user.shop_id,
+      shop_id: user.role === "admin" ? null : user.shop_id,
     };
 
     const token = signToken(tokenUser);
