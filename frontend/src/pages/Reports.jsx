@@ -85,6 +85,9 @@ function Reports() {
 
   const summaryCards = [
     { label: 'Total Sales', value: formatMoney(summary.total_sales) },
+    { label: 'Total Refunds', value: formatMoney(summary.total_refunds) },
+    { label: 'Net Sales', value: formatMoney(summary.net_sales) },
+    { label: 'Total Returns', value: summary.total_returns || 0 },
     { label: 'Total Profit', value: formatMoney(summary.total_profit) },
     { label: 'Total Expenses', value: formatMoney(summary.total_expenses) },
     { label: 'Net Profit', value: formatMoney(summary.net_profit) },

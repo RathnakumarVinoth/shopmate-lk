@@ -216,7 +216,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-height: 42px;
   border: 1px solid #cfd8e3;
@@ -224,12 +225,18 @@ select {
   padding: 9px 11px;
   color: #17212b;
   background: #ffffff;
+  font: inherit;
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: 3px solid rgba(16, 185, 129, 0.2);
   border-color: #10b981;
+}
+
+textarea {
+  resize: vertical;
 }
 
 button {
@@ -613,6 +620,19 @@ th {
 .summary-box strong,
 .receipt-totals strong {
   color: #101820;
+}
+
+.return-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.return-qty-input {
+  width: 92px;
+  min-height: 36px;
+}
+
+.return-reason {
+  margin-top: 16px;
 }
 
 .summary-total {

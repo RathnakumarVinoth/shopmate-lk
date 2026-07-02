@@ -12,6 +12,7 @@ import POS from './pages/POS.jsx'
 import Products from './pages/Products.jsx'
 import Register from './pages/Register.jsx'
 import Reports from './pages/Reports.jsx'
+import Returns from './pages/Returns.jsx'
 import Settings from './pages/Settings.jsx'
 import Staff from './pages/Staff.jsx'
 import Stock from './pages/Stock.jsx'
@@ -76,6 +77,14 @@ function App() {
             element={
               <ProtectedRoute roles={['owner']}>
                 <Staff />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/returns"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <Returns />
               </ProtectedRoute>
             }
           />

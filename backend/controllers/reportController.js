@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { ensureReturnTables } = require("./returnController");
 
 const toNumber = (value) => Number(value || 0);
 
@@ -27,12 +28,15 @@ exports.getSummary = async (req, res) => {
   const { start_date, end_date } = getDateRange(req);
 
   try {
+    await ensureReturnTables();
+
     const [
       [salesRows],
       [expenseRows],
       [creditRows],
       [supplierRows],
       [productRows],
+      [returnRows],
     ] = await Promise.all([
       db.promise().query(
         `SELECT
@@ -70,6 +74,14 @@ exports.getSummary = async (req, res) => {
          WHERE shop_id = ?`,
         [shopId]
       ),
+      db.promise().query(
+        `SELECT
+           COUNT(*) AS total_returns,
+           COALESCE(SUM(refund_amount), 0) AS total_refunds
+         FROM sales_returns
+         WHERE shop_id = ? AND DATE(created_at) BETWEEN ? AND ?`,
+        [shopId, start_date, end_date]
+      ),
     ]);
 
     const sales = salesRows[0];
@@ -77,13 +89,19 @@ exports.getSummary = async (req, res) => {
     const credits = creditRows[0];
     const suppliers = supplierRows[0];
     const products = productRows[0];
+    const returns = returnRows[0] || {};
+    const totalSales = toNumber(sales.total_sales);
+    const totalRefunds = toNumber(returns.total_refunds);
     const totalProfit = toNumber(sales.total_profit);
     const totalExpenses = toNumber(expenses.total_expenses);
 
     return res.json({
       start_date,
       end_date,
-      total_sales: toNumber(sales.total_sales),
+      total_sales: totalSales,
+      total_returns: Number(returns.total_returns || 0),
+      total_refunds: totalRefunds,
+      net_sales: totalSales - totalRefunds,
       total_profit: totalProfit,
       total_expenses: totalExpenses,
       net_profit: totalProfit - totalExpenses,
