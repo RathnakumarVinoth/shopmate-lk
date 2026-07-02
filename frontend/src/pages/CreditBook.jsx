@@ -13,12 +13,14 @@ function CreditBook() {
   })
   const [creditForm, setCreditForm] = useState({ customer_id: '', credit_amount: '' })
   const [payments, setPayments] = useState({})
+  const [customerHistory, setCustomerHistory] = useState(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [savingCustomer, setSavingCustomer] = useState(false)
   const [savingCredit, setSavingCredit] = useState(false)
   const [payingId, setPayingId] = useState(null)
+  const [loadingHistoryId, setLoadingHistoryId] = useState(null)
 
   const loadCreditData = async (showLoader = true) => {
     if (showLoader) setLoading(true)
@@ -117,6 +119,21 @@ function CreditBook() {
       setError(getApiMessage(err, 'Failed to record payment'))
     } finally {
       setPayingId(null)
+    }
+  }
+
+  const viewCustomerHistory = async (customer) => {
+    setError('')
+    setMessage('')
+    setLoadingHistoryId(customer.id)
+
+    try {
+      const response = await api.get(`/credits/customers/${customer.id}/history`)
+      setCustomerHistory(response.data)
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to load customer history'))
+    } finally {
+      setLoadingHistoryId(null)
     }
   }
 
@@ -244,6 +261,7 @@ function CreditBook() {
                     <th>Name</th>
                     <th>Phone</th>
                     <th>Address</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -252,11 +270,21 @@ function CreditBook() {
                       <td>{customer.customer_name}</td>
                       <td>{customer.phone || '-'}</td>
                       <td>{customer.address || '-'}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => viewCustomerHistory(customer)}
+                          disabled={loadingHistoryId === customer.id}
+                        >
+                          {loadingHistoryId === customer.id ? 'Loading...' : 'View History'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {customers.length === 0 && (
                     <tr>
-                      <td colSpan="3" className="empty-cell">
+                      <td colSpan="4" className="empty-cell">
                         No customers found.
                       </td>
                     </tr>
@@ -339,6 +367,129 @@ function CreditBook() {
               </table>
             </div>
           </section>
+
+          {customerHistory && (
+            <div className="modal-backdrop">
+              <section className="receipt-modal history-modal">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">Customer History</p>
+                    <h2>{customerHistory.customer?.customer_name}</h2>
+                  </div>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => setCustomerHistory(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="summary-box">
+                  <div>
+                    <span>Phone</span>
+                    <strong>{customerHistory.customer?.phone || '-'}</strong>
+                  </div>
+                  <div>
+                    <span>Address</span>
+                    <strong>{customerHistory.customer?.address || '-'}</strong>
+                  </div>
+                  <div>
+                    <span>Total Purchases</span>
+                    <strong>{formatMoney(customerHistory.summary?.total_purchases)}</strong>
+                  </div>
+                  <div>
+                    <span>Total Credit</span>
+                    <strong>{formatMoney(customerHistory.summary?.total_credit)}</strong>
+                  </div>
+                  <div>
+                    <span>Total Paid</span>
+                    <strong>{formatMoney(customerHistory.summary?.total_paid)}</strong>
+                  </div>
+                  <div>
+                    <span>Total Balance</span>
+                    <strong>{formatMoney(customerHistory.summary?.total_balance)}</strong>
+                  </div>
+                </div>
+
+                <section className="history-section">
+                  <h3>Sales History</h3>
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Invoice</th>
+                          <th>Total</th>
+                          <th>Paid</th>
+                          <th>Balance</th>
+                          <th>Payment</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(customerHistory.sales || []).map((sale) => (
+                          <tr key={sale.id}>
+                            <td>{sale.invoice_no || sale.id}</td>
+                            <td>{formatMoney(sale.total_amount)}</td>
+                            <td>{formatMoney(sale.paid_amount)}</td>
+                            <td>{formatMoney(Math.abs(Number(sale.balance_amount || 0)))}</td>
+                            <td>{sale.payment_type}</td>
+                            <td>{String(sale.created_at).slice(0, 10)}</td>
+                          </tr>
+                        ))}
+                        {(customerHistory.sales || []).length === 0 && (
+                          <tr>
+                            <td colSpan="6" className="empty-cell">
+                              No sales found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+
+                <section className="history-section">
+                  <h3>Credit Records</h3>
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Sale</th>
+                          <th>Credit</th>
+                          <th>Paid</th>
+                          <th>Balance</th>
+                          <th>Status</th>
+                          <th>Date</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(customerHistory.credits || []).map((credit) => (
+                          <tr key={credit.id}>
+                            <td>{credit.sale_id || '-'}</td>
+                            <td>{formatMoney(credit.credit_amount)}</td>
+                            <td>{formatMoney(credit.paid_amount)}</td>
+                            <td>{formatMoney(credit.balance_amount)}</td>
+                            <td>
+                              <span className={`status ${credit.status}`}>{credit.status}</span>
+                            </td>
+                            <td>{String(credit.created_at).slice(0, 10)}</td>
+                          </tr>
+                        ))}
+                        {(customerHistory.credits || []).length === 0 && (
+                          <tr>
+                            <td colSpan="6" className="empty-cell">
+                              No credit records found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              </section>
+            </div>
+          )}
         </>
       )}
     </section>

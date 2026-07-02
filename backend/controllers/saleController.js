@@ -71,6 +71,19 @@ const validateSaleRequest = (body) => {
     errors.push("paid_amount must be a non-negative number");
   }
 
+  if (
+    body.customer_id !== undefined &&
+    body.customer_id !== null &&
+    body.customer_id !== "" &&
+    !isPositiveInteger(body.customer_id)
+  ) {
+    errors.push("customer_id must be a positive integer");
+  }
+
+  if (paymentType === "credit" && !isPositiveInteger(body.customer_id)) {
+    errors.push("customer_id is required for credit sales");
+  }
+
   return errors;
 };
 
@@ -91,18 +104,28 @@ const formatSaleItem = (item) => ({
   profit: Number(item.profit),
 });
 
-const buildReceipt = ({ sale, shop, items }) => {
+const buildReceipt = ({ sale, shop, customer, items }) => {
   const formattedSale = formatSale(sale);
   const receiptItems = items.map(formatSaleItem);
   const itemsTotal = formatMoney(
     receiptItems.reduce((sum, item) => sum + item.subtotal, 0)
   );
+  const receiptCustomer = customer || {};
 
   return {
     invoice_no:
       formattedSale.invoice_no ||
       generateInvoiceNo(formattedSale.id, formattedSale.created_at),
     sale_id: formattedSale.id,
+    customer_id: formattedSale.customer_id || receiptCustomer.id || null,
+    customer_name: receiptCustomer.customer_name || sale.customer_name || null,
+    customer_phone:
+      receiptCustomer.phone || receiptCustomer.customer_phone || sale.customer_phone || null,
+    customer_address:
+      receiptCustomer.address ||
+      receiptCustomer.customer_address ||
+      sale.customer_address ||
+      null,
     shop_name: shop?.shop_name || "ShopMate LK",
     shop_phone: shop?.phone || null,
     shop_email: shop?.email || null,
@@ -138,6 +161,10 @@ exports.createSale = async (req, res) => {
   const shopId = req.user.shop_id;
   const userId = req.user.id;
   const paymentType = req.body.payment_type || "cash";
+  const customerId =
+    req.body.customer_id === undefined || req.body.customer_id === null || req.body.customer_id === ""
+      ? null
+      : Number(req.body.customer_id);
   const discountAmount = formatMoney(Number(req.body.discount_amount || 0));
   const paidAmount = formatMoney(
     paymentType === "credit"
@@ -165,6 +192,25 @@ exports.createSale = async (req, res) => {
        LIMIT 1`,
       [shopId]
     );
+
+    let customer = null;
+
+    if (customerId) {
+      const [customers] = await connection.query(
+        `SELECT id, customer_name, phone, address
+         FROM customers
+         WHERE id = ? AND shop_id = ?
+         LIMIT 1`,
+        [customerId, shopId]
+      );
+
+      if (customers.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      customer = customers[0];
+    }
 
     const [products] = await connection.query(
       "SELECT id, product_name, buying_price, selling_price, stock_quantity FROM products WHERE shop_id = ? AND id IN (?) FOR UPDATE",
@@ -232,15 +278,35 @@ exports.createSale = async (req, res) => {
     const totalProfit = formatMoney(
       saleItems.reduce((sum, item) => sum + item.profit, 0) - discountAmount
     );
-    const balanceAmount = formatMoney(paidAmount - totalAmount);
+    if (paymentType === "credit" && paidAmount > totalAmount) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "paid_amount cannot be greater than total amount for credit sales",
+        total_amount: totalAmount,
+      });
+    }
+
+    if (paymentType !== "credit" && paidAmount < totalAmount) {
+      await connection.rollback();
+      return res.status(400).json({
+        message: "paid_amount must be greater than or equal to total amount",
+        total_amount: totalAmount,
+      });
+    }
+
+    const balanceAmount =
+      paymentType === "credit"
+        ? formatMoney(totalAmount - paidAmount)
+        : formatMoney(paidAmount - totalAmount);
 
     const [saleResult] = await connection.query(
       `INSERT INTO sales
-       (shop_id, user_id, total_amount, discount_amount, total_profit, payment_type, paid_amount, balance_amount)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       (shop_id, user_id, customer_id, total_amount, discount_amount, total_profit, payment_type, paid_amount, balance_amount)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         shopId,
         userId,
+        customerId,
         totalAmount,
         discountAmount,
         totalProfit,
@@ -282,8 +348,34 @@ exports.createSale = async (req, res) => {
       );
     }
 
+    let creditRecordId = null;
+
+    if (paymentType === "credit") {
+      let status = "unpaid";
+
+      if (balanceAmount === 0) {
+        status = "paid";
+      } else if (paidAmount > 0 && balanceAmount > 0) {
+        status = "partial";
+      }
+
+      const [creditResult] = await connection.query(
+        `INSERT INTO credit_records
+         (shop_id, customer_id, sale_id, credit_amount, paid_amount, balance_amount, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [shopId, customerId, saleId, totalAmount, paidAmount, balanceAmount, status]
+      );
+
+      creditRecordId = creditResult.insertId;
+    }
+
     const [sales] = await connection.query(
-      "SELECT * FROM sales WHERE id = ? AND shop_id = ? LIMIT 1",
+      `SELECT sales.*, customers.customer_name, customers.phone AS customer_phone,
+              customers.address AS customer_address
+       FROM sales
+       LEFT JOIN customers ON customers.id = sales.customer_id
+       WHERE sales.id = ? AND sales.shop_id = ?
+       LIMIT 1`,
       [saleId, shopId]
     );
 
@@ -292,6 +384,7 @@ exports.createSale = async (req, res) => {
     const receipt = buildReceipt({
       sale: sales[0],
       shop: shops[0],
+      customer: customer || sales[0],
       items: saleItems,
     });
 
@@ -302,6 +395,7 @@ exports.createSale = async (req, res) => {
         ...formatSale(sales[0]),
         items_total: itemsTotal,
         items: saleItems.map(formatSaleItem),
+        credit_record_id: creditRecordId,
       },
     });
   } catch (error) {
@@ -322,9 +416,12 @@ exports.getSales = async (req, res) => {
       `SELECT sales.id, sales.invoice_no, sales.shop_id, sales.user_id,
               users.name AS user_name, sales.total_amount,
               sales.discount_amount, sales.total_profit, sales.payment_type,
-              sales.paid_amount, sales.balance_amount, sales.created_at
+              sales.paid_amount, sales.balance_amount, sales.customer_id,
+              customers.customer_name, customers.phone AS customer_phone,
+              sales.created_at
        FROM sales
        LEFT JOIN users ON users.id = sales.user_id
+       LEFT JOIN customers ON customers.id = sales.customer_id
        WHERE sales.shop_id = ?
        ORDER BY sales.id DESC`,
       [req.user.shop_id]
@@ -351,10 +448,13 @@ exports.getSaleById = async (req, res) => {
     const [sales] = await db.promise().query(
       `SELECT sales.*, users.name AS user_name,
               shops.shop_name, shops.phone, shops.email, shops.address,
-              shops.receipt_footer, shops.currency, shops.logo_url
+              shops.receipt_footer, shops.currency, shops.logo_url,
+              customers.customer_name, customers.phone AS customer_phone,
+              customers.address AS customer_address
        FROM sales
        LEFT JOIN users ON users.id = sales.user_id
        LEFT JOIN shops ON shops.id = sales.shop_id
+       LEFT JOIN customers ON customers.id = sales.customer_id
        WHERE sales.id = ? AND sales.shop_id = ?
        LIMIT 1`,
       [saleId, req.user.shop_id]
@@ -379,6 +479,7 @@ exports.getSaleById = async (req, res) => {
     const receipt = buildReceipt({
       sale: sales[0],
       shop: sales[0],
+      customer: sales[0],
       items,
     });
 

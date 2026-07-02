@@ -261,3 +261,87 @@ exports.getCreditSummary = async (req, res) => {
       .json({ message: "Server error while fetching credit summary" });
   }
 };
+
+exports.getCustomerHistory = async (req, res) => {
+  const { id } = req.params;
+
+  if (!isPositiveInteger(id)) {
+    return res.status(400).json({ message: "Valid customer id is required" });
+  }
+
+  try {
+    const [customers] = await db.promise().query(
+      `SELECT id, customer_name, phone, address, created_at
+       FROM customers
+       WHERE id = ? AND shop_id = ?
+       LIMIT 1`,
+      [id, req.user.shop_id]
+    );
+
+    if (customers.length === 0) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    const [[sales], [credits], [summaryRows]] = await Promise.all([
+      db.promise().query(
+        `SELECT id, invoice_no, total_amount, total_profit, discount_amount,
+                payment_type, paid_amount, balance_amount, created_at
+         FROM sales
+         WHERE shop_id = ? AND customer_id = ?
+         ORDER BY id DESC`,
+        [req.user.shop_id, id]
+      ),
+      db.promise().query(
+        `SELECT id, sale_id, credit_amount, paid_amount, balance_amount, status, created_at
+         FROM credit_records
+         WHERE shop_id = ? AND customer_id = ?
+         ORDER BY id DESC`,
+        [req.user.shop_id, id]
+      ),
+      db.promise().query(
+        `SELECT
+           COALESCE((SELECT SUM(total_amount) FROM sales WHERE shop_id = ? AND customer_id = ?), 0) AS total_purchases,
+           COALESCE((SELECT SUM(credit_amount) FROM credit_records WHERE shop_id = ? AND customer_id = ?), 0) AS total_credit,
+           COALESCE((SELECT SUM(paid_amount) FROM credit_records WHERE shop_id = ? AND customer_id = ?), 0) AS total_paid,
+           COALESCE((SELECT SUM(balance_amount) FROM credit_records WHERE shop_id = ? AND customer_id = ?), 0) AS total_balance`,
+        [
+          req.user.shop_id,
+          id,
+          req.user.shop_id,
+          id,
+          req.user.shop_id,
+          id,
+          req.user.shop_id,
+          id,
+        ]
+      ),
+    ]);
+
+    const summary = summaryRows[0] || {};
+
+    return res.json({
+      message: "Customer history fetched successfully",
+      customer: customers[0],
+      sales: sales.map((sale) => ({
+        ...sale,
+        total_amount: Number(sale.total_amount || 0),
+        total_profit: Number(sale.total_profit || 0),
+        discount_amount: Number(sale.discount_amount || 0),
+        paid_amount: Number(sale.paid_amount || 0),
+        balance_amount: Number(sale.balance_amount || 0),
+      })),
+      credits: credits.map(formatCredit),
+      summary: {
+        total_purchases: Number(summary.total_purchases || 0),
+        total_credit: Number(summary.total_credit || 0),
+        total_paid: Number(summary.total_paid || 0),
+        total_balance: Number(summary.total_balance || 0),
+      },
+    });
+  } catch (error) {
+    console.error("Get customer history error:", error.message);
+    return res
+      .status(500)
+      .json({ message: "Server error while fetching customer history" });
+  }
+};

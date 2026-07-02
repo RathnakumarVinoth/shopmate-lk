@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import api from '../services/api'
@@ -7,6 +7,12 @@ import { formatMoney, getApiMessage, getShopSettings, notifyDashboardChanged } f
 const getProductsFromResponse = (data) => {
   if (Array.isArray(data)) return data
   return data.products || []
+}
+
+const initialCustomerForm = {
+  customer_name: '',
+  phone: '',
+  address: '',
 }
 
 const paymentTypes = [
@@ -34,6 +40,9 @@ const getReceiptDetails = (receipt) => {
   const saleId = receipt?.sale_id || receipt?.id || 'receipt'
   const invoiceNo = receipt?.invoice_no || `SALE-${saleId}`
   const shopName = receipt?.shop_name || settings.shop_name || 'ShopMate LK'
+  const customerName = receipt?.customer_name || ''
+  const customerPhone = receipt?.customer_phone || ''
+  const customerAddress = receipt?.customer_address || ''
   const items = Array.isArray(receipt?.items) ? receipt.items : []
   const totalBeforeDiscount = Number(receipt?.total_before_discount || 0)
   const discountAmount = Number(receipt?.discount_amount || 0)
@@ -45,11 +54,17 @@ const getReceiptDetails = (receipt) => {
   const currency = receipt?.currency || settings.currency || 'LKR'
   const receiptFooter =
     receipt?.receipt_footer || settings.receipt_footer || 'Thank you for shopping with us.'
+  const balanceLabel =
+    paymentType === 'credit' ? 'Credit Balance' : balanceAmount < 0 ? 'Balance Due' : 'Change'
 
   return {
     invoiceNo,
     saleId,
     shopName,
+    customerId: receipt?.customer_id || null,
+    customerName,
+    customerPhone,
+    customerAddress,
     shopPhone: receipt?.shop_phone || settings.phone || '',
     shopEmail: receipt?.shop_email || settings.email || '',
     shopAddress: receipt?.shop_address || settings.address || '',
@@ -62,6 +77,7 @@ const getReceiptDetails = (receipt) => {
     finalTotal,
     paidAmount,
     balanceAmount,
+    balanceLabel,
     paymentType,
     createdAt,
   }
@@ -90,6 +106,18 @@ const generateInvoicePDF = (receipt) => {
     doc.text(`Email: ${details.shopEmail}`, 14, metaY)
     metaY += 8
   }
+  if (details.customerName) {
+    doc.text(`Customer: ${details.customerName}`, 14, metaY)
+    metaY += 8
+    if (details.customerPhone) {
+      doc.text(`Customer Phone: ${details.customerPhone}`, 14, metaY)
+      metaY += 8
+    }
+    if (details.customerAddress) {
+      doc.text(`Customer Address: ${details.customerAddress}`, 14, metaY)
+      metaY += 8
+    }
+  }
   doc.text(`Invoice: ${details.invoiceNo}`, 14, metaY)
   metaY += 8
   doc.text(`Date: ${formatDateTime(details.createdAt)}`, 14, metaY)
@@ -115,7 +143,7 @@ const generateInvoicePDF = (receipt) => {
     ['Discount', formatCurrency(details.discountAmount, details.currency)],
     ['Total', formatCurrency(details.finalTotal, details.currency)],
     ['Paid', formatCurrency(details.paidAmount, details.currency)],
-    [details.balanceAmount < 0 ? 'Balance Due' : 'Change', formatCurrency(Math.abs(details.balanceAmount), details.currency)],
+    [details.balanceLabel, formatCurrency(Math.abs(details.balanceAmount), details.currency)],
   ]
 
   autoTable(doc, {
@@ -151,6 +179,8 @@ const shareInvoiceWhatsApp = (receipt) => {
     details.shopName,
     details.shopAddress,
     details.shopPhone ? `Phone: ${details.shopPhone}` : '',
+    details.customerName ? `Customer: ${details.customerName}` : '',
+    details.customerPhone ? `Customer Phone: ${details.customerPhone}` : '',
     `Invoice: ${details.invoiceNo}`,
     `Date: ${formatDateTime(details.createdAt)}`,
     `Payment: ${details.paymentType}`,
@@ -161,7 +191,7 @@ const shareInvoiceWhatsApp = (receipt) => {
     '',
     `Total: ${formatCurrency(details.finalTotal, details.currency)}`,
     `Paid: ${formatCurrency(details.paidAmount, details.currency)}`,
-    `${details.balanceAmount < 0 ? 'Balance Due' : 'Change'}: ${formatCurrency(
+    `${details.balanceLabel}: ${formatCurrency(
       Math.abs(details.balanceAmount),
       details.currency,
     )}`,
@@ -219,6 +249,9 @@ const printReceipt = (receipt) => {
           ${details.shopAddress ? `<div class="meta">${details.shopAddress}</div>` : ''}
           ${details.shopPhone ? `<div class="meta">Phone: ${details.shopPhone}</div>` : ''}
           ${details.shopEmail ? `<div class="meta">Email: ${details.shopEmail}</div>` : ''}
+          ${details.customerName ? `<div class="meta">Customer: ${details.customerName}</div>` : ''}
+          ${details.customerPhone ? `<div class="meta">Customer Phone: ${details.customerPhone}</div>` : ''}
+          ${details.customerAddress ? `<div class="meta">Customer Address: ${details.customerAddress}</div>` : ''}
           <div class="meta">Invoice: ${details.invoiceNo}</div>
           <div class="meta">Date: ${formatDateTime(details.createdAt)}</div>
           <div class="meta">Payment: ${details.paymentType}</div>
@@ -234,7 +267,7 @@ const printReceipt = (receipt) => {
           <div><span>Discount</span><strong>${formatCurrency(details.discountAmount, details.currency)}</strong></div>
           <div class="total"><span>Total</span><strong>${formatCurrency(details.finalTotal, details.currency)}</strong></div>
           <div><span>Paid</span><strong>${formatCurrency(details.paidAmount, details.currency)}</strong></div>
-          <div><span>${details.balanceAmount < 0 ? 'Balance Due' : 'Change'}</span><strong>${formatCurrency(
+          <div><span>${details.balanceLabel}</span><strong>${formatCurrency(
             Math.abs(details.balanceAmount),
             details.currency,
           )}</strong></div>
@@ -249,9 +282,15 @@ const printReceipt = (receipt) => {
 }
 
 function POS() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [products, setProducts] = useState([])
+  const [customers, setCustomers] = useState([])
   const [cart, setCart] = useState({})
   const [search, setSearch] = useState('')
+  const [customerSearch, setCustomerSearch] = useState('')
+  const [selectedCustomerId, setSelectedCustomerId] = useState('')
+  const [showCustomerForm, setShowCustomerForm] = useState(false)
+  const [customerForm, setCustomerForm] = useState(initialCustomerForm)
   const [codeInput, setCodeInput] = useState('')
   const [paymentType, setPaymentType] = useState('cash')
   const [discountAmount, setDiscountAmount] = useState('')
@@ -260,11 +299,13 @@ function POS() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loadingProducts, setLoadingProducts] = useState(true)
+  const [loadingCustomers, setLoadingCustomers] = useState(false)
+  const [savingCustomer, setSavingCustomer] = useState(false)
   const [savingSale, setSavingSale] = useState(false)
   const [scanningCode, setScanningCode] = useState(false)
   const codeInputRef = useRef(null)
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     setLoadingProducts(true)
     setError('')
 
@@ -276,11 +317,27 @@ function POS() {
     } finally {
       setLoadingProducts(false)
     }
-  }
+  }, [])
+
+  const loadCustomers = useCallback(async () => {
+    setLoadingCustomers(true)
+
+    try {
+      const response = await api.get('/credits/customers')
+      setCustomers(response.data.customers || [])
+    } catch (err) {
+      if (user.role === 'owner') {
+        setError(getApiMessage(err, 'Failed to load customers'))
+      }
+    } finally {
+      setLoadingCustomers(false)
+    }
+  }, [user.role])
 
   useEffect(() => {
     loadProducts()
-  }, [])
+    loadCustomers()
+  }, [loadProducts, loadCustomers])
 
   useEffect(() => {
     codeInputRef.current?.focus()
@@ -319,6 +376,41 @@ function POS() {
   const discountInvalid = discount > subtotal
   const paidRequired = paymentType !== 'credit'
   const paidInvalid = paidRequired && paidAmount === ''
+  const selectedCustomer = customers.find(
+    (customer) => Number(customer.id) === Number(selectedCustomerId),
+  )
+  const creditBalance = Math.max(total - paid, 0)
+  const saleBalance = paymentType === 'credit' ? creditBalance : balance
+
+  const filteredCustomers = useMemo(() => {
+    const term = customerSearch.trim().toLowerCase()
+    if (!term) return customers
+
+    return customers.filter((customer) =>
+      `${customer.customer_name} ${customer.phone || ''}`.toLowerCase().includes(term),
+    )
+  }, [customers, customerSearch])
+
+  const addCustomer = async (event) => {
+    event.preventDefault()
+    setError('')
+    setMessage('')
+    setSavingCustomer(true)
+
+    try {
+      const response = await api.post('/credits/customers', customerForm)
+      const customer = response.data.customer
+      setCustomers((current) => [customer, ...current])
+      setSelectedCustomerId(String(customer.id))
+      setCustomerForm(initialCustomerForm)
+      setShowCustomerForm(false)
+      setMessage('Customer added successfully')
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to add customer'))
+    } finally {
+      setSavingCustomer(false)
+    }
+  }
   const receiptDetails = receipt ? getReceiptDetails(receipt) : null
 
   const addToCart = (product) => {
@@ -473,10 +565,26 @@ function POS() {
       return
     }
 
+    if (paymentType === 'credit' && !selectedCustomerId) {
+      setError('Select a customer for credit sales')
+      return
+    }
+
+    if (paymentType === 'credit' && paid > total) {
+      setError('Paid amount cannot be greater than total for credit sales')
+      return
+    }
+
+    if (paymentType !== 'credit' && paid < total) {
+      setError('Paid amount must be greater than or equal to total')
+      return
+    }
+
     setSavingSale(true)
 
     try {
       const response = await api.post('/sales', {
+        customer_id: selectedCustomerId ? Number(selectedCustomerId) : null,
         payment_type: paymentType,
         discount_amount: discount,
         paid_amount: paymentType === 'credit' ? paid : Number(paidAmount),
@@ -486,11 +594,29 @@ function POS() {
         })),
       })
 
-      setReceipt(response.data.receipt)
+      const saleReceipt = response.data.receipt || {}
+      const customerReceiptDetails = selectedCustomer
+        ? {
+            customer_id: saleReceipt.customer_id || Number(selectedCustomer.id),
+            customer_name: saleReceipt.customer_name || selectedCustomer.customer_name,
+            customer_phone: saleReceipt.customer_phone || selectedCustomer.phone || '',
+            customer_address: saleReceipt.customer_address || selectedCustomer.address || '',
+          }
+        : {}
+
+      setReceipt({
+        ...saleReceipt,
+        ...customerReceiptDetails,
+      })
       setCart({})
+      setSelectedCustomerId('')
       setDiscountAmount('')
       setPaidAmount(paymentType === 'credit' ? '0' : '')
-      setMessage('Sale completed successfully')
+      setMessage(
+        paymentType === 'credit'
+          ? 'Credit sale created and added to Credit Book.'
+          : 'Sale completed successfully',
+      )
       notifyDashboardChanged()
       await loadProducts()
     } catch (err) {
@@ -527,6 +653,88 @@ function POS() {
               </button>
             </div>
           </label>
+        </section>
+
+        <section className="customer-picker">
+          <div className="section-heading">
+            <h2>Customer</h2>
+            {user.role === 'owner' && (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setShowCustomerForm((current) => !current)}
+              >
+                {showCustomerForm ? 'Close' : 'Add New Customer'}
+              </button>
+            )}
+          </div>
+          <div className="form-grid compact-form">
+            <label>
+              Search Customer
+              <input
+                value={customerSearch}
+                onChange={(event) => setCustomerSearch(event.target.value)}
+                placeholder="Search by name or phone"
+              />
+            </label>
+            <label>
+              Customer
+              <select
+                value={selectedCustomerId}
+                onChange={(event) => setSelectedCustomerId(event.target.value)}
+                disabled={loadingCustomers}
+              >
+                <option value="">Walk-in customer</option>
+                {filteredCustomers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.customer_name} {customer.phone ? `- ${customer.phone}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          {selectedCustomer && (
+            <p className="muted">
+              Selected: {selectedCustomer.customer_name}
+              {selectedCustomer.phone ? `, ${selectedCustomer.phone}` : ''}
+              {selectedCustomer.address ? `, ${selectedCustomer.address}` : ''}
+            </p>
+          )}
+          {showCustomerForm && (
+            <form className="form-grid compact-form quick-customer-form" onSubmit={addCustomer}>
+              <label>
+                Customer Name
+                <input
+                  value={customerForm.customer_name}
+                  onChange={(event) =>
+                    setCustomerForm({ ...customerForm, customer_name: event.target.value })
+                  }
+                  required
+                />
+              </label>
+              <label>
+                Phone
+                <input
+                  value={customerForm.phone}
+                  onChange={(event) =>
+                    setCustomerForm({ ...customerForm, phone: event.target.value })
+                  }
+                />
+              </label>
+              <label className="full-width">
+                Address
+                <input
+                  value={customerForm.address}
+                  onChange={(event) =>
+                    setCustomerForm({ ...customerForm, address: event.target.value })
+                  }
+                />
+              </label>
+              <button type="submit" className="full-width" disabled={savingCustomer}>
+                {savingCustomer ? 'Adding customer...' : 'Save Customer'}
+              </button>
+            </form>
+          )}
         </section>
 
         <label className="search-field">
@@ -673,8 +881,14 @@ function POS() {
             <strong>{formatMoney(paid)}</strong>
           </div>
           <div className={balance < 0 ? 'balance-due' : 'balance-change'}>
-            <span>{balance < 0 ? 'Balance Due' : 'Change'}</span>
-            <strong>{formatMoney(Math.abs(balance))}</strong>
+            <span>
+              {paymentType === 'credit'
+                ? 'Credit Balance'
+                : balance < 0
+                  ? 'Balance Due'
+                  : 'Change'}
+            </span>
+            <strong>{formatMoney(Math.abs(saleBalance))}</strong>
           </div>
         </section>
 
@@ -718,6 +932,17 @@ function POS() {
                 <span>Payment: {receiptDetails.paymentType}</span>
               </div>
 
+              {receiptDetails.customerName && (
+                <div className="receipt-customer">
+                  <strong>Customer</strong>
+                  <span>Name: {receiptDetails.customerName}</span>
+                  {receiptDetails.customerPhone && <span>Phone: {receiptDetails.customerPhone}</span>}
+                  {receiptDetails.customerAddress && (
+                    <span>Address: {receiptDetails.customerAddress}</span>
+                  )}
+                </div>
+              )}
+
               <table className="receipt-table">
                 <thead>
                   <tr>
@@ -757,7 +982,7 @@ function POS() {
                   <strong>{formatCurrency(receiptDetails.paidAmount, receiptDetails.currency)}</strong>
                 </div>
                 <div>
-                  <span>{receiptDetails.balanceAmount < 0 ? 'Balance Due' : 'Change'}</span>
+                  <span>{receiptDetails.balanceLabel}</span>
                   <strong>{formatCurrency(Math.abs(receiptDetails.balanceAmount), receiptDetails.currency)}</strong>
                 </div>
                 <div>
