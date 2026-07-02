@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import api from '../services/api'
 import { formatMoney, getApiMessage, notifyDashboardChanged } from '../utils/formatters'
 
@@ -27,6 +28,8 @@ const formatDateTime = (value) => {
 }
 
 function Stock() {
+  const location = useLocation()
+  const appliedSuggestionRef = useRef(false)
   const [products, setProducts] = useState([])
   const [suppliers, setSuppliers] = useState([])
   const [movements, setMovements] = useState([])
@@ -99,6 +102,30 @@ function Stock() {
   useEffect(() => {
     loadStockData()
   }, [])
+
+  useEffect(() => {
+    const suggestion = location.state
+
+    if (appliedSuggestionRef.current || !suggestion?.productId || products.length === 0) {
+      return
+    }
+
+    const product = products.find((item) => Number(item.id) === Number(suggestion.productId))
+
+    if (!product) {
+      return
+    }
+
+    appliedSuggestionRef.current = true
+    setForm((current) => ({
+      ...current,
+      product_id: String(product.id),
+      supplier_id: suggestion.supplierId ? String(suggestion.supplierId) : '',
+      quantity: suggestion.suggestedQuantity ? String(suggestion.suggestedQuantity) : current.quantity,
+      buying_price: String(product.buying_price ?? ''),
+    }))
+    setMessage('Purchase suggestion loaded for restock')
+  }, [location.state, products])
 
   const updateField = (event) => {
     const { name, value } = event.target

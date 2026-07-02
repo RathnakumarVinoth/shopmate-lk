@@ -10,6 +10,7 @@ import Expenses from './pages/Expenses.jsx'
 import Login from './pages/Login.jsx'
 import POS from './pages/POS.jsx'
 import Products from './pages/Products.jsx'
+import PurchaseSuggestions from './pages/PurchaseSuggestions.jsx'
 import Register from './pages/Register.jsx'
 import Reports from './pages/Reports.jsx'
 import Returns from './pages/Returns.jsx'
@@ -61,6 +62,14 @@ function App() {
             element={
               <ProtectedRoute roles={['owner']}>
                 <Stock />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/purchase-suggestions"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <PurchaseSuggestions />
               </ProtectedRoute>
             }
           />

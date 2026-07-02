@@ -688,6 +688,16 @@ th {
   background: #dcfce7;
 }
 
+.status.low_stock {
+  color: #92400e;
+  background: #fde68a;
+}
+
+.status.normal {
+  color: #166534;
+  background: #dcfce7;
+}
+
 .table-subtext {
   display: block;
   margin-top: 3px;
@@ -733,6 +743,10 @@ th {
 
 .report-table {
   min-width: 520px;
+}
+
+.purchase-suggestion-table {
+  min-width: 1120px;
 }
 
 .bar {
