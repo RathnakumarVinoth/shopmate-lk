@@ -1,7 +1,9 @@
 const db = require("../config/db");
+const { ensureSalesPaymentColumns } = require("../utils/paymentSchema");
 
 const allowedPaymentTypes = ["cash", "card", "bank_transfer", "qr", "credit"];
 const paidRequiredTypes = ["cash", "card", "bank_transfer", "qr"];
+const verifiablePaymentTypes = ["card", "bank_transfer", "qr"];
 
 const toNumber = (value) => Number(value);
 
@@ -16,6 +18,31 @@ const isNonNegativeNumber = (value) =>
   Number(value) >= 0;
 
 const formatMoney = (value) => Number(Number(value).toFixed(2));
+
+const optionalText = (value) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return null;
+  }
+
+  return String(value).trim();
+};
+
+const hasVerificationData = (body) =>
+  Boolean(
+    optionalText(body.payment_reference) ||
+      optionalText(body.approval_code) ||
+      optionalText(body.card_last_four)
+  );
+
+const getPaymentStatus = (paymentType, body) => {
+  if (paymentType === "cash") return "verified";
+  if (paymentType === "credit") return "credit";
+  if (verifiablePaymentTypes.includes(paymentType) && hasVerificationData(body)) {
+    return "verified";
+  }
+
+  return "pending";
+};
 
 const formatDatePart = (date = new Date()) => {
   const year = date.getFullYear();
@@ -84,6 +111,15 @@ const validateSaleRequest = (body) => {
     errors.push("customer_id is required for credit sales");
   }
 
+  if (
+    body.card_last_four !== undefined &&
+    body.card_last_four !== null &&
+    body.card_last_four !== "" &&
+    !/^\d{4}$/.test(String(body.card_last_four).trim())
+  ) {
+    errors.push("card_last_four must contain exactly 4 digits");
+  }
+
   return errors;
 };
 
@@ -94,6 +130,7 @@ const formatSale = (sale) => ({
   total_profit: Number(sale.total_profit),
   paid_amount: Number(sale.paid_amount || 0),
   balance_amount: Number(sale.balance_amount || 0),
+  payment_status: sale.payment_status || "verified",
 });
 
 const formatSaleItem = (item) => ({
@@ -146,6 +183,10 @@ const buildReceipt = ({ sale, shop, customer, items }) => {
     paid_amount: formattedSale.paid_amount,
     balance_amount: formattedSale.balance_amount,
     payment_type: formattedSale.payment_type,
+    payment_status: formattedSale.payment_status,
+    payment_reference: formattedSale.payment_reference || null,
+    approval_code: formattedSale.approval_code || null,
+    card_last_four: formattedSale.card_last_four || null,
     created_at: formattedSale.created_at,
   };
 };
@@ -161,6 +202,11 @@ exports.createSale = async (req, res) => {
   const shopId = req.user.shop_id;
   const userId = req.user.id;
   const paymentType = req.body.payment_type || "cash";
+  const paymentStatus = getPaymentStatus(paymentType, req.body);
+  const paymentReference = optionalText(req.body.payment_reference);
+  const approvalCode = optionalText(req.body.approval_code);
+  const cardLastFour = optionalText(req.body.card_last_four);
+  const verifiedBy = paymentStatus === "verified" ? userId : null;
   const customerId =
     req.body.customer_id === undefined || req.body.customer_id === null || req.body.customer_id === ""
       ? null
@@ -183,6 +229,7 @@ exports.createSale = async (req, res) => {
   const productIds = Object.keys(quantityByProduct).map(Number);
 
   try {
+    await ensureSalesPaymentColumns();
     await connection.beginTransaction();
 
     const [shops] = await connection.query(
@@ -301,8 +348,12 @@ exports.createSale = async (req, res) => {
 
     const [saleResult] = await connection.query(
       `INSERT INTO sales
-       (shop_id, user_id, customer_id, total_amount, discount_amount, total_profit, payment_type, paid_amount, balance_amount)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (shop_id, user_id, customer_id, total_amount, discount_amount, total_profit,
+        payment_type, paid_amount, balance_amount, payment_status, payment_reference,
+        approval_code, card_last_four, verified_by, verified_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${
+         paymentStatus === "verified" ? "NOW()" : "NULL"
+       })`,
       [
         shopId,
         userId,
@@ -313,6 +364,11 @@ exports.createSale = async (req, res) => {
         paymentType,
         paidAmount,
         balanceAmount,
+        paymentStatus,
+        paymentReference,
+        approvalCode,
+        cardLastFour,
+        verifiedBy,
       ]
     );
 
@@ -412,11 +468,15 @@ exports.createSale = async (req, res) => {
 
 exports.getSales = async (req, res) => {
   try {
+    await ensureSalesPaymentColumns();
+
     const [sales] = await db.promise().query(
       `SELECT sales.id, sales.invoice_no, sales.shop_id, sales.user_id,
               users.name AS user_name, sales.total_amount,
               sales.discount_amount, sales.total_profit, sales.payment_type,
               sales.paid_amount, sales.balance_amount, sales.customer_id,
+              sales.payment_status, sales.payment_reference, sales.approval_code,
+              sales.card_last_four, sales.verified_by, sales.verified_at,
               customers.customer_name, customers.phone AS customer_phone,
               sales.created_at
        FROM sales
@@ -445,6 +505,8 @@ exports.getSaleById = async (req, res) => {
   }
 
   try {
+    await ensureSalesPaymentColumns();
+
     const [sales] = await db.promise().query(
       `SELECT sales.*, users.name AS user_name,
               shops.shop_name, shops.phone, shops.email, shops.address,

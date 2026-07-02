@@ -8,6 +8,7 @@ import CreditBook from './pages/CreditBook.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Expenses from './pages/Expenses.jsx'
 import Login from './pages/Login.jsx'
+import PaymentVerification from './pages/PaymentVerification.jsx'
 import POS from './pages/POS.jsx'
 import Products from './pages/Products.jsx'
 import PurchaseSuggestions from './pages/PurchaseSuggestions.jsx'
@@ -41,6 +42,14 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/products" element={<Products />} />
           <Route path="/pos" element={<POS />} />
+          <Route
+            path="/payment-verification"
+            element={
+              <ProtectedRoute roles={['owner', 'staff']}>
+                <PaymentVerification />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/credits"
             element={

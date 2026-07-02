@@ -15,6 +15,12 @@ const initialCustomerForm = {
   address: '',
 }
 
+const initialPaymentDetails = {
+  payment_reference: '',
+  approval_code: '',
+  card_last_four: '',
+}
+
 const paymentTypes = [
   { value: 'cash', label: 'Cash' },
   { value: 'card', label: 'Card' },
@@ -50,6 +56,7 @@ const getReceiptDetails = (receipt) => {
   const paidAmount = Number(receipt?.paid_amount || 0)
   const balanceAmount = Number(receipt?.balance_amount || 0)
   const paymentType = receipt?.payment_type || 'cash'
+  const paymentStatus = receipt?.payment_status || 'verified'
   const createdAt = receipt?.created_at || new Date().toISOString()
   const currency = receipt?.currency || settings.currency || 'LKR'
   const receiptFooter =
@@ -79,6 +86,10 @@ const getReceiptDetails = (receipt) => {
     balanceAmount,
     balanceLabel,
     paymentType,
+    paymentStatus,
+    paymentReference: receipt?.payment_reference || '',
+    approvalCode: receipt?.approval_code || '',
+    cardLastFour: receipt?.card_last_four || '',
     createdAt,
   }
 }
@@ -123,6 +134,12 @@ const generateInvoicePDF = (receipt) => {
   doc.text(`Date: ${formatDateTime(details.createdAt)}`, 14, metaY)
   metaY += 8
   doc.text(`Payment Type: ${details.paymentType}`, 14, metaY)
+  metaY += 8
+  doc.text(`Payment Status: ${details.paymentStatus}`, 14, metaY)
+  if (details.paymentReference) {
+    metaY += 8
+    doc.text(`Reference: ${details.paymentReference}`, 14, metaY)
+  }
 
   autoTable(doc, {
     startY: metaY + 10,
@@ -184,6 +201,8 @@ const shareInvoiceWhatsApp = (receipt) => {
     `Invoice: ${details.invoiceNo}`,
     `Date: ${formatDateTime(details.createdAt)}`,
     `Payment: ${details.paymentType}`,
+    `Payment Status: ${details.paymentStatus}`,
+    details.paymentReference ? `Reference: ${details.paymentReference}` : '',
     '',
     'Items:',
     itemLines || '- No items',
@@ -255,6 +274,8 @@ const printReceipt = (receipt) => {
           <div class="meta">Invoice: ${details.invoiceNo}</div>
           <div class="meta">Date: ${formatDateTime(details.createdAt)}</div>
           <div class="meta">Payment: ${details.paymentType}</div>
+          <div class="meta">Payment Status: ${details.paymentStatus}</div>
+          ${details.paymentReference ? `<div class="meta">Reference: ${details.paymentReference}</div>` : ''}
         </div>
         <table>
           <thead>
@@ -293,6 +314,7 @@ function POS() {
   const [customerForm, setCustomerForm] = useState(initialCustomerForm)
   const [codeInput, setCodeInput] = useState('')
   const [paymentType, setPaymentType] = useState('cash')
+  const [paymentDetails, setPaymentDetails] = useState(initialPaymentDetails)
   const [discountAmount, setDiscountAmount] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
   const [receipt, setReceipt] = useState(null)
@@ -347,6 +369,10 @@ function POS() {
     if (paymentType === 'credit') {
       setPaidAmount((current) => current || '0')
     }
+
+    if (paymentType === 'cash' || paymentType === 'credit') {
+      setPaymentDetails(initialPaymentDetails)
+    }
   }, [paymentType])
 
   const filteredProducts = useMemo(() => {
@@ -375,6 +401,8 @@ function POS() {
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0)
   const discountInvalid = discount > subtotal
   const paidRequired = paymentType !== 'credit'
+  const isCardPayment = paymentType === 'card'
+  const needsReference = ['card', 'qr', 'bank_transfer'].includes(paymentType)
   const paidInvalid = paidRequired && paidAmount === ''
   const selectedCustomer = customers.find(
     (customer) => Number(customer.id) === Number(selectedCustomerId),
@@ -580,6 +608,14 @@ function POS() {
       return
     }
 
+    if (
+      paymentDetails.card_last_four &&
+      !/^\d{4}$/.test(paymentDetails.card_last_four.trim())
+    ) {
+      setError('Card last 4 digits must contain exactly 4 digits')
+      return
+    }
+
     setSavingSale(true)
 
     try {
@@ -588,6 +624,9 @@ function POS() {
         payment_type: paymentType,
         discount_amount: discount,
         paid_amount: paymentType === 'credit' ? paid : Number(paidAmount),
+        payment_reference: paymentDetails.payment_reference.trim() || null,
+        approval_code: paymentDetails.approval_code.trim() || null,
+        card_last_four: paymentDetails.card_last_four.trim() || null,
         items: cartItems.map((item) => ({
           product_id: item.id,
           quantity: item.quantity,
@@ -612,10 +651,13 @@ function POS() {
       setSelectedCustomerId('')
       setDiscountAmount('')
       setPaidAmount(paymentType === 'credit' ? '0' : '')
+      setPaymentDetails(initialPaymentDetails)
       setMessage(
         paymentType === 'credit'
           ? 'Credit sale created and added to Credit Book.'
-          : 'Sale completed successfully',
+          : saleReceipt.payment_status === 'pending'
+            ? 'Sale completed with pending payment verification.'
+            : 'Sale completed successfully',
       )
       notifyDashboardChanged()
       await loadProducts()
@@ -860,6 +902,50 @@ function POS() {
                 required={paidRequired}
               />
             </label>
+            {needsReference && (
+              <label className={isCardPayment ? '' : 'full-width'}>
+                Transaction Reference No
+                <input
+                  value={paymentDetails.payment_reference}
+                  onChange={(event) =>
+                    setPaymentDetails({
+                      ...paymentDetails,
+                      payment_reference: event.target.value,
+                    })
+                  }
+                />
+              </label>
+            )}
+            {isCardPayment && (
+              <>
+                <label>
+                  Approval Code
+                  <input
+                    value={paymentDetails.approval_code}
+                    onChange={(event) =>
+                      setPaymentDetails({
+                        ...paymentDetails,
+                        approval_code: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  Card Last 4 Digits
+                  <input
+                    inputMode="numeric"
+                    maxLength="4"
+                    value={paymentDetails.card_last_four}
+                    onChange={(event) =>
+                      setPaymentDetails({
+                        ...paymentDetails,
+                        card_last_four: event.target.value.replace(/\D/g, '').slice(0, 4),
+                      })
+                    }
+                  />
+                </label>
+              </>
+            )}
           </div>
         </section>
 
@@ -930,6 +1016,10 @@ function POS() {
                 <span>{formatDateTime(receiptDetails.createdAt)}</span>
                 <span>Invoice: {receiptDetails.invoiceNo}</span>
                 <span>Payment: {receiptDetails.paymentType}</span>
+                <span>Payment Status: {receiptDetails.paymentStatus}</span>
+                {receiptDetails.paymentReference && (
+                  <span>Reference: {receiptDetails.paymentReference}</span>
+                )}
               </div>
 
               {receiptDetails.customerName && (
@@ -989,6 +1079,18 @@ function POS() {
                   <span>Payment</span>
                   <strong>{receiptDetails.paymentType}</strong>
                 </div>
+                <div>
+                  <span>Payment Status</span>
+                  <strong className={`status ${receiptDetails.paymentStatus}`}>
+                    {receiptDetails.paymentStatus}
+                  </strong>
+                </div>
+                {receiptDetails.paymentReference && (
+                  <div>
+                    <span>Reference</span>
+                    <strong>{receiptDetails.paymentReference}</strong>
+                  </div>
+                )}
                 <div>
                   <span>Footer</span>
                   <strong>{receiptDetails.receiptFooter}</strong>

@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { ensureReturnTables } = require("./returnController");
+const { ensureSalesPaymentColumns } = require("../utils/paymentSchema");
 
 const toNumber = (value) => Number(value || 0);
 
@@ -29,6 +30,7 @@ exports.getSummary = async (req, res) => {
 
   try {
     await ensureReturnTables();
+    await ensureSalesPaymentColumns();
 
     const [
       [salesRows],
@@ -37,6 +39,7 @@ exports.getSummary = async (req, res) => {
       [supplierRows],
       [productRows],
       [returnRows],
+      [paymentRows],
     ] = await Promise.all([
       db.promise().query(
         `SELECT
@@ -82,6 +85,14 @@ exports.getSummary = async (req, res) => {
          WHERE shop_id = ? AND DATE(created_at) BETWEEN ? AND ?`,
         [shopId, start_date, end_date]
       ),
+      db.promise().query(
+        `SELECT
+           COALESCE(SUM(CASE WHEN payment_status = 'pending' THEN paid_amount ELSE 0 END), 0) AS pending_payment_total,
+           COALESCE(SUM(CASE WHEN payment_status = 'verified' THEN paid_amount ELSE 0 END), 0) AS verified_payment_total
+         FROM sales
+         WHERE shop_id = ? AND DATE(created_at) BETWEEN ? AND ?`,
+        [shopId, start_date, end_date]
+      ),
     ]);
 
     const sales = salesRows[0];
@@ -90,6 +101,7 @@ exports.getSummary = async (req, res) => {
     const suppliers = supplierRows[0];
     const products = productRows[0];
     const returns = returnRows[0] || {};
+    const payments = paymentRows[0] || {};
     const totalSales = toNumber(sales.total_sales);
     const totalRefunds = toNumber(returns.total_refunds);
     const totalProfit = toNumber(sales.total_profit);
@@ -109,6 +121,8 @@ exports.getSummary = async (req, res) => {
       average_bill_value: toNumber(sales.average_bill_value),
       total_credit_balance: toNumber(credits.total_credit_balance),
       total_supplier_balance: toNumber(suppliers.total_supplier_balance),
+      pending_payment_total: toNumber(payments.pending_payment_total),
+      verified_payment_total: toNumber(payments.verified_payment_total),
       total_products: Number(products.total_products || 0),
       low_stock_count: Number(products.low_stock_count || 0),
     });

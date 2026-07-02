@@ -93,6 +93,8 @@ function Reports() {
     { label: 'Net Profit', value: formatMoney(summary.net_profit) },
     { label: 'Total Bills', value: summary.total_bills || 0 },
     { label: 'Average Bill Value', value: formatMoney(summary.average_bill_value) },
+    { label: 'Pending Payments', value: formatMoney(summary.pending_payment_total) },
+    { label: 'Verified Payments', value: formatMoney(summary.verified_payment_total) },
     { label: 'Credit Balance', value: formatMoney(summary.total_credit_balance) },
     { label: 'Supplier Balance', value: formatMoney(summary.total_supplier_balance) },
     { label: 'Low Stock Count', value: summary.low_stock_count || 0 },

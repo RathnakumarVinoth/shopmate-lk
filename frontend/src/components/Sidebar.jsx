@@ -4,6 +4,7 @@ const ownerLinks = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/products', label: 'Products' },
   { to: '/pos', label: 'POS Billing' },
+  { to: '/payment-verification', label: 'Payment Verification' },
   { to: '/credits', label: 'Credit Book' },
   { to: '/suppliers', label: 'Suppliers' },
   { to: '/stock', label: 'Stock' },
@@ -19,6 +20,7 @@ const ownerLinks = [
 const staffLinks = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/pos', label: 'POS Billing' },
+  { to: '/payment-verification', label: 'Payment Verification' },
   { to: '/products', label: 'Products' },
 ]
 
