@@ -20,7 +20,7 @@ const ownerLinks = [
   { to: '/staff', labelKey: 'staff', permission: 'staff_manage' },
 ]
 
-function Sidebar() {
+function Sidebar({ onNavigate, onClose }) {
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const visibleLinks = ownerLinks.filter((link) => hasPermission(user, link.permission))
@@ -28,6 +28,7 @@ function Sidebar() {
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    onNavigate?.()
     navigate('/login')
   }
 
@@ -39,6 +40,9 @@ function Sidebar() {
           <strong>ShopMate LK</strong>
           <span>{t('POS and Stock')}</span>
         </div>
+        <button type="button" className="mobile-drawer-close" onClick={onClose} aria-label={t('Close')}>
+          x
+        </button>
       </div>
 
       <nav className="sidebar-nav">
@@ -48,6 +52,7 @@ function Sidebar() {
             to={link.to}
             end
             className={({ isActive }) => (isActive ? 'active' : '')}
+            onClick={onNavigate}
           >
             {link.labelKey ? t(link.labelKey) : link.label}
           </NavLink>

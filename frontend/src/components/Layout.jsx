@@ -9,6 +9,7 @@ import Sidebar from './Sidebar.jsx'
 function Layout() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [, setSettingsVersion] = useState(0)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     return scheduleSessionExpiry()
@@ -48,9 +49,54 @@ function Layout() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return undefined
+
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [mobileMenuOpen])
+
   return (
-    <div className="app-shell">
-      <Sidebar />
+    <div className={`app-shell ${mobileMenuOpen ? 'mobile-menu-open' : ''}`}>
+      <header className="mobile-app-header">
+        <button
+          type="button"
+          className="mobile-menu-button"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Open menu"
+          aria-expanded={mobileMenuOpen}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div className="mobile-brand">
+          <div className="brand-mark">SM</div>
+          <strong>ShopMate LK</strong>
+        </div>
+        <div className="mobile-header-actions">
+          <Notifications />
+          <div className="user-pill">
+            <span>{user?.role || 'owner'}</span>
+          </div>
+        </div>
+      </header>
+      <button
+        type="button"
+        className="mobile-sidebar-overlay"
+        onClick={() => setMobileMenuOpen(false)}
+        aria-label={t('Close')}
+      />
+      <Sidebar
+        onNavigate={() => setMobileMenuOpen(false)}
+        onClose={() => setMobileMenuOpen(false)}
+      />
       <main className="app-main">
         <header className="topbar">
           <div>

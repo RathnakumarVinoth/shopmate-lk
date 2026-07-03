@@ -2,25 +2,69 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import { scheduleSessionExpiry } from '../utils/session'
 import Notifications from './Notifications.jsx'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 function AdminLayout() {
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     return scheduleSessionExpiry()
   }, [])
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return undefined
+
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', closeOnEscape)
+    return () => document.removeEventListener('keydown', closeOnEscape)
+  }, [mobileMenuOpen])
+
   const logout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     localStorage.removeItem('shopSettings')
+    setMobileMenuOpen(false)
     navigate('/admin/login')
   }
 
   return (
-    <div className="app-shell admin-shell">
+    <div className={`app-shell admin-shell ${mobileMenuOpen ? 'mobile-menu-open' : ''}`}>
+      <header className="mobile-app-header">
+        <button
+          type="button"
+          className="mobile-menu-button"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Open menu"
+          aria-expanded={mobileMenuOpen}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div className="mobile-brand">
+          <div className="brand-mark">SA</div>
+          <strong>ShopMate LK</strong>
+        </div>
+        <div className="mobile-header-actions">
+          <Notifications />
+          <div className="user-pill">
+            <span>{user?.role || 'admin'}</span>
+          </div>
+        </div>
+      </header>
+      <button
+        type="button"
+        className="mobile-sidebar-overlay"
+        onClick={() => setMobileMenuOpen(false)}
+        aria-label={t('Close')}
+      />
       <aside className="sidebar admin-sidebar">
         <div className="brand">
           <div className="brand-mark">SA</div>
@@ -28,24 +72,42 @@ function AdminLayout() {
             <strong>{t('Super Admin')}</strong>
             <span>{t('ShopMate Control')}</span>
           </div>
+          <button
+            type="button"
+            className="mobile-drawer-close"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label={t('Close')}
+          >
+            x
+          </button>
         </div>
 
         <nav className="sidebar-nav">
-          <NavLink to="/admin/dashboard" className={({ isActive }) => (isActive ? 'active' : '')}>
+          <NavLink
+            to="/admin/dashboard"
+            className={({ isActive }) => (isActive ? 'active' : '')}
+            onClick={() => setMobileMenuOpen(false)}
+          >
             {t('Admin Dashboard')}
           </NavLink>
-          <NavLink to="/admin/shops" className={({ isActive }) => (isActive ? 'active' : '')}>
+          <NavLink
+            to="/admin/shops"
+            className={({ isActive }) => (isActive ? 'active' : '')}
+            onClick={() => setMobileMenuOpen(false)}
+          >
             Shops
           </NavLink>
           <NavLink
             to="/admin/audit-logs"
             className={({ isActive }) => (isActive ? 'active' : '')}
+            onClick={() => setMobileMenuOpen(false)}
           >
             {t('Audit Logs')}
           </NavLink>
           <NavLink
             to="/admin/login-activity"
             className={({ isActive }) => (isActive ? 'active' : '')}
+            onClick={() => setMobileMenuOpen(false)}
           >
             {t('Login Activity')}
           </NavLink>
