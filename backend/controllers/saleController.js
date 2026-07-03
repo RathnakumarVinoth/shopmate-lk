@@ -3,6 +3,7 @@ const {
   ensurePaymentVerificationTable,
   ensureSalesPaymentColumns,
 } = require("../utils/paymentSchema");
+const { ensureProductCatalogSchema } = require("../utils/productCatalogSchema");
 const { ensureShopSettingsColumns } = require("../utils/shopSchema");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
 
@@ -170,6 +171,7 @@ const buildReceipt = ({ sale, shop, customer, items }) => {
     items: receiptItems.map((item) => ({
       product_id: item.product_id,
       product_name: item.product_name,
+      unit: item.unit || null,
       quantity: item.quantity,
       selling_price: item.selling_price,
       subtotal: item.subtotal,
@@ -230,6 +232,7 @@ exports.createSale = async (req, res) => {
     await ensureSalesPaymentColumns();
     await ensurePaymentVerificationTable();
     await ensureShopSettingsColumns();
+    await ensureProductCatalogSchema();
     await connection.beginTransaction();
 
     const [shops] = await connection.query(
@@ -261,7 +264,11 @@ exports.createSale = async (req, res) => {
     }
 
     const [products] = await connection.query(
-      "SELECT id, product_name, buying_price, selling_price, stock_quantity FROM products WHERE shop_id = ? AND id IN (?) FOR UPDATE",
+      `SELECT id, product_name, unit, buying_price,
+              COALESCE(wholesale_price, buying_price) AS wholesale_price,
+              selling_price, stock_quantity
+       FROM products
+       WHERE shop_id = ? AND id IN (?) FOR UPDATE`,
       [shopId, productIds]
     );
 
@@ -294,7 +301,7 @@ exports.createSale = async (req, res) => {
 
     const saleItems = items.map((item) => {
       const product = productMap[item.product_id];
-      const buyingPrice = toNumber(product.buying_price);
+      const buyingPrice = toNumber(product.wholesale_price ?? product.buying_price);
       const sellingPrice = toNumber(product.selling_price);
       const subtotal = formatMoney(sellingPrice * item.quantity);
       const profit = formatMoney((sellingPrice - buyingPrice) * item.quantity);
@@ -302,6 +309,7 @@ exports.createSale = async (req, res) => {
       return {
         product_id: item.product_id,
         product_name: product.product_name,
+        unit: product.unit || null,
         quantity: item.quantity,
         buying_price: buyingPrice,
         selling_price: sellingPrice,
@@ -487,6 +495,7 @@ exports.getSales = async (req, res) => {
   try {
     await ensureSalesPaymentColumns();
     await ensureShopSettingsColumns();
+    await ensureProductCatalogSchema();
 
     const [sales] = await db.promise().query(
       `SELECT sales.id, sales.invoice_no, sales.shop_id, sales.user_id,
@@ -524,6 +533,7 @@ exports.getSaleById = async (req, res) => {
 
   try {
     await ensureSalesPaymentColumns();
+    await ensureProductCatalogSchema();
 
     const [sales] = await db.promise().query(
       `SELECT sales.*, users.name AS user_name,
@@ -547,7 +557,7 @@ exports.getSaleById = async (req, res) => {
 
     const [items] = await db.promise().query(
       `SELECT sale_items.id, sale_items.sale_id, sale_items.product_id,
-              products.product_name, sale_items.quantity,
+              products.product_name, products.unit, sale_items.quantity,
               sale_items.buying_price, sale_items.selling_price,
               sale_items.subtotal, sale_items.profit
        FROM sale_items

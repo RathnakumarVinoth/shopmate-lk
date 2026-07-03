@@ -54,6 +54,11 @@ const formatDateTime = (value) => {
   return date.toLocaleString()
 }
 
+const formatQuantity = (item) => {
+  const quantity = Number(item.quantity || 0)
+  return item.unit ? `${quantity} ${item.unit}` : String(quantity)
+}
+
 const getReceiptDetails = (receipt) => {
   const settings = getShopSettings()
   const saleId = receipt?.sale_id || receipt?.id || 'receipt'
@@ -163,7 +168,7 @@ const generateInvoicePDF = (receipt) => {
     head: [['Item', 'Qty', 'Unit Price', 'Subtotal']],
     body: details.items.map((item) => [
       item.product_name || 'Item',
-      Number(item.quantity || 0),
+      formatQuantity(item),
       formatCurrency(item.selling_price, details.currency),
       formatCurrency(item.subtotal, details.currency),
     ]),
@@ -202,7 +207,7 @@ const shareInvoiceWhatsApp = (receipt) => {
     .slice(0, 8)
     .map(
       (item) =>
-        `- ${item.product_name || 'Item'} x ${Number(item.quantity || 0)} = ${formatCurrency(
+        `- ${item.product_name || 'Item'} x ${formatQuantity(item)} = ${formatCurrency(
           item.subtotal,
           details.currency,
         )}`,
@@ -246,7 +251,7 @@ const printReceipt = (receipt) => {
       (item) => `
         <tr>
           <td>${item.product_name || 'Item'}</td>
-          <td>${Number(item.quantity || 0)}</td>
+          <td>${formatQuantity(item)}</td>
           <td>${formatCurrency(item.selling_price, details.currency)}</td>
           <td>${formatCurrency(item.subtotal, details.currency)}</td>
         </tr>
@@ -327,7 +332,7 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
       (item) => `
         <tr>
           <td class="item-name">${escapeHtml(item.product_name || 'Item')}</td>
-          <td class="num">${Number(item.quantity || 0)}</td>
+          <td class="num">${escapeHtml(formatQuantity(item))}</td>
           <td class="num">${escapeHtml(formatCurrency(item.selling_price, details.currency))}</td>
           <td class="num">${escapeHtml(formatCurrency(item.subtotal, details.currency))}</td>
         </tr>
@@ -559,7 +564,7 @@ function POS() {
         !term ||
         `${product.product_name} ${product.product_code || ''} ${product.barcode || ''} ${
           product.category || ''
-        }`
+        } ${product.unit || ''}`
           .toLowerCase()
           .includes(term)
 
@@ -1042,8 +1047,10 @@ function POS() {
                   </div>
                   <div className="product-card-body">
                     <strong>{product.product_name}</strong>
-                    <span>{formatMoney(product.selling_price)}</span>
-                    <small>{product.category || t('Uncategorized')}</small>
+                    <span>{formatMoney(product.selling_price)} / {product.unit || 'pcs'}</span>
+                    <small>
+                      {product.category || t('Uncategorized')} | {product.unit || 'pcs'}
+                    </small>
                   </div>
                   {(product.product_code || product.barcode) && (
                     <small className="product-code-line">
@@ -1104,7 +1111,7 @@ function POS() {
                 <div>
                   <strong>{item.product_name}</strong>
                   <span>
-                    {formatMoney(item.selling_price)} x {item.quantity} = {formatMoney(item.subtotal)}
+                    {formatMoney(item.selling_price)} x {formatQuantity(item)} = {formatMoney(item.subtotal)}
                   </span>
                   <small className="muted">{t('Available')} {t('Stock').toLowerCase()} {item.stock_quantity}</small>
                 </div>
@@ -1344,7 +1351,7 @@ function POS() {
                   {(receiptDetails.items || []).map((item, index) => (
                     <tr key={item.product_id || index}>
                       <td>{item.product_name}</td>
-                      <td>{item.quantity}</td>
+                      <td>{formatQuantity(item)}</td>
                       <td>{formatCurrency(item.selling_price, receiptDetails.currency)}</td>
                       <td>{formatCurrency(item.subtotal, receiptDetails.currency)}</td>
                     </tr>

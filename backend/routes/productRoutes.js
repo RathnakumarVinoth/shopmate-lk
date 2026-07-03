@@ -7,13 +7,21 @@ const { requirePermission } = require("../middleware/permissionMiddleware");
 
 const {
   addProduct,
+  addCategory,
+  deleteCategory,
+  getCategories,
   getProducts,
   getProductByCode,
   getLowStockProducts,
   updateProduct,
+  updateCategory,
   deleteProduct,
 } = require("../controllers/productController");
 
+router.get("/categories", authMiddleware, allowRoles("owner", "staff"), requirePermission("products_view"), getCategories);
+router.post("/categories", authMiddleware, allowRoles("owner"), requirePermission("products_manage"), addCategory);
+router.put("/categories/:id", authMiddleware, allowRoles("owner"), requirePermission("products_manage"), updateCategory);
+router.delete("/categories/:id", authMiddleware, allowRoles("owner"), requirePermission("products_manage"), deleteCategory);
 router.post("/", authMiddleware, allowRoles("owner", "staff"), requirePermission("products_manage"), addProduct);
 router.get("/", authMiddleware, allowRoles("owner", "staff"), requirePermission("products_view"), getProducts);
 router.get("/search-code/:code", authMiddleware, allowRoles("owner", "staff"), requirePermission("products_view"), getProductByCode);

@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
+const { ensureProductCatalogSchema } = require("../utils/productCatalogSchema");
 
 const isPositiveInteger = (value) =>
   Number.isInteger(Number(value)) && Number(value) > 0;
@@ -69,10 +70,12 @@ exports.restockProduct = async (req, res) => {
   const connection = db.promise();
 
   try {
+    await ensureProductCatalogSchema();
     await connection.beginTransaction();
 
     const [products] = await connection.query(
-      `SELECT id, product_name, stock_quantity, buying_price
+      `SELECT id, product_name, stock_quantity, buying_price,
+              COALESCE(wholesale_price, buying_price) AS wholesale_price
        FROM products
        WHERE id = ? AND shop_id = ?
        LIMIT 1
@@ -105,7 +108,7 @@ exports.restockProduct = async (req, res) => {
     const newStock = previousStock + restockQuantity;
     const effectiveBuyingPrice =
       buying_price === undefined
-        ? formatMoney(Number(product.buying_price || 0))
+        ? formatMoney(Number((product.wholesale_price ?? product.buying_price) || 0))
         : formatMoney(Number(buying_price));
     const totalCost = formatMoney(restockQuantity * effectiveBuyingPrice);
     const paidAmount = formatMoney(Number(paid_amount || 0));
@@ -120,9 +123,9 @@ exports.restockProduct = async (req, res) => {
 
     await connection.query(
       `UPDATE products
-       SET stock_quantity = ?, buying_price = ?
+       SET stock_quantity = ?, buying_price = ?, wholesale_price = ?
        WHERE id = ? AND shop_id = ?`,
-      [newStock, effectiveBuyingPrice, product_id, shopId]
+      [newStock, effectiveBuyingPrice, effectiveBuyingPrice, product_id, shopId]
     );
 
     const [movementResult] = await connection.query(
@@ -294,12 +297,14 @@ exports.getProductStockMovements = async (req, res) => {
 
 exports.getStockSummary = async (req, res) => {
   try {
+    await ensureProductCatalogSchema();
+
     const [[productRows], [movementRows]] = await Promise.all([
       db.promise().query(
         `SELECT
            COUNT(*) AS total_products,
            COALESCE(SUM(CASE WHEN stock_quantity <= low_stock_limit THEN 1 ELSE 0 END), 0) AS low_stock_count,
-           COALESCE(SUM(stock_quantity * buying_price), 0) AS total_stock_value
+           COALESCE(SUM(stock_quantity * COALESCE(wholesale_price, buying_price)), 0) AS total_stock_value
          FROM products
          WHERE shop_id = ?`,
         [req.user.shop_id]

@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { ensureProductCatalogSchema } = require("../utils/productCatalogSchema");
 
 const runQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
@@ -26,6 +27,7 @@ exports.getProductsExport = async (req, res) => {
   if (!ownerOnly(req, res)) return;
 
   try {
+    await ensureProductCatalogSchema();
     const shopId = req.user.shop_id;
 
     const rows = await runQuery(
@@ -35,8 +37,11 @@ exports.getProductsExport = async (req, res) => {
         product_code AS 'Product Code',
         barcode AS 'Barcode',
         category AS 'Category',
+        unit AS 'Unit',
         buying_price AS 'Buying Price',
+        COALESCE(wholesale_price, buying_price) AS 'Wholesale Price',
         selling_price AS 'Selling Price',
+        image_url AS 'Image URL',
         stock_quantity AS 'Stock Quantity',
         low_stock_limit AS 'Low Stock Limit',
         created_at AS 'Created Date'
