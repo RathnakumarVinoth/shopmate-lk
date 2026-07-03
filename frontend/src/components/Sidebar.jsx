@@ -2,6 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import { hasPermission } from '../utils/permissions'
 import { clearSession, getSessionUser } from '../utils/session'
+import BrandLogo from './BrandLogo.jsx'
 
 const ownerLinks = [
   { to: '/dashboard', labelKey: 'dashboard', permission: 'dashboard_view' },
@@ -35,7 +36,9 @@ function Sidebar({ shopName = 'ShopMate LK', onNavigate, onClose }) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <div className="brand-mark">SM</div>
+        <div className="brand-mark">
+          <BrandLogo decorative />
+        </div>
         <div>
           <strong>{shopName}</strong>
           <span>{t('POS and Stock')}</span>

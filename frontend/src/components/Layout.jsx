@@ -8,6 +8,7 @@ import {
   getSessionUser,
   saveStoredSettings,
 } from '../utils/session'
+import BrandLogo from './BrandLogo.jsx'
 import LanguageSelector from './LanguageSelector.jsx'
 import Notifications from './Notifications.jsx'
 import Sidebar from './Sidebar.jsx'
@@ -80,7 +81,9 @@ function Layout() {
           <span></span>
         </button>
         <div className="mobile-brand">
-          <div className="brand-mark">SM</div>
+          <div className="brand-mark">
+            <BrandLogo decorative />
+          </div>
           <strong>{shopName}</strong>
         </div>
         <div className="mobile-header-actions">

@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import { clearSession, getSessionUser } from '../utils/session'
+import BrandLogo from './BrandLogo.jsx'
 import Notifications from './Notifications.jsx'
 import LanguageSelector from './LanguageSelector.jsx'
 import { useEffect, useState } from 'react'
@@ -45,7 +46,9 @@ function AdminLayout() {
           <span></span>
         </button>
         <div className="mobile-brand">
-          <div className="brand-mark">SA</div>
+          <div className="brand-mark">
+            <BrandLogo decorative />
+          </div>
           <strong>ShopMate LK</strong>
         </div>
         <div className="mobile-header-actions">
@@ -64,7 +67,9 @@ function AdminLayout() {
       />
       <aside className="sidebar admin-sidebar">
         <div className="brand">
-          <div className="brand-mark">SA</div>
+          <div className="brand-mark">
+            <BrandLogo decorative />
+          </div>
           <div>
             <strong>{t('Super Admin')}</strong>
             <span>{t('ShopMate Control')}</span>

@@ -30,6 +30,17 @@
   background: var(--color-primary-600);
   box-shadow: 0 7px 18px rgba(5, 104, 94, 0.28);
   font-size: 14px;
+  overflow: hidden;
+}
+
+.brand-logo {
+  display: block;
+  object-fit: contain;
+}
+
+.brand-logo-icon {
+  width: 100%;
+  height: 100%;
 }
 
 .brand strong {
@@ -840,6 +851,25 @@ tbody tr:last-child td {
   box-shadow: var(--shadow-md);
 }
 
+.pwa-install-copy {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.pwa-install-copy > div {
+  min-width: 0;
+}
+
+.pwa-install-logo {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+}
+
 /* Authentication */
 .auth-page {
   position: relative;
@@ -855,27 +885,31 @@ tbody tr:last-child td {
   content: "";
 }
 
+.auth-stack {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(440px, 100%);
+  justify-items: center;
+  gap: 14px;
+}
+
+.wide-auth-stack {
+  width: min(780px, 100%);
+}
+
+.auth-brand-logo {
+  width: min(220px, 58vw);
+  height: auto;
+  filter: drop-shadow(0 7px 14px rgba(16, 42, 58, 0.08));
+}
+
 .auth-panel {
   position: relative;
   width: min(440px, 100%);
   border-top: 4px solid var(--color-primary-500);
   padding: 30px;
   box-shadow: var(--shadow-md);
-}
-
-.auth-panel::before {
-  display: grid;
-  width: 48px;
-  height: 48px;
-  margin-bottom: 18px;
-  place-items: center;
-  border-radius: var(--radius-md);
-  color: #ffffff;
-  background: var(--color-primary-600);
-  box-shadow: 0 8px 18px rgba(15, 129, 117, 0.2);
-  content: "SM";
-  font-size: 14px;
-  font-weight: 850;
 }
 
 .wide-auth {

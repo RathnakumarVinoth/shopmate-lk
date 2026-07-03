@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { t } from '../i18n/translations'
+import BrandLogo from './BrandLogo.jsx'
 
 const isStandalone = () =>
   window.matchMedia?.('(display-mode: standalone)').matches ||
@@ -57,9 +58,12 @@ function PwaInstallPrompt() {
 
   return (
     <aside className="pwa-install-banner" aria-label={t('Install App')}>
-      <div>
-        <strong>{t('Install App')}</strong>
-        <span>{t('Add ShopMate LK to your home screen for faster access.')}</span>
+      <div className="pwa-install-copy">
+        <BrandLogo decorative className="pwa-install-logo" />
+        <div>
+          <strong>{t('Install App')}</strong>
+          <span>{t('Add ShopMate LK to your home screen for faster access.')}</span>
+        </div>
       </div>
       <div className="pwa-install-actions">
         <button type="button" onClick={installApp}>

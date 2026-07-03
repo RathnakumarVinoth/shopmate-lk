@@ -1,12 +1,12 @@
-const CACHE_NAME = "shopmate-lk-static-v1";
+const CACHE_NAME = "shopmate-lk-static-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/offline.html",
   "/manifest.json",
-  "/favicon.svg",
-  "/pwa-icon-192.png",
-  "/pwa-icon-512.png",
+  "/shopmate-lk-logo-transparent.png",
+  "/shopmate-icon-192.png",
+  "/shopmate-icon-512.png",
 ];
 
 const isApiRequest = (request) => {

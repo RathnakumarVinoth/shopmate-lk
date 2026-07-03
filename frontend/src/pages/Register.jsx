@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import BrandLogo from '../components/BrandLogo.jsx'
 import LanguageSelector from '../components/LanguageSelector.jsx'
 import { t } from '../i18n/translations'
 import api from '../services/api'
@@ -52,62 +53,64 @@ function Register() {
 
   return (
     <main className="auth-page">
-      <section className="auth-panel wide-auth">
-        <div className="auth-language">
-          <LanguageSelector onLanguageChange={() => setLanguageVersion((version) => version + 1)} />
-        </div>
-        <p className="eyebrow">ShopMate LK</p>
-        <h1>{t('Register')}</h1>
-        <form onSubmit={submit} className="form-grid">
-          {error && <div className="alert full-width">{error}</div>}
-          <label>
-            {t('Owner Name')}
-            <input name="name" value={form.name} onChange={updateField} required />
-          </label>
-          <label>
-            {t('Email')}
-            <input name="email" type="email" value={form.email} onChange={updateField} required />
-          </label>
-          <label>
-            {t('Password')}
-            <span className="password-field">
-              <input
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={form.password}
-                onChange={updateField}
-                required
-              />
-              <button
-                type="button"
-                className="password-toggle"
-                onClick={() => setShowPassword((visible) => !visible)}
-                aria-label={t(showPassword ? 'Hide password' : 'Show password')}
-              >
-                {t(showPassword ? 'Hide' : 'Show')}
-              </button>
-            </span>
-          </label>
-          <label>
-            {t('Shop Name')}
-            <input name="shop_name" value={form.shop_name} onChange={updateField} required />
-          </label>
-          <label>
-            {t('Phone')}
-            <input name="phone" value={form.phone} onChange={updateField} required />
-          </label>
-          <label>
-            {t('Address')}
-            <input name="address" value={form.address} onChange={updateField} required />
-          </label>
-          <button type="submit" className="full-width" disabled={loading}>
-            {loading ? t('Creating account...') : t('Create Account')}
-          </button>
-        </form>
-        <p className="auth-link">
-          {t('Already registered?')} <Link to="/login">{t('Login')}</Link>
-        </p>
-      </section>
+      <div className="auth-stack wide-auth-stack">
+        <BrandLogo full className="auth-brand-logo" />
+        <section className="auth-panel wide-auth">
+          <div className="auth-language">
+            <LanguageSelector onLanguageChange={() => setLanguageVersion((version) => version + 1)} />
+          </div>
+          <h1>{t('Register')}</h1>
+          <form onSubmit={submit} className="form-grid">
+            {error && <div className="alert full-width">{error}</div>}
+            <label>
+              {t('Owner Name')}
+              <input name="name" value={form.name} onChange={updateField} required />
+            </label>
+            <label>
+              {t('Email')}
+              <input name="email" type="email" value={form.email} onChange={updateField} required />
+            </label>
+            <label>
+              {t('Password')}
+              <span className="password-field">
+                <input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={updateField}
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={t(showPassword ? 'Hide password' : 'Show password')}
+                >
+                  {t(showPassword ? 'Hide' : 'Show')}
+                </button>
+              </span>
+            </label>
+            <label>
+              {t('Shop Name')}
+              <input name="shop_name" value={form.shop_name} onChange={updateField} required />
+            </label>
+            <label>
+              {t('Phone')}
+              <input name="phone" value={form.phone} onChange={updateField} required />
+            </label>
+            <label>
+              {t('Address')}
+              <input name="address" value={form.address} onChange={updateField} required />
+            </label>
+            <button type="submit" className="full-width" disabled={loading}>
+              {loading ? t('Creating account...') : t('Create Account')}
+            </button>
+          </form>
+          <p className="auth-link">
+            {t('Already registered?')} <Link to="/login">{t('Login')}</Link>
+          </p>
+        </section>
+      </div>
     </main>
   )
 }

@@ -200,6 +200,15 @@
     padding: 25px 20px 22px;
   }
 
+  .auth-stack,
+  .wide-auth-stack {
+    width: 100%;
+  }
+
+  .auth-brand-logo {
+    width: min(190px, 54vw);
+  }
+
   .auth-language {
     top: 16px;
     right: 16px;
@@ -247,9 +256,7 @@
     grid-template-columns: 1fr;
   }
 
-  .auth-panel::before {
-    width: 44px;
-    height: 44px;
-    margin-bottom: 15px;
+  .auth-brand-logo {
+    width: min(170px, 52vw);
   }
 }
