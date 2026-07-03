@@ -472,6 +472,8 @@ function POS() {
   const [paymentDetails, setPaymentDetails] = useState(initialPaymentDetails)
   const [discountAmount, setDiscountAmount] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [mobileCartOpen, setMobileCartOpen] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [thermalReceiptSize, setThermalReceiptSize] = useState('80mm')
   const [message, setMessage] = useState('')
@@ -537,14 +539,33 @@ function POS() {
     }
   }, [receipt])
 
+  const categories = useMemo(() => {
+    const uniqueCategories = new Set(
+      products.map((product) => product.category).filter(Boolean),
+    )
+
+    return [...uniqueCategories].sort((a, b) => a.localeCompare(b))
+  }, [products])
+
+  const quickProducts = useMemo(() => products.slice(0, 6), [products])
+
   const filteredProducts = useMemo(() => {
     const term = search.trim().toLowerCase()
-    if (!term) return products
 
-    return products.filter((product) =>
-      `${product.product_name} ${product.category || ''}`.toLowerCase().includes(term),
-    )
-  }, [products, search])
+    return products.filter((product) => {
+      const matchesCategory =
+        selectedCategory === 'all' || product.category === selectedCategory
+      const matchesSearch =
+        !term ||
+        `${product.product_name} ${product.product_code || ''} ${product.barcode || ''} ${
+          product.category || ''
+        }`
+          .toLowerCase()
+          .includes(term)
+
+      return matchesCategory && matchesSearch
+    })
+  }, [products, search, selectedCategory])
 
   const cartItems = useMemo(
     () =>
@@ -736,6 +757,13 @@ function POS() {
     })
   }
 
+  const clearCart = () => {
+    setCart({})
+    setMessage('')
+    setError('')
+    setMobileCartOpen(false)
+  }
+
   const completeSale = async () => {
     setMessage('')
     setError('')
@@ -810,6 +838,7 @@ function POS() {
         ...customerReceiptDetails,
       })
       setCart({})
+      setMobileCartOpen(false)
       setSelectedCustomerId('')
       setDiscountAmount('')
       setPaidAmount(paymentType === 'credit' ? '0' : '')
@@ -946,9 +975,47 @@ function POS() {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by product name or category"
+            placeholder="Search by name, code, barcode, or category"
           />
         </label>
+
+        {categories.length > 0 && (
+          <div className="pos-filter-strip" aria-label="Product categories">
+            <button
+              type="button"
+              className={selectedCategory === 'all' ? 'active' : ''}
+              onClick={() => setSelectedCategory('all')}
+            >
+              {t('All')}
+            </button>
+            {categories.map((category) => (
+              <button
+                type="button"
+                key={category}
+                className={selectedCategory === category ? 'active' : ''}
+                onClick={() => setSelectedCategory(category)}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {quickProducts.length > 0 && (
+          <section className="quick-products">
+            <div className="section-heading">
+              <h3>{t('Quick Picks')}</h3>
+            </div>
+            <div className="quick-product-strip">
+              {quickProducts.map((product) => (
+                <button type="button" key={product.id} onClick={() => addToCart(product)}>
+                  <span>{product.product_name}</span>
+                  <strong>{formatMoney(product.selling_price)}</strong>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {loadingProducts ? (
           <div className="loading-panel">{t('Loading products...')}</div>
@@ -966,9 +1033,18 @@ function POS() {
                   onClick={() => addToCart(product)}
                   disabled={stock <= 0}
                 >
-                  <strong>{product.product_name}</strong>
-                  <span>{formatMoney(product.selling_price)}</span>
-                  <small>{product.category || 'Uncategorized'}</small>
+                  <div className="product-card-media">
+                    {product.image_url ? (
+                      <img src={product.image_url} alt="" loading="lazy" />
+                    ) : (
+                      <span>{product.product_name?.slice(0, 1) || 'P'}</span>
+                    )}
+                  </div>
+                  <div className="product-card-body">
+                    <strong>{product.product_name}</strong>
+                    <span>{formatMoney(product.selling_price)}</span>
+                    <small>{product.category || t('Uncategorized')}</small>
+                  </div>
                   {(product.product_code || product.barcode) && (
                     <small className="product-code-line">
                       {product.product_code ? `SKU ${product.product_code}` : ''}
@@ -980,6 +1056,7 @@ function POS() {
                     {t('Stock')} {stock}
                     {lowStock ? ` - ${t('Low stock')}` : ''}
                   </small>
+                  <span className="product-add-pill">{t('Add')}</span>
                 </button>
               )
             })}
@@ -988,56 +1065,94 @@ function POS() {
         )}
       </section>
 
-      <aside className="panel cart-panel receipt-surface">
+      <aside className={`panel cart-panel receipt-surface ${mobileCartOpen ? 'mobile-open' : ''}`}>
         <div className="section-heading">
           <h2>{t('Cart')}</h2>
-          <span className="cart-count">{totalItems} {t('items')}</span>
+          <div className="cart-heading-actions">
+            {cartItems.length > 0 && (
+              <button type="button" className="ghost-button clear-cart-button" onClick={clearCart}>
+                {t('Clear cart')}
+              </button>
+            )}
+            <span className="cart-count">{totalItems} {t('items')}</span>
+          </div>
         </div>
         {error && <div className="alert">{error}</div>}
         {message && <div className="success">{message}</div>}
 
-        <div className="cart-list">
-          {cartItems.map((item) => (
-            <div className="cart-row pro-cart-row" key={item.id}>
-              <div>
-                <strong>{item.product_name}</strong>
-                <span>
-                  {formatMoney(item.selling_price)} x {item.quantity} = {formatMoney(item.subtotal)}
-                </span>
-                <small className="muted">{t('Available')} {t('Stock').toLowerCase()} {item.stock_quantity}</small>
-              </div>
-              <div className="quantity-control">
-                <button type="button" onClick={() => changeQuantity(item.id, -1)}>
-                  -
-                </button>
-                <input
-                  type="number"
-                  min="1"
-                  max={item.stock_quantity}
-                  value={item.quantity}
-                  onChange={(event) => setQuantity(item.id, event.target.value)}
-                />
-                <button type="button" onClick={() => changeQuantity(item.id, 1)}>
-                  +
-                </button>
-              </div>
-              <button type="button" className="danger-button" onClick={() => removeFromCart(item.id)}>
-                {t('Remove')}
-              </button>
-            </div>
-          ))}
-          {cartItems.length === 0 && <p className="muted">{t('Cart is empty.')}</p>}
+        <div className="mobile-cart-summary">
+          <div>
+            <span>{totalItems} {t('items')}</span>
+            <strong>{formatMoney(total)}</strong>
+          </div>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setMobileCartOpen((current) => !current)}
+          >
+            {mobileCartOpen ? t('Hide Cart') : t('View Cart')}
+          </button>
+          <button type="button" onClick={completeSale} disabled={savingSale || cartItems.length === 0}>
+            {savingSale ? t('Saving sale...') : t('Checkout')}
+          </button>
         </div>
 
-        <section className="payment-box">
+        <div className="mobile-cart-content">
+          <div className="cart-list">
+            {cartItems.map((item) => (
+              <div className="cart-row pro-cart-row" key={item.id}>
+                <div>
+                  <strong>{item.product_name}</strong>
+                  <span>
+                    {formatMoney(item.selling_price)} x {item.quantity} = {formatMoney(item.subtotal)}
+                  </span>
+                  <small className="muted">{t('Available')} {t('Stock').toLowerCase()} {item.stock_quantity}</small>
+                </div>
+                <div className="quantity-control">
+                  <button type="button" aria-label={t('Decrease quantity')} onClick={() => changeQuantity(item.id, -1)}>
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    max={item.stock_quantity}
+                    value={item.quantity}
+                    onChange={(event) => setQuantity(item.id, event.target.value)}
+                  />
+                  <button type="button" aria-label={t('Increase quantity')} onClick={() => changeQuantity(item.id, 1)}>
+                    +
+                  </button>
+                </div>
+                <button type="button" className="danger-button" onClick={() => removeFromCart(item.id)}>
+                  {t('Remove')}
+                </button>
+              </div>
+            ))}
+            {cartItems.length === 0 && <p className="muted">{t('Cart is empty.')}</p>}
+          </div>
+
+          <section className="payment-box">
           <h3>{t('Payment')}</h3>
+          <div className="payment-method-buttons" role="group" aria-label={t('Payment Method')}>
+            {paymentTypes.map((type) => (
+              <button
+                type="button"
+                key={type.value}
+                className={paymentType === type.value ? 'active' : 'ghost-button'}
+                onClick={() => setPaymentType(type.value)}
+              >
+                {t(type.label)}
+              </button>
+            ))}
+          </div>
           <div className="form-grid compact-form">
             <label>
               {t('paymentMethod')}
               <select value={paymentType} onChange={(event) => setPaymentType(event.target.value)}>
                 {paymentTypes.map((type) => (
                   <option key={type.value} value={type.value}>
-                    {type.label}
+                    {t(type.label)}
                   </option>
                 ))}
               </select>
@@ -1046,6 +1161,7 @@ function POS() {
               {t('Discount')}
               <input
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.01"
                 value={discountAmount}
@@ -1057,6 +1173,7 @@ function POS() {
               {t('paidAmount')}
               <input
                 type="number"
+                inputMode="decimal"
                 min="0"
                 step="0.01"
                 value={paidAmount}
@@ -1109,9 +1226,9 @@ function POS() {
               </>
             )}
           </div>
-        </section>
+          </section>
 
-        <section className="summary-box">
+          <section className="summary-box">
           <div>
             <span>{t('subtotal')}</span>
             <strong>{formatMoney(subtotal)}</strong>
@@ -1138,11 +1255,12 @@ function POS() {
             </span>
             <strong>{formatMoney(Math.abs(saleBalance))}</strong>
           </div>
-        </section>
+          </section>
 
-        <button type="button" onClick={completeSale} disabled={savingSale || cartItems.length === 0}>
-          {savingSale ? t('Saving sale...') : t('Complete Sale')}
-        </button>
+          <button className="checkout-button" type="button" onClick={completeSale} disabled={savingSale || cartItems.length === 0}>
+            {savingSale ? t('Saving sale...') : t('Complete Sale')}
+          </button>
+        </div>
       </aside>
 
       {receipt && (
@@ -1159,9 +1277,6 @@ function POS() {
                 </button>
                 <button type="button" className="ghost-button" onClick={() => shareInvoiceWhatsApp(receipt)}>
                   {t('Share WhatsApp')}
-                </button>
-                <button type="button" className="ghost-button" onClick={() => printReceipt(receipt)}>
-                  {t('print')}
                 </button>
                 <select
                   value={thermalReceiptSize}
@@ -1180,6 +1295,9 @@ function POS() {
                   onClick={() => thermalPrintReceipt(receipt, thermalReceiptSize)}
                 >
                   {t('Thermal Print')}
+                </button>
+                <button type="button" className="ghost-button" onClick={() => printReceipt(receipt)}>
+                  {t('print')}
                 </button>
                 <button type="button" className="ghost-button" onClick={() => setReceipt(null)}>
                   {t('Close')}
