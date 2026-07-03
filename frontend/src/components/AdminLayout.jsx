@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import Notifications from './Notifications.jsx'
 
 function AdminLayout() {
   const navigate = useNavigate()
@@ -48,8 +49,11 @@ function AdminLayout() {
             <p className="eyebrow">ShopMate LK</p>
             <h1>{user?.name ? `Welcome, ${user.name}` : 'Admin Console'}</h1>
           </div>
-          <div className="user-pill">
-            <span>{user?.role || 'admin'}</span>
+          <div className="topbar-actions">
+            <Notifications />
+            <div className="user-pill">
+              <span>{user?.role || 'admin'}</span>
+            </div>
           </div>
         </header>
         <Outlet />

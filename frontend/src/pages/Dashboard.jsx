@@ -1,9 +1,20 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 
+const alertCards = [
+  { type: 'low_stock', label: 'Low stock', link: '/products' },
+  { type: 'pending_payments', label: 'Pending payments', link: '/payment-verification' },
+  { type: 'unpaid_credits', label: 'Unpaid credits', link: '/credit-book' },
+  { type: 'supplier_due', label: 'Supplier due', link: '/suppliers' },
+]
+
 function Dashboard() {
+  const navigate = useNavigate()
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [dashboard, setDashboard] = useState(null)
+  const [notifications, setNotifications] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -18,8 +29,15 @@ function Dashboard() {
     setError('')
 
     try {
-      const response = await api.get('/dashboard')
-      setDashboard(response.data.dashboard || response.data)
+      const dashboardResponse = await api.get('/dashboard')
+      setDashboard(dashboardResponse.data.dashboard || dashboardResponse.data)
+
+      try {
+        const notificationsResponse = await api.get('/notifications')
+        setNotifications(notificationsResponse.data.notifications || [])
+      } catch {
+        setNotifications([])
+      }
     } catch (err) {
       setError(getApiMessage(err, 'Failed to load dashboard'))
     } finally {
@@ -58,10 +76,45 @@ function Dashboard() {
     { label: 'Supplier Balance', value: formatMoney(dashboard.supplier_balance) },
     { label: 'Net Profit Today', value: formatMoney(dashboard.net_profit_today) },
   ]
+  const notificationByType = notifications.reduce((map, notification) => {
+    map[notification.type] = notification
+    return map
+  }, {})
+  const visibleAlertCards =
+    user.role === 'staff'
+      ? alertCards.filter((card) => ['low_stock', 'pending_payments'].includes(card.type))
+      : alertCards
 
   return (
     <section className="page-stack">
       {refreshing && <div className="info-banner">Refreshing dashboard data...</div>}
+      <section className="panel">
+        <div className="section-heading">
+          <h2>Alerts</h2>
+          <button type="button" className="ghost-button" onClick={() => loadDashboard(true)} disabled={refreshing}>
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
+        <div className="metric-grid alert-summary-grid">
+          {visibleAlertCards.map((card) => {
+            const notification = notificationByType[card.type]
+            const count = Number(notification?.count || 0)
+
+            return (
+              <button
+                type="button"
+                className={`alert-summary-card ${count > 0 ? notification?.priority || 'medium' : 'low'}`}
+                key={card.type}
+                onClick={() => navigate(notification?.link || card.link)}
+              >
+                <span>{card.label}</span>
+                <strong>{count}</strong>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
       <div className="metric-grid">
         {cards.map((card) => (
           <article className="metric-card" key={card.label}>

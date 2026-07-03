@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import api from '../services/api'
+import Notifications from './Notifications.jsx'
 import Sidebar from './Sidebar.jsx'
 
 function Layout() {
@@ -41,8 +42,11 @@ function Layout() {
             <p className="eyebrow">ShopMate LK</p>
             <h1>{user?.name ? `Welcome, ${user.name}` : 'Point of Sale'}</h1>
           </div>
-          <div className="user-pill">
-            <span>{user?.role || 'owner'}</span>
+          <div className="topbar-actions">
+            <Notifications />
+            <div className="user-pill">
+              <span>{user?.role || 'owner'}</span>
+            </div>
           </div>
         </header>
         <Outlet />

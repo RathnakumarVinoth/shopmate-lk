@@ -68,6 +68,14 @@ function App() {
             }
           />
           <Route
+            path="/credit-book"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <CreditBook />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/suppliers"
             element={
               <ProtectedRoute roles={['owner']}>
