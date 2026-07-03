@@ -25,31 +25,33 @@ const supplierRoutes = require("./routes/supplierRoutes");
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
-const allowedOrigins = isProduction
-  ? [process.env.FRONTEND_URL].filter(Boolean)
-  : [
-      process.env.FRONTEND_URL || "http://localhost:5173",
-      "http://localhost:5173",
-      "http://127.0.0.1:5173",
-    ];
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "https://shopmate-lk.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:4173",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:4173",
+].filter(Boolean);
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
 
 if (isProduction) {
   app.set("trust proxy", 1);
 }
 
 app.use(helmet());
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
 app.use(express.json());
 
 const globalLimiter = rateLimit({
