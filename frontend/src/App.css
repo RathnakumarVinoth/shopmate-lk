@@ -49,10 +49,10 @@ body,
   place-items: center;
   width: 42px;
   height: 42px;
-  border-radius: 8px;
-  color: #18324a;
-  background: #f6c85f;
-  font-weight: 800;
+  flex: 0 0 42px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: transparent;
 }
 
 .brand strong,
