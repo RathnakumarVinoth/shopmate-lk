@@ -45,6 +45,8 @@ exports.getSummary = async (req, res) => {
         `SELECT
            COALESCE(SUM(total_amount), 0) AS total_sales,
            COALESCE(SUM(total_profit), 0) AS total_profit,
+           COALESCE(SUM(discount_amount), 0) AS total_discounts,
+           COALESCE(SUM(tax_amount), 0) AS total_tax,
            COUNT(*) AS total_bills,
            COALESCE(AVG(total_amount), 0) AS average_bill_value
          FROM sales
@@ -115,6 +117,8 @@ exports.getSummary = async (req, res) => {
       total_refunds: totalRefunds,
       net_sales: totalSales - totalRefunds,
       total_profit: totalProfit,
+      total_discounts: toNumber(sales.total_discounts),
+      total_tax: toNumber(sales.total_tax),
       total_expenses: totalExpenses,
       net_profit: totalProfit - totalExpenses,
       total_bills: Number(sales.total_bills || 0),

@@ -872,6 +872,16 @@ th {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.cart-discount-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cart-discount-row small {
+  grid-column: 1 / -1;
+}
+
 .cart-row strong,
 .cart-row span {
   display: block;
@@ -2098,6 +2108,10 @@ th {
 
 @media (max-width: 430px) {
   .pos-product-list {
+    grid-template-columns: 1fr;
+  }
+
+  .cart-discount-row {
     grid-template-columns: 1fr;
   }
 

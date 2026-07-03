@@ -5,9 +5,39 @@ let ensuredPaymentVerifications = false;
 
 const paymentColumns = [
   {
+    name: "subtotal",
+    definition:
+      "ALTER TABLE sales ADD COLUMN subtotal DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "item_discount_total",
+    definition:
+      "ALTER TABLE sales ADD COLUMN item_discount_total DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "bill_discount",
+    definition:
+      "ALTER TABLE sales ADD COLUMN bill_discount DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
     name: "payment_status",
     definition:
       "ALTER TABLE sales ADD COLUMN payment_status VARCHAR(20) NOT NULL DEFAULT 'verified'",
+  },
+  {
+    name: "tax_percentage",
+    definition:
+      "ALTER TABLE sales ADD COLUMN tax_percentage DECIMAL(5,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "tax_amount",
+    definition:
+      "ALTER TABLE sales ADD COLUMN tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "total_before_tax",
+    definition:
+      "ALTER TABLE sales ADD COLUMN total_before_tax DECIMAL(10,2) NOT NULL DEFAULT 0",
   },
   {
     name: "payment_reference",
@@ -28,6 +58,44 @@ const paymentColumns = [
   {
     name: "verified_at",
     definition: "ALTER TABLE sales ADD COLUMN verified_at DATETIME NULL",
+  },
+];
+
+const saleItemColumns = [
+  {
+    name: "unit_price",
+    definition:
+      "ALTER TABLE sale_items ADD COLUMN unit_price DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "item_discount",
+    definition:
+      "ALTER TABLE sale_items ADD COLUMN item_discount DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "item_discount_type",
+    definition:
+      "ALTER TABLE sale_items ADD COLUMN item_discount_type VARCHAR(20) NOT NULL DEFAULT 'fixed'",
+  },
+  {
+    name: "tax_percentage",
+    definition:
+      "ALTER TABLE sale_items ADD COLUMN tax_percentage DECIMAL(5,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "tax_amount",
+    definition:
+      "ALTER TABLE sale_items ADD COLUMN tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "line_total_before_tax",
+    definition:
+      "ALTER TABLE sale_items ADD COLUMN line_total_before_tax DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "line_total",
+    definition:
+      "ALTER TABLE sale_items ADD COLUMN line_total DECIMAL(10,2) NOT NULL DEFAULT 0",
   },
 ];
 
@@ -88,14 +156,55 @@ const ensureSalesPaymentColumns = async () => {
   if (ensuredSalesColumns) return;
 
   const connection = db.promise();
-  const [columns] = await connection.query("SHOW COLUMNS FROM sales");
-  const existingColumns = new Set(columns.map((column) => column.Field));
+  const [salesColumns] = await connection.query("SHOW COLUMNS FROM sales");
+  const existingSalesColumns = new Set(salesColumns.map((column) => column.Field));
 
   for (const column of paymentColumns) {
-    if (!existingColumns.has(column.name)) {
+    if (!existingSalesColumns.has(column.name)) {
       await connection.query(column.definition);
     }
   }
+
+  const [saleItemTableRows] = await connection.query("SHOW TABLES LIKE 'sale_items'");
+
+  if (saleItemTableRows.length > 0) {
+    const [saleItemColumnsResult] = await connection.query("SHOW COLUMNS FROM sale_items");
+    const existingSaleItemColumns = new Set(
+      saleItemColumnsResult.map((column) => column.Field)
+    );
+
+    for (const column of saleItemColumns) {
+      if (!existingSaleItemColumns.has(column.name)) {
+        await connection.query(column.definition);
+      }
+    }
+
+    await connection.query(`
+      UPDATE sale_items
+      SET unit_price = CASE WHEN unit_price = 0 THEN selling_price ELSE unit_price END,
+          line_total_before_tax = CASE
+            WHEN line_total_before_tax = 0 THEN subtotal
+            ELSE line_total_before_tax
+          END,
+          line_total = CASE WHEN line_total = 0 THEN subtotal ELSE line_total END
+    `);
+  }
+
+  await connection.query(`
+    UPDATE sales
+    SET subtotal = CASE
+          WHEN subtotal = 0 THEN total_amount + COALESCE(discount_amount, 0)
+          ELSE subtotal
+        END,
+        bill_discount = CASE
+          WHEN bill_discount = 0 THEN COALESCE(discount_amount, 0)
+          ELSE bill_discount
+        END,
+        total_before_tax = CASE
+          WHEN total_before_tax = 0 THEN total_amount
+          ELSE total_before_tax
+        END
+  `);
 
   ensuredSalesColumns = true;
 };

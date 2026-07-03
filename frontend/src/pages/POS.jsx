@@ -59,6 +59,8 @@ const formatQuantity = (item) => {
   return item.unit ? `${quantity} ${item.unit}` : String(quantity)
 }
 
+const roundMoney = (value) => Number(Number(value || 0).toFixed(2))
+
 const getReceiptDetails = (receipt) => {
   const settings = getShopSettings()
   const saleId = receipt?.sale_id || receipt?.id || 'receipt'
@@ -68,8 +70,16 @@ const getReceiptDetails = (receipt) => {
   const customerPhone = receipt?.customer_phone || ''
   const customerAddress = receipt?.customer_address || ''
   const items = Array.isArray(receipt?.items) ? receipt.items : []
-  const totalBeforeDiscount = Number(receipt?.total_before_discount || 0)
+  const subtotal = Number(receipt?.subtotal ?? receipt?.total_before_discount ?? 0)
+  const totalBeforeDiscount = subtotal
+  const itemDiscountTotal = Number(receipt?.item_discount_total || 0)
+  const billDiscount = Number(receipt?.bill_discount ?? receipt?.discount_amount ?? 0)
   const discountAmount = Number(receipt?.discount_amount || 0)
+  const taxPercentage = Number(receipt?.tax_percentage || 0)
+  const taxAmount = Number(receipt?.tax_amount || 0)
+  const totalBeforeTax = Number(
+    receipt?.total_before_tax ?? Math.max(0, subtotal - discountAmount),
+  )
   const finalTotal = Number(receipt?.final_total || receipt?.total_amount || 0)
   const paidAmount = Number(receipt?.paid_amount || 0)
   const balanceAmount = Number(receipt?.balance_amount || 0)
@@ -101,8 +111,14 @@ const getReceiptDetails = (receipt) => {
     defaultReceiptSize,
     currency,
     items,
+    subtotal,
     totalBeforeDiscount,
+    itemDiscountTotal,
+    billDiscount,
     discountAmount,
+    taxPercentage,
+    taxAmount,
+    totalBeforeTax,
     finalTotal,
     paidAmount,
     balanceAmount,
@@ -178,9 +194,13 @@ const generateInvoicePDF = (receipt) => {
 
   const finalY = doc.lastAutoTable?.finalY || 70
   const totals = [
-    [t('subtotal'), formatCurrency(details.totalBeforeDiscount, details.currency)],
-    [t('discount'), formatCurrency(details.discountAmount, details.currency)],
-    [t('total'), formatCurrency(details.finalTotal, details.currency)],
+    [t('Subtotal'), formatCurrency(details.subtotal, details.currency)],
+    [t('Item Discount Total'), formatCurrency(details.itemDiscountTotal, details.currency)],
+    [t('Bill Discount'), formatCurrency(details.billDiscount, details.currency)],
+    [t('Total Before Tax'), formatCurrency(details.totalBeforeTax, details.currency)],
+    [t('Tax Percentage'), `${details.taxPercentage}%`],
+    [t('Tax Amount'), formatCurrency(details.taxAmount, details.currency)],
+    [t('Final Total'), formatCurrency(details.finalTotal, details.currency)],
     [t('paid'), formatCurrency(details.paidAmount, details.currency)],
     [details.balanceLabel, formatCurrency(Math.abs(details.balanceAmount), details.currency)],
   ]
@@ -230,7 +250,12 @@ const shareInvoiceWhatsApp = (receipt) => {
     itemLines || '- No items',
     moreItems,
     '',
-    `Total: ${formatCurrency(details.finalTotal, details.currency)}`,
+    `Subtotal: ${formatCurrency(details.subtotal, details.currency)}`,
+    `Item Discount Total: ${formatCurrency(details.itemDiscountTotal, details.currency)}`,
+    `Bill Discount: ${formatCurrency(details.billDiscount, details.currency)}`,
+    `Total Before Tax: ${formatCurrency(details.totalBeforeTax, details.currency)}`,
+    `Tax (${details.taxPercentage}%): ${formatCurrency(details.taxAmount, details.currency)}`,
+    `Final Total: ${formatCurrency(details.finalTotal, details.currency)}`,
     `Paid: ${formatCurrency(details.paidAmount, details.currency)}`,
     `${details.balanceLabel}: ${formatCurrency(
       Math.abs(details.balanceAmount),
@@ -306,9 +331,13 @@ const printReceipt = (receipt) => {
           <tbody>${rows}</tbody>
         </table>
         <div class="totals">
-          <div><span>${t('subtotal')}</span><strong>${formatCurrency(details.totalBeforeDiscount, details.currency)}</strong></div>
-          <div><span>${t('discount')}</span><strong>${formatCurrency(details.discountAmount, details.currency)}</strong></div>
-          <div class="total"><span>${t('total')}</span><strong>${formatCurrency(details.finalTotal, details.currency)}</strong></div>
+          <div><span>${t('Subtotal')}</span><strong>${formatCurrency(details.subtotal, details.currency)}</strong></div>
+          <div><span>${t('Item Discount Total')}</span><strong>${formatCurrency(details.itemDiscountTotal, details.currency)}</strong></div>
+          <div><span>${t('Bill Discount')}</span><strong>${formatCurrency(details.billDiscount, details.currency)}</strong></div>
+          <div><span>${t('Total Before Tax')}</span><strong>${formatCurrency(details.totalBeforeTax, details.currency)}</strong></div>
+          <div><span>${t('Tax Percentage')}</span><strong>${details.taxPercentage}%</strong></div>
+          <div><span>${t('Tax Amount')}</span><strong>${formatCurrency(details.taxAmount, details.currency)}</strong></div>
+          <div class="total"><span>${t('Final Total')}</span><strong>${formatCurrency(details.finalTotal, details.currency)}</strong></div>
           <div><span>${t('paid')}</span><strong>${formatCurrency(details.paidAmount, details.currency)}</strong></div>
           <div><span>${details.balanceLabel}</span><strong>${formatCurrency(
             Math.abs(details.balanceAmount),
@@ -423,13 +452,22 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
 
           <div class="line"></div>
           <section class="totals">
-            <div class="row"><span>${escapeHtml(t('subtotal'))}</span><span>${escapeHtml(
-              formatCurrency(details.totalBeforeDiscount, details.currency),
+            <div class="row"><span>${escapeHtml(t('Subtotal'))}</span><span>${escapeHtml(
+              formatCurrency(details.subtotal, details.currency),
             )}</span></div>
-            <div class="row"><span>${escapeHtml(t('discount'))}</span><span>${escapeHtml(
-              formatCurrency(details.discountAmount, details.currency),
+            <div class="row"><span>${escapeHtml(t('Item Discount Total'))}</span><span>${escapeHtml(
+              formatCurrency(details.itemDiscountTotal, details.currency),
             )}</span></div>
-            <div class="row grand-total"><span>${escapeHtml(t('total'))}</span><span>${escapeHtml(
+            <div class="row"><span>${escapeHtml(t('Bill Discount'))}</span><span>${escapeHtml(
+              formatCurrency(details.billDiscount, details.currency),
+            )}</span></div>
+            <div class="row"><span>${escapeHtml(t('Total Before Tax'))}</span><span>${escapeHtml(
+              formatCurrency(details.totalBeforeTax, details.currency),
+            )}</span></div>
+            <div class="row"><span>${escapeHtml(t('Tax'))} ${escapeHtml(String(details.taxPercentage))}%</span><span>${escapeHtml(
+              formatCurrency(details.taxAmount, details.currency),
+            )}</span></div>
+            <div class="row grand-total"><span>${escapeHtml(t('Final Total'))}</span><span>${escapeHtml(
               formatCurrency(details.finalTotal, details.currency),
             )}</span></div>
             <div class="row"><span>${escapeHtml(t('paid'))}</span><span>${escapeHtml(
@@ -476,6 +514,9 @@ function POS() {
   const [paymentType, setPaymentType] = useState('cash')
   const [paymentDetails, setPaymentDetails] = useState(initialPaymentDetails)
   const [discountAmount, setDiscountAmount] = useState('')
+  const [taxPercentage, setTaxPercentage] = useState(() =>
+    String(Number(getShopSettings().tax_percentage || 0)),
+  )
   const [paidAmount, setPaidAmount] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
@@ -572,22 +613,95 @@ function POS() {
     })
   }, [products, search, selectedCategory])
 
-  const cartItems = useMemo(
-    () =>
-      Object.values(cart).map((item) => ({
-        ...item,
-        subtotal: Number(item.selling_price) * item.quantity,
-      })),
-    [cart],
-  )
+  const cartTotals = useMemo(() => {
+    const billDiscount = Math.max(0, Number(discountAmount || 0))
+    const billTaxPercentage = Math.max(0, Number(taxPercentage || 0))
+    const baseItems = Object.values(cart).map((item) => {
+      const quantity = Number(item.quantity || 0)
+      const unitPrice = Number(item.selling_price || 0)
+      const grossLineTotal = roundMoney(unitPrice * quantity)
+      const discountType = item.item_discount_type || 'fixed'
+      const discountValue = Math.max(0, Number(item.item_discount || 0))
+      const itemDiscountAmount = roundMoney(
+        discountType === 'percentage'
+          ? (grossLineTotal * discountValue) / 100
+          : discountValue,
+      )
+      const lineTotalBeforeTax = roundMoney(grossLineTotal - itemDiscountAmount)
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.subtotal, 0)
-  const discount = Math.max(0, Number(discountAmount || 0))
-  const total = Math.max(0, subtotal - discount)
+      return {
+        ...item,
+        quantity,
+        unit_price: unitPrice,
+        item_discount: item.item_discount ?? '',
+        item_discount_type: discountType,
+        gross_line_total: grossLineTotal,
+        item_discount_amount: itemDiscountAmount,
+        line_total_before_tax: lineTotalBeforeTax,
+        tax_percentage: billTaxPercentage,
+        tax_amount: 0,
+        line_total: lineTotalBeforeTax,
+        subtotal: lineTotalBeforeTax,
+        item_discount_invalid: itemDiscountAmount > grossLineTotal,
+      }
+    })
+    const subtotalValue = roundMoney(
+      baseItems.reduce((sum, item) => sum + item.gross_line_total, 0),
+    )
+    const itemDiscountTotalValue = roundMoney(
+      baseItems.reduce((sum, item) => sum + item.item_discount_amount, 0),
+    )
+    const afterItemDiscount = roundMoney(subtotalValue - itemDiscountTotalValue)
+    const totalBeforeTaxValue = roundMoney(afterItemDiscount - billDiscount)
+    const taxAmountValue = roundMoney(Math.max(0, totalBeforeTaxValue) * billTaxPercentage / 100)
+    const taxableLineTotal = baseItems.reduce(
+      (sum, item) => sum + Math.max(0, item.line_total_before_tax),
+      0,
+    )
+    let allocatedTax = 0
+    const itemsWithTax = baseItems.map((item, index) => {
+      const isLast = index === baseItems.length - 1
+      const share = taxableLineTotal === 0 ? 0 : Math.max(0, item.line_total_before_tax) / taxableLineTotal
+      const lineTax = isLast
+        ? roundMoney(taxAmountValue - allocatedTax)
+        : roundMoney(taxAmountValue * share)
+      allocatedTax = roundMoney(allocatedTax + lineTax)
+
+      return {
+        ...item,
+        tax_amount: lineTax,
+        line_total: roundMoney(item.line_total_before_tax + lineTax),
+        subtotal: roundMoney(item.line_total_before_tax + lineTax),
+      }
+    })
+
+    return {
+      items: itemsWithTax,
+      subtotal: subtotalValue,
+      itemDiscountTotal: itemDiscountTotalValue,
+      billDiscount,
+      totalBeforeTax: Math.max(0, totalBeforeTaxValue),
+      taxPercentage: billTaxPercentage,
+      taxAmount: taxAmountValue,
+      total: roundMoney(Math.max(0, totalBeforeTaxValue) + taxAmountValue),
+      billDiscountInvalid: billDiscount > afterItemDiscount,
+      itemDiscountInvalid: baseItems.some((item) => item.item_discount_invalid),
+    }
+  }, [cart, discountAmount, taxPercentage])
+
+  const cartItems = cartTotals.items
+  const subtotal = cartTotals.subtotal
+  const itemDiscountTotal = cartTotals.itemDiscountTotal
+  const discount = cartTotals.billDiscount
+  const totalBeforeTax = cartTotals.totalBeforeTax
+  const tax = cartTotals.taxAmount
+  const total = cartTotals.total
   const paid = Math.max(0, Number(paidAmount || 0))
   const balance = paid - total
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0)
-  const discountInvalid = discount > subtotal
+  const discountInvalid = cartTotals.billDiscountInvalid
+  const itemDiscountInvalid = cartTotals.itemDiscountInvalid
+  const taxInvalid = Number(taxPercentage || 0) < 0
   const paidRequired = paymentType !== 'credit'
   const isCardPayment = paymentType === 'card'
   const needsReference = ['card', 'qr', 'bank_transfer'].includes(paymentType)
@@ -647,7 +761,9 @@ function POS() {
 
       return {
         ...currentCart,
-        [product.id]: { ...product, quantity: nextQuantity },
+        [product.id]: current
+          ? { ...current, quantity: nextQuantity }
+          : { ...product, quantity: nextQuantity, item_discount: '', item_discount_type: 'fixed' },
       }
     })
   }
@@ -670,10 +786,12 @@ function POS() {
 
     setCart((currentCart) => ({
       ...currentCart,
-      [product.id]: {
-        ...product,
-        quantity: currentCart[product.id] ? currentCart[product.id].quantity + 1 : 1,
-      },
+      [product.id]: currentCart[product.id]
+        ? {
+            ...currentCart[product.id],
+            quantity: currentCart[product.id].quantity + 1,
+          }
+        : { ...product, quantity: 1, item_discount: '', item_discount_type: 'fixed' },
     }))
 
     setMessage(`${product.product_name} added to cart`)
@@ -762,6 +880,21 @@ function POS() {
     })
   }
 
+  const updateCartItem = (productId, changes) => {
+    setCart((currentCart) => {
+      const item = currentCart[productId]
+      if (!item) return currentCart
+
+      return {
+        ...currentCart,
+        [productId]: {
+          ...item,
+          ...changes,
+        },
+      }
+    })
+  }
+
   const clearCart = () => {
     setCart({})
     setMessage('')
@@ -779,7 +912,17 @@ function POS() {
     }
 
     if (discountInvalid) {
-      setError('Discount cannot be greater than subtotal')
+      setError('Bill discount cannot be greater than total after item discounts')
+      return
+    }
+
+    if (itemDiscountInvalid) {
+      setError('Item discount cannot be greater than item total')
+      return
+    }
+
+    if (taxInvalid) {
+      setError('Tax percentage cannot be negative')
       return
     }
 
@@ -817,7 +960,9 @@ function POS() {
       const response = await api.post('/sales', {
         customer_id: selectedCustomerId ? Number(selectedCustomerId) : null,
         payment_type: paymentType,
+        bill_discount: discount,
         discount_amount: discount,
+        tax_percentage: cartTotals.taxPercentage,
         paid_amount: paymentType === 'credit' ? paid : Number(paidAmount),
         payment_reference: paymentDetails.payment_reference.trim() || null,
         approval_code: paymentDetails.approval_code.trim() || null,
@@ -825,6 +970,8 @@ function POS() {
         items: cartItems.map((item) => ({
           product_id: item.id,
           quantity: item.quantity,
+          item_discount: Number(item.item_discount || 0),
+          item_discount_type: item.item_discount_type || 'fixed',
         })),
       })
 
@@ -1131,6 +1278,37 @@ function POS() {
                     +
                   </button>
                 </div>
+                <div className="cart-discount-row">
+                  <label>
+                    {t('Item Discount')}
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      value={item.item_discount}
+                      onChange={(event) =>
+                        updateCartItem(item.id, { item_discount: event.target.value })
+                      }
+                      className={item.item_discount_invalid ? 'input-error' : ''}
+                    />
+                  </label>
+                  <label>
+                    {t('Discount Type')}
+                    <select
+                      value={item.item_discount_type}
+                      onChange={(event) =>
+                        updateCartItem(item.id, { item_discount_type: event.target.value })
+                      }
+                    >
+                      <option value="fixed">{t('Fixed')}</option>
+                      <option value="percentage">{t('Percentage')}</option>
+                    </select>
+                  </label>
+                  <small className="muted">
+                    {t('Line Before Tax')}: {formatMoney(item.line_total_before_tax)}
+                  </small>
+                </div>
                 <button type="button" className="danger-button" onClick={() => removeFromCart(item.id)}>
                   {t('Remove')}
                 </button>
@@ -1165,7 +1343,7 @@ function POS() {
               </select>
             </label>
             <label>
-              {t('Discount')}
+              {t('Bill Discount')}
               <input
                 type="number"
                 inputMode="decimal"
@@ -1174,6 +1352,18 @@ function POS() {
                 value={discountAmount}
                 onChange={(event) => setDiscountAmount(event.target.value)}
                 className={discountInvalid ? 'input-error' : ''}
+              />
+            </label>
+            <label>
+              {t('Tax Percentage')}
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={taxPercentage}
+                onChange={(event) => setTaxPercentage(event.target.value)}
+                className={taxInvalid ? 'input-error' : ''}
               />
             </label>
             <label className="full-width">
@@ -1237,15 +1427,27 @@ function POS() {
 
           <section className="summary-box">
           <div>
-            <span>{t('subtotal')}</span>
+            <span>{t('Subtotal')}</span>
             <strong>{formatMoney(subtotal)}</strong>
           </div>
           <div>
-            <span>{t('discount')}</span>
+            <span>{t('Item Discounts')}</span>
+            <strong>- {formatMoney(itemDiscountTotal)}</strong>
+          </div>
+          <div>
+            <span>{t('Bill Discount')}</span>
             <strong>- {formatMoney(discount)}</strong>
           </div>
+          <div>
+            <span>{t('Total Before Tax')}</span>
+            <strong>{formatMoney(totalBeforeTax)}</strong>
+          </div>
+          <div>
+            <span>{t('Tax')} ({cartTotals.taxPercentage}%)</span>
+            <strong>{formatMoney(tax)}</strong>
+          </div>
           <div className="summary-total">
-            <span>{t('total')}</span>
+            <span>{t('Final Total')}</span>
             <strong>{formatMoney(total)}</strong>
           </div>
           <div>
@@ -1361,15 +1563,31 @@ function POS() {
 
               <div className="receipt-totals">
                 <div>
-                  <span>{t('subtotal')}</span>
-                  <strong>{formatCurrency(receiptDetails.totalBeforeDiscount, receiptDetails.currency)}</strong>
+                  <span>{t('Subtotal')}</span>
+                  <strong>{formatCurrency(receiptDetails.subtotal, receiptDetails.currency)}</strong>
                 </div>
                 <div>
-                  <span>{t('discount')}</span>
-                  <strong>{formatCurrency(receiptDetails.discountAmount, receiptDetails.currency)}</strong>
+                  <span>{t('Item Discount Total')}</span>
+                  <strong>{formatCurrency(receiptDetails.itemDiscountTotal, receiptDetails.currency)}</strong>
                 </div>
                 <div>
-                  <span>{t('total')}</span>
+                  <span>{t('Bill Discount')}</span>
+                  <strong>{formatCurrency(receiptDetails.billDiscount, receiptDetails.currency)}</strong>
+                </div>
+                <div>
+                  <span>{t('Total Before Tax')}</span>
+                  <strong>{formatCurrency(receiptDetails.totalBeforeTax, receiptDetails.currency)}</strong>
+                </div>
+                <div>
+                  <span>{t('Tax Percentage')}</span>
+                  <strong>{receiptDetails.taxPercentage}%</strong>
+                </div>
+                <div>
+                  <span>{t('Tax Amount')}</span>
+                  <strong>{formatCurrency(receiptDetails.taxAmount, receiptDetails.currency)}</strong>
+                </div>
+                <div>
+                  <span>{t('Final Total')}</span>
                   <strong>{formatCurrency(receiptDetails.finalTotal, receiptDetails.currency)}</strong>
                 </div>
                 <div>

@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { ensureProductCatalogSchema } = require("../utils/productCatalogSchema");
+const { ensureSalesPaymentColumns } = require("../utils/paymentSchema");
 
 const runQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
@@ -62,15 +63,22 @@ exports.getSalesExport = async (req, res) => {
   if (!ownerOnly(req, res)) return;
 
   try {
+    await ensureSalesPaymentColumns();
     const shopId = req.user.shop_id;
     const { start_date, end_date } = getDateFilter(req);
 
     let sql = `
       SELECT 
         invoice_no AS 'Invoice No',
+        subtotal AS 'Subtotal',
+        item_discount_total AS 'Item Discount Total',
+        bill_discount AS 'Bill Discount',
+        discount_amount AS 'Total Discount',
+        total_before_tax AS 'Total Before Tax',
+        tax_percentage AS 'Tax Percentage',
+        tax_amount AS 'Tax Amount',
         total_amount AS 'Total Amount',
         total_profit AS 'Total Profit',
-        discount_amount AS 'Discount',
         payment_type AS 'Payment Type',
         paid_amount AS 'Paid Amount',
         balance_amount AS 'Balance Amount',
@@ -99,6 +107,7 @@ exports.getSaleItemsExport = async (req, res) => {
   if (!ownerOnly(req, res)) return;
 
   try {
+    await ensureSalesPaymentColumns();
     const shopId = req.user.shop_id;
     const { start_date, end_date } = getDateFilter(req);
 
@@ -108,8 +117,13 @@ exports.getSaleItemsExport = async (req, res) => {
         p.product_name AS 'Product Name',
         si.quantity AS 'Quantity',
         si.buying_price AS 'Buying Price',
-        si.selling_price AS 'Selling Price',
-        si.subtotal AS 'Subtotal',
+        si.unit_price AS 'Unit Price',
+        si.item_discount AS 'Item Discount',
+        si.item_discount_type AS 'Item Discount Type',
+        si.line_total_before_tax AS 'Line Total Before Tax',
+        si.tax_percentage AS 'Tax Percentage',
+        si.tax_amount AS 'Tax Amount',
+        si.line_total AS 'Line Total',
         si.profit AS 'Profit',
         s.created_at AS 'Sale Date'
       FROM sale_items si

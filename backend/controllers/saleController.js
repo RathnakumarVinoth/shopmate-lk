@@ -10,6 +10,7 @@ const { createAuditLogFromRequest } = require("../utils/auditLog");
 const allowedPaymentTypes = ["cash", "card", "bank_transfer", "qr", "credit"];
 const paidRequiredTypes = ["cash", "card", "bank_transfer", "qr"];
 const verifiablePaymentTypes = ["card", "bank_transfer", "qr"];
+const allowedDiscountTypes = ["fixed", "percentage"];
 
 const toNumber = (value) => Number(value);
 
@@ -75,6 +76,27 @@ const validateSaleRequest = (body) => {
     if (!isPositiveInteger(item.quantity)) {
       errors.push(`items[${index}].quantity must be greater than 0`);
     }
+
+    if (
+      item.item_discount !== undefined &&
+      !isNonNegativeNumber(item.item_discount)
+    ) {
+      errors.push(`items[${index}].item_discount must be a non-negative number`);
+    }
+
+    if (
+      item.item_discount_type !== undefined &&
+      !allowedDiscountTypes.includes(item.item_discount_type)
+    ) {
+      errors.push(`items[${index}].item_discount_type must be fixed or percentage`);
+    }
+
+    if (
+      item.tax_percentage !== undefined &&
+      !isNonNegativeNumber(item.tax_percentage)
+    ) {
+      errors.push(`items[${index}].tax_percentage must be a non-negative number`);
+    }
   });
 
   if (
@@ -82,6 +104,20 @@ const validateSaleRequest = (body) => {
     !isNonNegativeNumber(body.discount_amount)
   ) {
     errors.push("discount_amount must be a non-negative number");
+  }
+
+  if (
+    body.bill_discount !== undefined &&
+    !isNonNegativeNumber(body.bill_discount)
+  ) {
+    errors.push("bill_discount must be a non-negative number");
+  }
+
+  if (
+    body.tax_percentage !== undefined &&
+    !isNonNegativeNumber(body.tax_percentage)
+  ) {
+    errors.push("tax_percentage must be a non-negative number");
   }
 
   if (paidRequiredTypes.includes(paymentType) && body.paid_amount === undefined) {
@@ -122,8 +158,14 @@ const validateSaleRequest = (body) => {
 
 const formatSale = (sale) => ({
   ...sale,
+  subtotal: Number(sale.subtotal || 0),
+  item_discount_total: Number(sale.item_discount_total || 0),
+  bill_discount: Number(sale.bill_discount || 0),
   total_amount: Number(sale.total_amount),
   discount_amount: Number(sale.discount_amount || 0),
+  tax_percentage: Number(sale.tax_percentage || 0),
+  tax_amount: Number(sale.tax_amount || 0),
+  total_before_tax: Number(sale.total_before_tax || sale.total_amount || 0),
   total_profit: Number(sale.total_profit),
   paid_amount: Number(sale.paid_amount || 0),
   balance_amount: Number(sale.balance_amount || 0),
@@ -134,16 +176,24 @@ const formatSaleItem = (item) => ({
   ...item,
   buying_price: Number(item.buying_price),
   selling_price: Number(item.selling_price),
-  subtotal: Number(item.subtotal),
+  unit_price: Number(item.unit_price ?? item.selling_price),
+  item_discount: Number(item.item_discount || 0),
+  item_discount_type: item.item_discount_type || "fixed",
+  tax_percentage: Number(item.tax_percentage || 0),
+  tax_amount: Number(item.tax_amount || 0),
+  line_total_before_tax: Number(item.line_total_before_tax || item.subtotal || 0),
+  line_total: Number(item.line_total || item.subtotal || 0),
+  subtotal: Number(item.subtotal || item.line_total || 0),
   profit: Number(item.profit),
 });
 
 const buildReceipt = ({ sale, shop, customer, items }) => {
   const formattedSale = formatSale(sale);
   const receiptItems = items.map(formatSaleItem);
-  const itemsTotal = formatMoney(
-    receiptItems.reduce((sum, item) => sum + item.subtotal, 0)
+  const calculatedSubtotal = formatMoney(
+    receiptItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
   );
+  const subtotal = formattedSale.subtotal || calculatedSubtotal;
   const receiptCustomer = customer || {};
 
   return {
@@ -173,11 +223,24 @@ const buildReceipt = ({ sale, shop, customer, items }) => {
       product_name: item.product_name,
       unit: item.unit || null,
       quantity: item.quantity,
+      unit_price: item.unit_price,
       selling_price: item.selling_price,
+      item_discount: item.item_discount,
+      item_discount_type: item.item_discount_type,
+      tax_percentage: item.tax_percentage,
+      tax_amount: item.tax_amount,
+      line_total_before_tax: item.line_total_before_tax,
+      line_total: item.line_total,
       subtotal: item.subtotal,
     })),
-    total_before_discount: itemsTotal,
+    subtotal,
+    total_before_discount: subtotal,
+    item_discount_total: formattedSale.item_discount_total,
+    bill_discount: formattedSale.bill_discount,
     discount_amount: formattedSale.discount_amount,
+    tax_percentage: formattedSale.tax_percentage,
+    tax_amount: formattedSale.tax_amount,
+    total_before_tax: formattedSale.total_before_tax,
     final_total: formattedSale.total_amount,
     paid_amount: formattedSale.paid_amount,
     balance_amount: formattedSale.balance_amount,
@@ -211,7 +274,9 @@ exports.createSale = async (req, res) => {
     req.body.customer_id === undefined || req.body.customer_id === null || req.body.customer_id === ""
       ? null
       : Number(req.body.customer_id);
-  const discountAmount = formatMoney(Number(req.body.discount_amount || 0));
+  const requestedBillDiscount = formatMoney(
+    Number(req.body.bill_discount ?? req.body.discount_amount ?? 0)
+  );
   const paidAmount = formatMoney(
     paymentType === "credit"
       ? Number(req.body.paid_amount || 0)
@@ -220,6 +285,12 @@ exports.createSale = async (req, res) => {
   const items = req.body.items.map((item) => ({
     product_id: Number(item.product_id),
     quantity: Number(item.quantity),
+    item_discount: Number(item.item_discount || 0),
+    item_discount_type: item.item_discount_type || "fixed",
+    tax_percentage:
+      item.tax_percentage === undefined || item.tax_percentage === null || item.tax_percentage === ""
+        ? null
+        : Number(item.tax_percentage),
   }));
 
   const quantityByProduct = items.reduce((totals, item) => {
@@ -237,11 +308,15 @@ exports.createSale = async (req, res) => {
 
     const [shops] = await connection.query(
       `SELECT shop_name, phone, email, address, receipt_footer, currency, logo_url,
-              default_receipt_size
+              default_receipt_size, tax_percentage
        FROM shops
        WHERE id = ?
        LIMIT 1`,
       [shopId]
+    );
+    const shopTaxPercentage = Number(shops[0]?.tax_percentage || 0);
+    const billTaxPercentage = formatMoney(
+      Number(req.body.tax_percentage ?? shopTaxPercentage)
     );
 
     let customer = null;
@@ -303,8 +378,23 @@ exports.createSale = async (req, res) => {
       const product = productMap[item.product_id];
       const buyingPrice = toNumber(product.wholesale_price ?? product.buying_price);
       const sellingPrice = toNumber(product.selling_price);
-      const subtotal = formatMoney(sellingPrice * item.quantity);
-      const profit = formatMoney((sellingPrice - buyingPrice) * item.quantity);
+      const grossLineTotal = formatMoney(sellingPrice * item.quantity);
+      const itemDiscountType = item.item_discount_type || "fixed";
+      const itemDiscount = formatMoney(
+        itemDiscountType === "percentage"
+          ? (grossLineTotal * Number(item.item_discount || 0)) / 100
+          : Number(item.item_discount || 0)
+      );
+
+      if (itemDiscount > grossLineTotal) {
+        const error = new Error(`Item discount cannot exceed total for ${product.product_name}`);
+        error.statusCode = 400;
+        throw error;
+      }
+
+      const lineTotalBeforeTax = formatMoney(grossLineTotal - itemDiscount);
+      const lineTaxPercentage =
+        item.tax_percentage === null ? billTaxPercentage : formatMoney(item.tax_percentage);
 
       return {
         product_id: item.product_id,
@@ -312,28 +402,73 @@ exports.createSale = async (req, res) => {
         unit: product.unit || null,
         quantity: item.quantity,
         buying_price: buyingPrice,
+        unit_price: sellingPrice,
         selling_price: sellingPrice,
-        subtotal,
-        profit,
+        gross_line_total: grossLineTotal,
+        item_discount: itemDiscount,
+        item_discount_type: itemDiscountType,
+        tax_percentage: lineTaxPercentage,
+        line_total_before_tax: lineTotalBeforeTax,
+        tax_amount: 0,
+        line_total: lineTotalBeforeTax,
+        subtotal: lineTotalBeforeTax,
+        profit: formatMoney(lineTotalBeforeTax - buyingPrice * item.quantity),
       };
     });
 
-    const itemsTotal = formatMoney(
-      saleItems.reduce((sum, item) => sum + item.subtotal, 0)
+    const subtotal = formatMoney(
+      saleItems.reduce((sum, item) => sum + item.gross_line_total, 0)
     );
+    const itemDiscountTotal = formatMoney(
+      saleItems.reduce((sum, item) => sum + item.item_discount, 0)
+    );
+    const afterItemDiscountTotal = formatMoney(subtotal - itemDiscountTotal);
 
-    if (discountAmount > itemsTotal) {
+    if (requestedBillDiscount > afterItemDiscountTotal) {
       await connection.rollback();
       return res.status(400).json({
-        message: "discount_amount cannot be greater than items total",
-        items_total: itemsTotal,
+        message: "bill_discount cannot be greater than total after item discounts",
+        items_total: afterItemDiscountTotal,
       });
     }
 
-    const totalAmount = formatMoney(itemsTotal - discountAmount);
+    const totalBeforeTax = formatMoney(afterItemDiscountTotal - requestedBillDiscount);
+    const taxAmount = formatMoney((totalBeforeTax * billTaxPercentage) / 100);
+    const totalAmount = formatMoney(totalBeforeTax + taxAmount);
+    const discountAmount = formatMoney(itemDiscountTotal + requestedBillDiscount);
     const totalProfit = formatMoney(
-      saleItems.reduce((sum, item) => sum + item.profit, 0) - discountAmount
+      saleItems.reduce((sum, item) => sum + item.profit, 0) - requestedBillDiscount
     );
+
+    if (totalAmount < 0) {
+      await connection.rollback();
+      return res.status(400).json({ message: "Final total cannot be below 0" });
+    }
+
+    const taxableLineTotal = saleItems.reduce(
+      (sum, item) => sum + item.line_total_before_tax,
+      0
+    );
+    let allocatedTaxTotal = 0;
+    const finalSaleItems = saleItems.map((item, index) => {
+      const isLast = index === saleItems.length - 1;
+      const share =
+        taxableLineTotal === 0 ? 0 : item.line_total_before_tax / taxableLineTotal;
+      const lineTax = isLast
+        ? formatMoney(taxAmount - allocatedTaxTotal)
+        : formatMoney(taxAmount * share);
+
+      allocatedTaxTotal = formatMoney(allocatedTaxTotal + lineTax);
+
+      return {
+        ...item,
+        tax_percentage: billTaxPercentage,
+        tax_amount: lineTax,
+        line_total: formatMoney(item.line_total_before_tax + lineTax),
+        subtotal: formatMoney(item.line_total_before_tax + lineTax),
+      };
+    });
+
     if (paymentType === "credit" && paidAmount > totalAmount) {
       await connection.rollback();
       return res.status(400).json({
@@ -357,18 +492,26 @@ exports.createSale = async (req, res) => {
 
     const [saleResult] = await connection.query(
       `INSERT INTO sales
-       (shop_id, user_id, customer_id, total_amount, discount_amount, total_profit,
-        payment_type, paid_amount, balance_amount, payment_status, payment_reference,
+       (shop_id, user_id, customer_id, subtotal, item_discount_total,
+        bill_discount, discount_amount, tax_percentage, tax_amount,
+        total_before_tax, total_amount, total_profit, payment_type,
+        paid_amount, balance_amount, payment_status, payment_reference,
         approval_code, card_last_four, verified_by, verified_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${
          paymentStatus === "verified" ? "NOW()" : "NULL"
        })`,
       [
         shopId,
         userId,
         customerId,
-        totalAmount,
+        subtotal,
+        itemDiscountTotal,
+        requestedBillDiscount,
         discountAmount,
+        billTaxPercentage,
+        taxAmount,
+        totalBeforeTax,
+        totalAmount,
         totalProfit,
         paymentType,
         paidAmount,
@@ -398,19 +541,28 @@ exports.createSale = async (req, res) => {
       );
     }
 
-    const saleItemRows = saleItems.map((item) => [
+    const saleItemRows = finalSaleItems.map((item) => [
       saleId,
       item.product_id,
       item.quantity,
       item.buying_price,
       item.selling_price,
+      item.unit_price,
+      item.item_discount,
+      item.item_discount_type,
+      item.tax_percentage,
+      item.tax_amount,
+      item.line_total_before_tax,
+      item.line_total,
       item.subtotal,
       item.profit,
     ]);
 
     await connection.query(
       `INSERT INTO sale_items
-       (sale_id, product_id, quantity, buying_price, selling_price, subtotal, profit)
+       (sale_id, product_id, quantity, buying_price, selling_price,
+        unit_price, item_discount, item_discount_type, tax_percentage,
+        tax_amount, line_total_before_tax, line_total, subtotal, profit)
        VALUES ?`,
       [saleItemRows]
     );
@@ -459,7 +611,7 @@ exports.createSale = async (req, res) => {
       sale: sales[0],
       shop: shops[0],
       customer: customer || sales[0],
-      items: saleItems,
+      items: finalSaleItems,
     });
 
     await createAuditLogFromRequest(req, {
@@ -474,8 +626,15 @@ exports.createSale = async (req, res) => {
       receipt,
       sale: {
         ...formatSale(sales[0]),
-        items_total: itemsTotal,
-        items: saleItems.map(formatSaleItem),
+        subtotal,
+        item_discount_total: itemDiscountTotal,
+        bill_discount: requestedBillDiscount,
+        discount_amount: discountAmount,
+        tax_percentage: billTaxPercentage,
+        tax_amount: taxAmount,
+        total_before_tax: totalBeforeTax,
+        items_total: subtotal,
+        items: finalSaleItems.map(formatSaleItem),
         credit_record_id: creditRecordId,
       },
     });
@@ -484,6 +643,10 @@ exports.createSale = async (req, res) => {
       await connection.rollback();
     } catch (rollbackError) {
       console.error("Sale rollback failed:", rollbackError.message);
+    }
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
     }
 
     console.error("Create sale error:", error.message);
@@ -499,8 +662,10 @@ exports.getSales = async (req, res) => {
 
     const [sales] = await db.promise().query(
       `SELECT sales.id, sales.invoice_no, sales.shop_id, sales.user_id,
-              users.name AS user_name, sales.total_amount,
-              sales.discount_amount, sales.total_profit, sales.payment_type,
+              users.name AS user_name, sales.subtotal, sales.item_discount_total,
+              sales.bill_discount, sales.discount_amount, sales.tax_percentage,
+              sales.tax_amount, sales.total_before_tax, sales.total_amount,
+              sales.total_profit, sales.payment_type,
               sales.paid_amount, sales.balance_amount, sales.customer_id,
               sales.payment_status, sales.payment_reference, sales.approval_code,
               sales.card_last_four, sales.verified_by, sales.verified_at,
@@ -559,7 +724,10 @@ exports.getSaleById = async (req, res) => {
       `SELECT sale_items.id, sale_items.sale_id, sale_items.product_id,
               products.product_name, products.unit, sale_items.quantity,
               sale_items.buying_price, sale_items.selling_price,
-              sale_items.subtotal, sale_items.profit
+              sale_items.unit_price, sale_items.item_discount,
+              sale_items.item_discount_type, sale_items.tax_percentage,
+              sale_items.tax_amount, sale_items.line_total_before_tax,
+              sale_items.line_total, sale_items.subtotal, sale_items.profit
        FROM sale_items
        LEFT JOIN products ON products.id = sale_items.product_id
        WHERE sale_items.sale_id = ?
