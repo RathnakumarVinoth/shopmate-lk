@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
+import { getSessionUser } from '../utils/session'
 
 const getInitialForm = (payment) => ({
   payment_reference: payment.payment_reference || '',
@@ -20,7 +21,7 @@ const formatDateTime = (value) => {
 }
 
 function PaymentVerification() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = getSessionUser()
   const [payments, setPayments] = useState([])
   const [forms, setForms] = useState({})
   const [loading, setLoading] = useState(true)

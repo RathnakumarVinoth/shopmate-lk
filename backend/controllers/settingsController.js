@@ -20,6 +20,11 @@ const isNonNegativeNumber = (value) =>
   !Number.isNaN(Number(value)) &&
   Number(value) >= 0;
 
+const isIntegerInRange = (value, min, max) =>
+  Number.isInteger(Number(value)) &&
+  Number(value) >= min &&
+  Number(value) <= max;
+
 const receiptSizes = ["58mm", "80mm"];
 
 const normalizeReceiptSize = (value) =>
@@ -35,7 +40,7 @@ const getShopSettings = async (shopId) => {
   const [shops] = await db.promise().query(
     `SELECT shop_name, phone, email, address, receipt_footer, currency,
             default_low_stock_limit, tax_percentage, logo_url, default_receipt_size,
-            language
+            language, idle_timeout_minutes, background_logout_minutes
      FROM shops
      WHERE id = ?
      LIMIT 1`,
@@ -60,10 +65,34 @@ exports.getSettings = async (req, res) => {
       tax_percentage: Number(settings.tax_percentage || 0),
       default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
       language: normalizeLanguage(settings.language),
+      idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
+      background_logout_minutes: Number(settings.background_logout_minutes || 3),
     });
   } catch (error) {
     console.error("Get settings error:", error.message);
     return res.status(500).json({ message: "Server error while fetching settings" });
+  }
+};
+
+exports.getSecuritySettings = async (req, res) => {
+  try {
+    const settings = await getShopSettings(req.user.shop_id);
+
+    if (!settings) {
+      return res.status(404).json({ message: "Shop settings not found" });
+    }
+
+    return res.json({
+      idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
+      background_logout_minutes: Number(
+        settings.background_logout_minutes || 3
+      ),
+    });
+  } catch (error) {
+    console.error("Get security settings error:", error.message);
+    return res
+      .status(500)
+      .json({ message: "Server error while fetching security settings" });
   }
 };
 
@@ -80,6 +109,8 @@ exports.updateSettings = async (req, res) => {
     logo_url,
     default_receipt_size,
     language,
+    idle_timeout_minutes,
+    background_logout_minutes,
   } = req.body;
 
   if (isMissing(shop_name)) {
@@ -109,9 +140,37 @@ exports.updateSettings = async (req, res) => {
     return res.status(400).json({ message: "language must be en, si, or ta" });
   }
 
+  if (
+    req.user.role === "owner" &&
+    idle_timeout_minutes !== undefined &&
+    !isIntegerInRange(idle_timeout_minutes, 1, 480)
+  ) {
+    return res
+      .status(400)
+      .json({ message: "idle_timeout_minutes must be between 1 and 480" });
+  }
+
+  if (
+    req.user.role === "owner" &&
+    background_logout_minutes !== undefined &&
+    !isIntegerInRange(background_logout_minutes, 1, 60)
+  ) {
+    return res
+      .status(400)
+      .json({ message: "background_logout_minutes must be between 1 and 60" });
+  }
+
   const nextReceiptSize =
     default_receipt_size === undefined ? null : normalizeReceiptSize(default_receipt_size);
   const nextLanguage = language === undefined ? null : normalizeLanguage(language);
+  const nextIdleTimeout =
+    req.user.role === "owner" && idle_timeout_minutes !== undefined
+      ? Number(idle_timeout_minutes)
+      : null;
+  const nextBackgroundTimeout =
+    req.user.role === "owner" && background_logout_minutes !== undefined
+      ? Number(background_logout_minutes)
+      : null;
 
   try {
     await ensureShopSettingsColumns();
@@ -121,7 +180,9 @@ exports.updateSettings = async (req, res) => {
        SET shop_name = ?, phone = ?, email = ?, address = ?, receipt_footer = ?,
            currency = ?, default_low_stock_limit = ?, tax_percentage = ?, logo_url = ?,
            default_receipt_size = COALESCE(?, default_receipt_size),
-           language = COALESCE(?, language)
+           language = COALESCE(?, language),
+           idle_timeout_minutes = COALESCE(?, idle_timeout_minutes),
+           background_logout_minutes = COALESCE(?, background_logout_minutes)
        WHERE id = ?`,
       [
         String(shop_name).trim(),
@@ -135,6 +196,8 @@ exports.updateSettings = async (req, res) => {
         optionalText(logo_url),
         nextReceiptSize,
         nextLanguage,
+        nextIdleTimeout,
+        nextBackgroundTimeout,
         req.user.shop_id,
       ]
     );
@@ -161,6 +224,8 @@ exports.updateSettings = async (req, res) => {
         tax_percentage: Number(settings.tax_percentage || 0),
         default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
         language: normalizeLanguage(settings.language),
+        idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
+        background_logout_minutes: Number(settings.background_logout_minutes || 3),
       },
     });
   } catch (error) {

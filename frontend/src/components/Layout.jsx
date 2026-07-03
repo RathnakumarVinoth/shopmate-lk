@@ -2,33 +2,33 @@ import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import api from '../services/api'
 import { setLanguage, t } from '../i18n/translations'
-import { scheduleSessionExpiry } from '../utils/session'
+import {
+  clearStoredSettings,
+  getStoredSettings,
+  getSessionUser,
+  saveStoredSettings,
+} from '../utils/session'
 import Notifications from './Notifications.jsx'
 import Sidebar from './Sidebar.jsx'
 
 function Layout() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = getSessionUser()
   const [, setSettingsVersion] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
-    return scheduleSessionExpiry()
-  }, [])
-
-  useEffect(() => {
     const loadSettings = async () => {
-      if (user.role !== 'owner') return
-
       try {
-        const response = await api.get('/settings')
+        const response = await api.get(user.role === 'owner' ? '/settings' : '/settings/security')
         const settings = response.data || {}
-        localStorage.setItem('shopSettings', JSON.stringify(settings))
+        saveStoredSettings({ ...getStoredSettings(), ...settings })
         if (settings.language) {
           setLanguage(settings.language)
         }
         setSettingsVersion((version) => version + 1)
+        window.dispatchEvent(new Event('shopmate:settings-changed'))
       } catch {
-        localStorage.removeItem('shopSettings')
+        clearStoredSettings()
       }
     }
 

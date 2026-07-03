@@ -51,6 +51,7 @@ const ensureSecurityTables = async () => {
       email VARCHAR(255) NULL,
       role VARCHAR(50) NULL,
       status VARCHAR(50) NOT NULL,
+      message VARCHAR(255) NULL,
       ip_address VARCHAR(100) NULL,
       user_agent TEXT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -59,6 +60,19 @@ const ensureSecurityTables = async () => {
       INDEX idx_login_activity_status (status)
     )
   `);
+
+  const [activityColumns] = await connection.query(
+    "SHOW COLUMNS FROM login_activity"
+  );
+  const existingActivityColumns = new Set(
+    activityColumns.map((column) => column.Field)
+  );
+
+  if (!existingActivityColumns.has("message")) {
+    await connection.query(
+      "ALTER TABLE login_activity ADD COLUMN message VARCHAR(255) NULL AFTER status"
+    );
+  }
 
   securityTablesReady = true;
 };
@@ -69,6 +83,7 @@ const createLoginActivity = async ({
   email,
   role,
   status,
+  message,
   ip_address,
   user_agent,
 }) => {
@@ -77,14 +92,15 @@ const createLoginActivity = async ({
 
     await db.promise().query(
       `INSERT INTO login_activity
-       (user_id, shop_id, email, role, status, ip_address, user_agent)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (user_id, shop_id, email, role, status, message, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         user_id || null,
         shop_id || null,
         email || null,
         role || null,
         status,
+        message || null,
         ip_address || null,
         user_agent || null,
       ]

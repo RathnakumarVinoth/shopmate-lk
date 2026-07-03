@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
+import { saveSession } from '../utils/session'
 
 const initialForm = {
   name: '',
@@ -32,8 +33,10 @@ function Register() {
       const response = await api.post('/auth/register', form)
 
       if (response.data.token) {
-        localStorage.setItem('token', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user || {}))
+        saveSession({
+          token: response.data.token,
+          user: response.data.user || {},
+        })
       }
 
       navigate('/dashboard')

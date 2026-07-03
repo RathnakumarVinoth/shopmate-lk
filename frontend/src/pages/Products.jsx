@@ -3,6 +3,7 @@ import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, getShopSettings } from '../utils/formatters'
 import { hasPermission } from '../utils/permissions'
+import { getSessionUser } from '../utils/session'
 
 const initialForm = {
   product_name: '',
@@ -51,7 +52,7 @@ const optionalText = (value) => {
 }
 
 function Products() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = getSessionUser()
   const canManageProducts = hasPermission(user, 'products_manage')
   const canManageCategories = user.role === 'owner' && canManageProducts
   const shopSettings = getShopSettings()

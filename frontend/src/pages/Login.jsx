@@ -4,6 +4,7 @@ import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 import { getHomePath } from '../utils/permissions'
+import { getSessionMessage, saveSession } from '../utils/session'
 
 function Login() {
   const navigate = useNavigate()
@@ -13,11 +14,10 @@ function Login() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const sessionMessage = localStorage.getItem('sessionMessage')
+    const sessionMessage = getSessionMessage()
 
     if (sessionMessage) {
       setMessage(sessionMessage)
-      localStorage.removeItem('sessionMessage')
     }
   }, [])
 
@@ -34,8 +34,7 @@ function Login() {
     try {
       const response = await api.post('/auth/login', form)
       const user = response.data.user || {}
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(user))
+      saveSession({ token: response.data.token, user })
       navigate(getHomePath(user))
     } catch (err) {
       setError(getApiMessage(err, 'Login failed'))

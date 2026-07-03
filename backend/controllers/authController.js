@@ -16,6 +16,31 @@ const {
   validateStrongPassword,
 } = require("../utils/security");
 
+const MAX_JWT_LIFETIME_SECONDS = 8 * 60 * 60;
+
+const getJwtLifetimeSeconds = () => {
+  const configured = String(process.env.JWT_EXPIRES_IN || "8h").trim();
+  const match = configured.match(/^(\d+)\s*([smhd]?)$/i);
+
+  if (!match) return MAX_JWT_LIFETIME_SECONDS;
+
+  const value = Number(match[1]);
+  const multipliers = {
+    "": 1,
+    s: 1,
+    m: 60,
+    h: 60 * 60,
+    d: 24 * 60 * 60,
+  };
+  const seconds = value * multipliers[match[2].toLowerCase()];
+
+  if (!Number.isSafeInteger(seconds) || seconds <= 0) {
+    return MAX_JWT_LIFETIME_SECONDS;
+  }
+
+  return Math.min(seconds, MAX_JWT_LIFETIME_SECONDS);
+};
+
 const signToken = (user) => {
   if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET is not configured");
@@ -30,8 +55,27 @@ const signToken = (user) => {
       permissions: user.permissions || [],
     },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
+    { expiresIn: getJwtLifetimeSeconds() }
   );
+};
+
+exports.autoLogout = async (req, res) => {
+  const allowedMessages = ["Idle timeout", "Session expired"];
+  const message = allowedMessages.includes(req.body.message)
+    ? req.body.message
+    : "Session expired";
+
+  await createLoginActivity({
+    user_id: req.user.id,
+    shop_id: req.user.shop_id,
+    email: req.user.email,
+    role: req.user.role,
+    status: "auto_logout",
+    message,
+    ...getRequestMeta(req),
+  });
+
+  return res.json({ message: "Auto logout recorded" });
 };
 
 const getRequestMeta = (req) => ({

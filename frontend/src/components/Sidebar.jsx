@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import { hasPermission } from '../utils/permissions'
+import { clearSession, getSessionUser } from '../utils/session'
 
 const ownerLinks = [
   { to: '/dashboard', labelKey: 'dashboard', permission: 'dashboard_view' },
@@ -22,12 +23,11 @@ const ownerLinks = [
 
 function Sidebar({ onNavigate, onClose }) {
   const navigate = useNavigate()
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = getSessionUser()
   const visibleLinks = ownerLinks.filter((link) => hasPermission(user, link.permission))
 
   const logout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    clearSession()
     onNavigate?.()
     navigate('/login')
   }

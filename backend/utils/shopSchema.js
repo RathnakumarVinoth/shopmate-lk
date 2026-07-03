@@ -20,6 +20,22 @@ const ensureShopSettingsColumns = async () => {
       .query("ALTER TABLE shops ADD COLUMN language VARCHAR(10) DEFAULT 'en'");
   }
 
+  if (!existingColumns.has("idle_timeout_minutes")) {
+    await db
+      .promise()
+      .query(
+        "ALTER TABLE shops ADD COLUMN idle_timeout_minutes INT NOT NULL DEFAULT 15"
+      );
+  }
+
+  if (!existingColumns.has("background_logout_minutes")) {
+    await db
+      .promise()
+      .query(
+        "ALTER TABLE shops ADD COLUMN background_logout_minutes INT NOT NULL DEFAULT 3"
+      );
+  }
+
   ensuredShopSettingsColumns = true;
 };
 

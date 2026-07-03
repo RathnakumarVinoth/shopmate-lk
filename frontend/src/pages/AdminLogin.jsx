@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
+import { getSessionMessage, saveSession } from '../utils/session'
 
 function AdminLogin() {
   const navigate = useNavigate()
@@ -12,11 +13,10 @@ function AdminLogin() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const sessionMessage = localStorage.getItem('sessionMessage')
+    const sessionMessage = getSessionMessage()
 
     if (sessionMessage) {
       setMessage(sessionMessage)
-      localStorage.removeItem('sessionMessage')
     }
   }, [])
 
@@ -39,9 +39,7 @@ function AdminLogin() {
         return
       }
 
-      localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(user))
-      localStorage.removeItem('shopSettings')
+      saveSession({ token: response.data.token, user })
       navigate('/admin/dashboard')
     } catch (err) {
       setError(getApiMessage(err, 'Admin login failed'))

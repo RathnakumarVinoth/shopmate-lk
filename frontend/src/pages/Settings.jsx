@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getLanguage, languageOptions, setLanguage, t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
+import { getSessionUser, saveStoredSettings } from '../utils/session'
 
 const currencies = ['LKR', 'USD', 'GBP', 'AUD', 'CAD', 'EUR']
 const receiptSizes = ['58mm', '80mm']
@@ -19,6 +20,8 @@ const initialForm = {
   logo_url: '',
   default_receipt_size: '80mm',
   language: 'en',
+  idle_timeout_minutes: '15',
+  background_logout_minutes: '3',
 }
 
 const settingsToForm = (settings) => ({
@@ -37,10 +40,13 @@ const settingsToForm = (settings) => ({
   language: languageOptions.some((language) => language.value === settings.language)
     ? settings.language
     : getLanguage(),
+  idle_timeout_minutes: String(settings.idle_timeout_minutes ?? 15),
+  background_logout_minutes: String(settings.background_logout_minutes ?? 3),
 })
 
 function Settings() {
   const navigate = useNavigate()
+  const user = getSessionUser()
   const [form, setForm] = useState(initialForm)
   const [passwordForm, setPasswordForm] = useState({
     current_password: '',
@@ -61,7 +67,7 @@ function Settings() {
       const settings = response.data || {}
       setSavedSettings(settings)
       setForm(settingsToForm(settings))
-      localStorage.setItem('shopSettings', JSON.stringify(settings))
+      saveStoredSettings(settings)
       if (settings.language) {
         setLanguage(settings.language)
       }
@@ -104,7 +110,7 @@ function Settings() {
     setError('')
 
     try {
-      const response = await api.put('/settings', {
+      const settingsPayload = {
         ...form,
         default_low_stock_limit: Number(form.default_low_stock_limit || 0),
         tax_percentage: Number(form.tax_percentage || 0),
@@ -112,12 +118,24 @@ function Settings() {
           ? form.default_receipt_size
           : '80mm',
         language: form.language,
-      })
+      }
+
+      if (user.role === 'owner') {
+        settingsPayload.idle_timeout_minutes = Number(form.idle_timeout_minutes || 15)
+        settingsPayload.background_logout_minutes = Number(
+          form.background_logout_minutes || 3,
+        )
+      } else {
+        delete settingsPayload.idle_timeout_minutes
+        delete settingsPayload.background_logout_minutes
+      }
+
+      const response = await api.put('/settings', settingsPayload)
       const settings = response.data.settings || response.data
 
       setSavedSettings(settings)
       setForm(settingsToForm(settings))
-      localStorage.setItem('shopSettings', JSON.stringify(settings))
+      saveStoredSettings(settings)
       if (settings.language) {
         setLanguage(settings.language)
       }
@@ -265,6 +283,43 @@ function Settings() {
           </div>
         </section>
 
+        {user.role === 'owner' && (
+          <section className="panel">
+            <div className="section-heading">
+              <h2>{t('Security Settings')}</h2>
+              <button type="button" className="ghost-button" onClick={() => navigate('/login-activity')}>
+                {t('Login Activity')}
+              </button>
+            </div>
+            <div className="form-grid">
+              <label>
+                {t('Idle timeout (minutes)')}
+                <input
+                  name="idle_timeout_minutes"
+                  type="number"
+                  min="1"
+                  max="480"
+                  value={form.idle_timeout_minutes}
+                  onChange={updateField}
+                  required
+                />
+              </label>
+              <label>
+                {t('Background logout (minutes)')}
+                <input
+                  name="background_logout_minutes"
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={form.background_logout_minutes}
+                  onChange={updateField}
+                  required
+                />
+              </label>
+            </div>
+          </section>
+        )}
+
         <div className="settings-actions">
           <button type="submit" disabled={saving}>
             {saving ? t('saving') : t('saveSettings')}
@@ -277,10 +332,7 @@ function Settings() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>{t('Security Settings')}</h2>
-          <button type="button" className="ghost-button" onClick={() => navigate('/login-activity')}>
-            {t('Login Activity')}
-          </button>
+          <h2>{t('Password Security')}</h2>
         </div>
         <p className="muted">
           {t('Sessions expire automatically after the configured JWT lifetime. You will be asked to login again when your session expires.')}

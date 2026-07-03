@@ -1,10 +1,6 @@
-export const getShopSettings = () => {
-  try {
-    return JSON.parse(localStorage.getItem('shopSettings') || '{}')
-  } catch {
-    return {}
-  }
-}
+import { getStoredSettings } from './session'
+
+export const getShopSettings = () => getStoredSettings()
 
 export const getShopCurrency = () => getShopSettings().currency || 'LKR'
 

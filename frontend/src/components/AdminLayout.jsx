@@ -1,17 +1,13 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
-import { scheduleSessionExpiry } from '../utils/session'
+import { clearSession, getSessionUser } from '../utils/session'
 import Notifications from './Notifications.jsx'
 import { useEffect, useState } from 'react'
 
 function AdminLayout() {
   const navigate = useNavigate()
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = getSessionUser()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
-  useEffect(() => {
-    return scheduleSessionExpiry()
-  }, [])
 
   useEffect(() => {
     if (!mobileMenuOpen) return undefined
@@ -27,9 +23,7 @@ function AdminLayout() {
   }, [mobileMenuOpen])
 
   const logout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    localStorage.removeItem('shopSettings')
+    clearSession()
     setMobileMenuOpen(false)
     navigate('/admin/login')
   }

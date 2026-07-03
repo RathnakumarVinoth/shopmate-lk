@@ -6,6 +6,7 @@ import Layout from './components/Layout.jsx'
 import OfflineNotice from './components/OfflineNotice.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
 import PwaInstallPrompt from './components/PwaInstallPrompt.jsx'
+import SessionManager from './components/SessionManager.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
 import AdminShopDetails from './pages/AdminShopDetails.jsx'
@@ -29,14 +30,17 @@ import Staff from './pages/Staff.jsx'
 import Stock from './pages/Stock.jsx'
 import Suppliers from './pages/Suppliers.jsx'
 import { getHomePath } from './utils/permissions.js'
+import { getSessionToken, getSessionUser, isTokenExpired } from './utils/session.js'
 
 function App() {
-  const hasToken = Boolean(localStorage.getItem('token'))
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const token = getSessionToken()
+  const hasToken = Boolean(token && !isTokenExpired(token))
+  const user = getSessionUser()
   const homePath = getHomePath(user)
 
   return (
     <BrowserRouter>
+      <SessionManager />
       <OfflineNotice />
       <PwaInstallPrompt />
       <Routes>

@@ -4,6 +4,7 @@ import autoTable from 'jspdf-autotable'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, getShopSettings, notifyDashboardChanged } from '../utils/formatters'
+import { getSessionUser } from '../utils/session'
 
 const getProductsFromResponse = (data) => {
   if (Array.isArray(data)) return data
@@ -501,7 +502,7 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
 }
 
 function POS() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = getSessionUser()
   const [products, setProducts] = useState([])
   const [customers, setCustomers] = useState([])
   const [cart, setCart] = useState({})

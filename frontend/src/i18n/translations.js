@@ -1189,7 +1189,7 @@ export const getLanguage = () => {
   let settings = {}
 
   try {
-    settings = JSON.parse(window.localStorage.getItem('shopSettings') || '{}')
+    settings = JSON.parse(window.sessionStorage.getItem('shopSettings') || '{}')
   } catch {
     settings = {}
   }

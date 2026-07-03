@@ -1,13 +1,26 @@
 import { Navigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import { hasPermission, roleAllowed } from '../utils/permissions'
+import {
+  clearSession,
+  getSessionToken,
+  getSessionUser,
+  isTokenExpired,
+} from '../utils/session'
 
 function ProtectedRoute({ children, roles, permission }) {
-  const token = localStorage.getItem('token')
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const token = getSessionToken()
+  const user = getSessionUser()
   const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/login'
 
   if (!token) {
+    return <Navigate to={loginPath} replace />
+  }
+
+  if (isTokenExpired(token)) {
+    clearSession('Session expired. Please login again.', {
+      recordReason: 'Session expired',
+    })
     return <Navigate to={loginPath} replace />
   }
 

@@ -83,6 +83,7 @@ function LoginActivity() {
               <option value="">{t('All')}</option>
               <option value="success">{t('Success')}</option>
               <option value="failed">{t('Failed')}</option>
+              <option value="auto_logout">{t('Auto Logout')}</option>
             </select>
           </label>
         </div>
@@ -99,6 +100,7 @@ function LoginActivity() {
                 <th>{t('Email')}</th>
                 <th>{t('Role')}</th>
                 <th>{t('Status')}</th>
+                <th>{t('Message')}</th>
                 <th>{t('IP Address')}</th>
                 <th>{t('User Agent')}</th>
               </tr>
@@ -114,13 +116,14 @@ function LoginActivity() {
                       {item.status}
                     </span>
                   </td>
+                  <td>{item.message || '-'}</td>
                   <td>{item.ip_address || '-'}</td>
                   <td>{item.user_agent || '-'}</td>
                 </tr>
               ))}
               {activity.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="empty-cell">
+                  <td colSpan="7" className="empty-cell">
                     {t('No login activity found.')}
                   </td>
                 </tr>

@@ -1,16 +1,22 @@
 import axios from 'axios'
-import { clearSession, isTokenExpired, redirectToLogin } from '../utils/session'
+import {
+  getSessionToken,
+  isTokenExpired,
+  redirectToLogin,
+} from '../utils/session'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = getSessionToken()
 
   if (token) {
     if (isTokenExpired(token)) {
-      redirectToLogin()
+      redirectToLogin('Session expired. Please login again.', {
+        recordReason: 'Session expired',
+      })
       return Promise.reject(new Error('Session expired. Please login again.'))
     }
 
@@ -23,13 +29,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      clearSession('Session expired. Please login again.')
+    const requestWasAuthenticated = Boolean(error.config?.headers?.Authorization)
 
-      if (window.location.pathname !== '/login') {
-        const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/login'
-        window.location.href = loginPath
-      }
+    if (error.response?.status === 401 && requestWasAuthenticated) {
+      redirectToLogin('Session expired. Please login again.')
     }
 
     return Promise.reject(error)

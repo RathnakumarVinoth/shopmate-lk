@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
+import { getSessionUser } from '../utils/session'
 
 const alertCards = [
   { type: 'low_stock', labelKey: 'Low stock', link: '/products' },
@@ -13,7 +14,7 @@ const alertCards = [
 
 function Dashboard() {
   const navigate = useNavigate()
-  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  const user = getSessionUser()
   const [dashboard, setDashboard] = useState(null)
   const [notifications, setNotifications] = useState([])
   const [error, setError] = useState('')

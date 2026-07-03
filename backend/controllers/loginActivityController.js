@@ -32,7 +32,7 @@ exports.getLoginActivity = async (req, res) => {
       conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const [activity] = await db.promise().query(
-      `SELECT id, user_id, shop_id, email, role, status, ip_address,
+      `SELECT id, user_id, shop_id, email, role, status, message, ip_address,
               user_agent, created_at
        FROM login_activity
        ${whereClause}
