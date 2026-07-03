@@ -54,7 +54,7 @@ function AdminShops() {
   const [form, setForm] = useState(null)
   const [createForm, setCreateForm] = useState(initialCreateForm)
   const [temporaryCredentials, setTemporaryCredentials] = useState(null)
-  const [temporaryPassword, setTemporaryPassword] = useState('')
+  const [resetCredentials, setResetCredentials] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -106,7 +106,7 @@ function AdminShops() {
     setSaving(true)
     setError('')
     setMessage('')
-    setTemporaryPassword('')
+    setResetCredentials(null)
     setTemporaryCredentials(null)
 
     try {
@@ -169,11 +169,15 @@ function AdminShops() {
     setSaving(true)
     setError('')
     setMessage('')
-    setTemporaryPassword('')
+    setResetCredentials(null)
 
     try {
       const response = await api.put(`/admin/shops/${shop.id}/reset-password`)
-      setTemporaryPassword(response.data.temporary_password || '')
+      setResetCredentials({
+        loginEmail: response.data.loginEmail || response.data.login_email || shop.login_email || shop.email || '',
+        temporaryPassword:
+          response.data.temporaryPassword || response.data.temporary_password || '',
+      })
       setMessage(`Shop login password reset for ${shop.shop_name}`)
     } catch (err) {
       setError(getApiMessage(err, 'Failed to reset shop password'))
@@ -204,9 +208,12 @@ function AdminShops() {
 
       {error && <div className="alert">{error}</div>}
       {message && <div className="success">{message}</div>}
-      {temporaryPassword && (
+      {resetCredentials?.temporaryPassword && (
         <div className="info-banner">
-          {t('Temporary Password')}: <strong>{temporaryPassword}</strong>
+          <strong>{t('Shop password reset successfully')}</strong>
+          <div>{t('Shop Login Email')}: {resetCredentials.loginEmail}</div>
+          <div>{t('Temporary Password')}: {resetCredentials.temporaryPassword}</div>
+          <div>{t('Copy and give this to shop owner.')}</div>
         </div>
       )}
 

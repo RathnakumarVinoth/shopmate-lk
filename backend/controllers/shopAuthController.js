@@ -53,7 +53,7 @@ exports.shopLogin = async (req, res) => {
       [shopEmail]
     );
 
-    if (shops.length === 0 || !shops[0].login_password_hash) {
+    if (shops.length === 0) {
       await createLoginActivity({
         email: shopEmail,
         status: "failed",
@@ -64,6 +64,20 @@ exports.shopLogin = async (req, res) => {
     }
 
     const shop = shops[0];
+
+    if (!shop.login_password_hash) {
+      await createLoginActivity({
+        shop_id: shop.id,
+        email: shop.login_email,
+        status: "failed",
+        message: "Shop password not set",
+        ...getRequestMeta(req),
+      });
+      return res.status(401).json({
+        message: "Shop password has not been set. Please ask admin to reset it.",
+      });
+    }
+
     const passwordMatches = await bcrypt.compare(password, shop.login_password_hash);
 
     if (!passwordMatches) {
@@ -110,7 +124,7 @@ exports.shopLogin = async (req, res) => {
       shop: shopContext,
     });
   } catch (error) {
-    console.error("Shop login error:", error.message);
+    console.error("Shop login error:", error);
     return res.status(500).json({ message: "Server error during shop login" });
   }
 };

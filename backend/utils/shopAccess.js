@@ -16,6 +16,13 @@ const getShopAccessError = (shop) => {
     return { status: 403, message: "Subscription expired" };
   }
 
+  if (
+    shop.subscription_status &&
+    !["active", "trial"].includes(shop.subscription_status)
+  ) {
+    return { status: 403, message: "Subscription is not active" };
+  }
+
   return null;
 };
 

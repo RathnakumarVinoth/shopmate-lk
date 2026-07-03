@@ -54,6 +54,7 @@ function AdminShopDetails() {
   const [users, setUsers] = useState([])
   const [userForm, setUserForm] = useState(initialUserForm)
   const [temporaryPassword, setTemporaryPassword] = useState('')
+  const [resetCredentials, setResetCredentials] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -169,6 +170,7 @@ function AdminShopDetails() {
       is_active: Boolean(user.is_active),
     })
     setTemporaryPassword('')
+    setResetCredentials(null)
   }
 
   const resetUserForm = () => {
@@ -181,6 +183,7 @@ function AdminShopDetails() {
     setError('')
     setMessage('')
     setTemporaryPassword('')
+    setResetCredentials(null)
 
     try {
       if (userForm.id) {
@@ -204,10 +207,16 @@ function AdminShopDetails() {
     setSaving(true)
     setError('')
     setMessage('')
+    setResetCredentials(null)
 
     try {
       const response = await api.put(`/admin/shops/${id}/reset-password`)
-      setTemporaryPassword(response.data.temporary_password || '')
+      setTemporaryPassword('')
+      setResetCredentials({
+        loginEmail: response.data.loginEmail || response.data.login_email || shop.login_email || shop.email || '',
+        temporaryPassword:
+          response.data.temporaryPassword || response.data.temporary_password || '',
+      })
       setMessage('Shop login password reset successfully')
     } catch (err) {
       setError(getApiMessage(err, 'Failed to reset shop password'))
@@ -220,6 +229,7 @@ function AdminShopDetails() {
     setSaving(true)
     setError('')
     setMessage('')
+    setResetCredentials(null)
 
     try {
       const response = await api.put(`/admin/shops/${id}/users/${user.id}/reset-password`)
@@ -325,6 +335,14 @@ function AdminShopDetails() {
       {temporaryPassword && (
         <div className="info-banner">
           {t('Temporary Password')}: <strong>{temporaryPassword}</strong>
+        </div>
+      )}
+      {resetCredentials?.temporaryPassword && (
+        <div className="info-banner">
+          <strong>{t('Shop password reset successfully')}</strong>
+          <div>{t('Shop Login Email')}: {resetCredentials.loginEmail}</div>
+          <div>{t('Temporary Password')}: {resetCredentials.temporaryPassword}</div>
+          <div>{t('Copy and give this to shop owner.')}</div>
         </div>
       )}
 

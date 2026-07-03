@@ -743,7 +743,11 @@ exports.updateShopUser = async (req, res) => {
 
 exports.resetShopPassword = async (req, res) => {
   const shopId = req.params.id;
-  const temporaryPassword = optionalText(req.body.password) || generateTemporaryPassword();
+  const requestedPassword =
+    optionalText(req.body?.newPassword) ||
+    optionalText(req.body?.password) ||
+    optionalText(req.body?.temporaryPassword);
+  const temporaryPassword = requestedPassword || generateTemporaryPassword();
   const passwordError = validateStrongPassword(temporaryPassword);
 
   if (!isPositiveInteger(shopId)) {
@@ -757,10 +761,31 @@ exports.resetShopPassword = async (req, res) => {
   try {
     await ensureSaasSchema();
 
+    const [shops] = await db.promise().query(
+      `SELECT id, shop_name, login_email, email
+       FROM shops
+       WHERE id = ?
+       LIMIT 1`,
+      [shopId]
+    );
+
+    if (shops.length === 0) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+
+    const shop = shops[0];
+    const loginEmail = optionalText(shop.login_email) || optionalText(shop.email);
+
+    if (!loginEmail) {
+      return res.status(400).json({
+        message: "Shop login email is not set. Please edit the shop email first.",
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
     const [result] = await db.promise().query(
-      "UPDATE shops SET login_password_hash = ? WHERE id = ?",
-      [hashedPassword, shopId]
+      "UPDATE shops SET login_password_hash = ?, login_email = ? WHERE id = ?",
+      [hashedPassword, loginEmail.toLowerCase(), shopId]
     );
 
     if (result.affectedRows === 0) {
@@ -777,10 +802,13 @@ exports.resetShopPassword = async (req, res) => {
 
     return res.json({
       message: "Shop password reset successfully",
+      temporaryPassword,
+      loginEmail: loginEmail.toLowerCase(),
       temporary_password: temporaryPassword,
+      login_email: loginEmail.toLowerCase(),
     });
   } catch (error) {
-    console.error("Reset shop password error:", error.message);
+    console.error("Reset shop password error:", error);
     return res.status(500).json({ message: "Server error while resetting shop password" });
   }
 };

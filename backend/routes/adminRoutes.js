@@ -30,6 +30,7 @@ router.put("/shops/:id", updateShop);
 router.put("/shops/:id/subscription", updateSubscription);
 router.put("/shops/:id/enable", enableShop);
 router.put("/shops/:id/disable", disableShop);
+router.post("/shops/:id/reset-password", resetShopPassword);
 router.put("/shops/:id/reset-password", resetShopPassword);
 router.get("/shops/:id/users", getShopUsers);
 router.post("/shops/:id/users", createShopUser);
