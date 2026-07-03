@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
-import { hasPermission } from '../utils/permissions'
+import { hasPermission, roleAllowed } from '../utils/permissions'
 import { clearSession, getSessionUser } from '../utils/session'
 import BrandLogo from './BrandLogo.jsx'
 
@@ -8,7 +8,12 @@ const ownerLinks = [
   { to: '/dashboard', labelKey: 'dashboard', permission: 'dashboard_view' },
   { to: '/products', labelKey: 'products', permission: 'products_view' },
   { to: '/pos', labelKey: 'posBilling', permission: 'pos_access' },
-  { to: '/payment-verification', labelKey: 'paymentVerification', permission: 'payment_verification_access' },
+  {
+    to: '/payment-verification',
+    labelKey: 'paymentVerification',
+    permission: 'payment_verification_access',
+    roles: ['owner'],
+  },
   { to: '/credits', labelKey: 'creditBook', permission: 'credit_book_access' },
   { to: '/suppliers', labelKey: 'suppliers', permission: 'suppliers_access' },
   { to: '/stock', labelKey: 'stock', permission: 'stock_access' },
@@ -25,7 +30,9 @@ const ownerLinks = [
 function Sidebar({ shopName = 'ShopMate LK', onNavigate, onClose }) {
   const navigate = useNavigate()
   const user = getSessionUser()
-  const visibleLinks = ownerLinks.filter((link) => hasPermission(user, link.permission))
+  const visibleLinks = ownerLinks.filter(
+    (link) => hasPermission(user, link.permission) && roleAllowed(user.role, link.roles),
+  )
 
   const logout = () => {
     clearSession()

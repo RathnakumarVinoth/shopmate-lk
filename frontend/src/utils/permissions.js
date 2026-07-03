@@ -29,7 +29,7 @@ export const staffRoleOptions = [
 export const rolePermissions = {
   owner: permissions.map((permission) => permission.value),
   admin: permissions.map((permission) => permission.value),
-  cashier: ['products_view', 'pos_access', 'payment_verification_access'],
+  cashier: ['products_view', 'pos_access'],
   stock_keeper: [
     'dashboard_view',
     'products_view',
@@ -46,7 +46,7 @@ export const rolePermissions = {
     'expenses_access',
     'suppliers_access',
   ],
-  staff: ['dashboard_view', 'products_view', 'pos_access', 'payment_verification_access'],
+  staff: ['dashboard_view', 'products_view', 'pos_access'],
 }
 
 export const getEffectivePermissions = (user = {}) => {

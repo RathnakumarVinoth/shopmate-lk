@@ -1119,6 +1119,25 @@ tbody tr:last-child td {
   background: #ffffff;
 }
 
+.receipt-footer-branding {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--color-border);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.receipt-footer-branding strong {
+  color: var(--color-secondary-700);
+  font-size: 12px;
+}
+
+.receipt-footer-branding small {
+  font-size: 11px;
+}
+
 .receipt-header {
   border-bottom-color: var(--color-border);
 }

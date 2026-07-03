@@ -6,8 +6,8 @@ import { getSessionUser } from '../utils/session'
 
 const getInitialForm = (payment) => ({
   payment_reference: payment.payment_reference || '',
-  approval_code: '',
-  card_last_four: '',
+  approval_code: payment.approval_code || '',
+  card_last_four: payment.card_last_four || payment.card_last4 || '',
 })
 
 const formatDateTime = (value) => {
@@ -40,7 +40,15 @@ function PaymentVerification() {
       setPayments(nextPayments)
       setForms((currentForms) =>
         nextPayments.reduce((nextForms, payment) => {
-          nextForms[payment.sale_id] = currentForms[payment.sale_id] || getInitialForm(payment)
+          const initialForm = getInitialForm(payment)
+          const currentForm = currentForms[payment.sale_id]
+          nextForms[payment.sale_id] = currentForm
+            ? {
+                payment_reference: currentForm.payment_reference || initialForm.payment_reference,
+                approval_code: currentForm.approval_code || initialForm.approval_code,
+                card_last_four: currentForm.card_last_four || initialForm.card_last_four,
+              }
+            : initialForm
           return nextForms
         }, {}),
       )

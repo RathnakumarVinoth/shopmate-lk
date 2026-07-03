@@ -27,7 +27,6 @@ const rolePermissions = {
   cashier: [
     "products_view",
     "pos_access",
-    "payment_verification_access",
   ],
   stock_keeper: [
     "dashboard_view",
@@ -49,7 +48,6 @@ const rolePermissions = {
     "dashboard_view",
     "products_view",
     "pos_access",
-    "payment_verification_access",
   ],
 };
 

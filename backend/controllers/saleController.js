@@ -153,6 +153,17 @@ const validateSaleRequest = (body) => {
     errors.push("card_last_four must contain exactly 4 digits");
   }
 
+  if (paymentType === "card" && !/^\d{4}$/.test(String(body.card_last_four || "").trim())) {
+    errors.push("card_last_four is required for card payments and must contain exactly 4 digits");
+  }
+
+  if (
+    ["bank_transfer", "qr"].includes(paymentType) &&
+    !optionalText(body.payment_reference)
+  ) {
+    errors.push("payment_reference is required for bank transfer and QR payments");
+  }
+
   return errors;
 };
 
@@ -535,9 +546,18 @@ exports.createSale = async (req, res) => {
     if (requiresVerification) {
       await connection.query(
         `INSERT INTO payment_verifications
-         (sale_id, shop_id, payment_method, amount, reference_no, status)
-         VALUES (?, ?, ?, ?, ?, 'pending')`,
-        [saleId, shopId, paymentType, totalAmount, paymentReference]
+         (sale_id, shop_id, payment_method, amount, reference_no, approval_code,
+          card_last_four, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+        [
+          saleId,
+          shopId,
+          paymentType,
+          totalAmount,
+          paymentReference,
+          approvalCode,
+          cardLastFour,
+        ]
       );
     }
 

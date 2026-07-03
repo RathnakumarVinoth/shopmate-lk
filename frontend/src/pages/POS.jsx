@@ -32,6 +32,8 @@ const paymentTypes = [
 ]
 
 const receiptSizes = ['58mm', '80mm']
+const receiptBrandingLine = 'Powered by ShopMate LK'
+const receiptBrandingSubline = 'POS & Stock Management'
 
 const normalizeReceiptSize = (value) => (receiptSizes.includes(value) ? value : '80mm')
 
@@ -128,7 +130,7 @@ const getReceiptDetails = (receipt) => {
     paymentStatus,
     paymentReference: receipt?.payment_reference || '',
     approvalCode: receipt?.approval_code || '',
-    cardLastFour: receipt?.card_last_four || '',
+    cardLastFour: receipt?.card_last_four || receipt?.card_last4 || '',
     createdAt,
   }
 }
@@ -137,9 +139,21 @@ const generateInvoicePDF = (receipt) => {
   const details = getReceiptDetails(receipt)
   const doc = new jsPDF()
   const safeInvoiceNo = String(details.invoiceNo).replace(/[^a-zA-Z0-9-_]/g, '_')
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
 
   doc.setFontSize(18)
   doc.text('ShopMate LK Invoice', 14, 18)
+  if (typeof doc.GState === 'function') {
+    doc.setGState(new doc.GState({ opacity: 0.1 }))
+  }
+  doc.setTextColor(15, 118, 110)
+  doc.setFontSize(32)
+  doc.text('ShopMate LK', pageWidth / 2, pageHeight - 36, { align: 'center' })
+  if (typeof doc.GState === 'function') {
+    doc.setGState(new doc.GState({ opacity: 1 }))
+  }
+  doc.setTextColor(0, 0, 0)
   doc.setFontSize(11)
   let metaY = 28
   doc.text(details.shopName, 14, metaY)
@@ -178,6 +192,10 @@ const generateInvoicePDF = (receipt) => {
   if (details.paymentReference) {
     metaY += 8
     doc.text(`Reference: ${details.paymentReference}`, 14, metaY)
+  }
+  if (details.paymentType === 'card' && details.cardLastFour) {
+    metaY += 8
+    doc.text(`Card Last 4: ${details.cardLastFour}`, 14, metaY)
   }
 
   autoTable(doc, {
@@ -218,7 +236,12 @@ const generateInvoicePDF = (receipt) => {
   })
 
   doc.setFontSize(10)
-  doc.text(details.receiptFooter, 14, 285)
+  doc.text(details.receiptFooter, 14, pageHeight - 18)
+  doc.setFontSize(8)
+  doc.setTextColor(100, 116, 139)
+  doc.text(t(receiptBrandingLine), pageWidth / 2, pageHeight - 11, { align: 'center' })
+  doc.text(t(receiptBrandingSubline), pageWidth / 2, pageHeight - 7, { align: 'center' })
+  doc.setTextColor(0, 0, 0)
   doc.save(`invoice_${safeInvoiceNo}.pdf`)
 }
 
@@ -246,6 +269,9 @@ const shareInvoiceWhatsApp = (receipt) => {
     `Payment: ${details.paymentType}`,
     `Payment Status: ${details.paymentStatus}`,
     details.paymentReference ? `Reference: ${details.paymentReference}` : '',
+    details.paymentType === 'card' && details.cardLastFour
+      ? `Card Last 4: ${details.cardLastFour}`
+      : '',
     '',
     'Items:',
     itemLines || '- No items',
@@ -263,6 +289,7 @@ const shareInvoiceWhatsApp = (receipt) => {
       details.currency,
     )}`,
     details.receiptFooter,
+    t(receiptBrandingLine),
   ]
     .filter(Boolean)
     .join('\n')
@@ -308,6 +335,8 @@ const printReceipt = (receipt) => {
           .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
           .total { border-top: 1px solid #111827; margin-top: 6px; padding-top: 8px !important; font-weight: 700; }
           .footer { text-align: center; margin-top: 20px; font-size: 12px; color: #4b5563; }
+          .powered { margin-top: 8px; font-size: 10px; color: #64748b; }
+          .powered span { display: block; font-size: 9px; }
         </style>
       </head>
       <body>
@@ -324,6 +353,11 @@ const printReceipt = (receipt) => {
           <div class="meta">${t('paymentMethod')}: ${details.paymentType}</div>
           <div class="meta">${t('paymentStatus')}: ${details.paymentStatus}</div>
           ${details.paymentReference ? `<div class="meta">Reference: ${details.paymentReference}</div>` : ''}
+          ${
+            details.paymentType === 'card' && details.cardLastFour
+              ? `<div class="meta">Card Last 4: ${details.cardLastFour}</div>`
+              : ''
+          }
         </div>
         <table>
           <thead>
@@ -345,7 +379,10 @@ const printReceipt = (receipt) => {
             details.currency,
           )}</strong></div>
         </div>
-        <div class="footer">${details.receiptFooter}</div>
+        <div class="footer">
+          <div>${details.receiptFooter}</div>
+          <div class="powered">${t(receiptBrandingLine)}<span>${t(receiptBrandingSubline)}</span></div>
+        </div>
       </body>
     </html>
   `)
@@ -399,6 +436,7 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
           .center { text-align: center; }
           .shop-name { display: block; font-size: ${width === '58mm' ? '13px' : '15px'}; margin-bottom: 3px; }
           .muted { font-size: ${width === '58mm' ? '9px' : '10px'}; }
+          .powered { display: block; margin-top: 3px; font-size: ${width === '58mm' ? '8px' : '9px'}; }
           .line { border-top: 1px dashed #000; margin: 6px 0; }
           .row { display: flex; justify-content: space-between; gap: 8px; }
           table { width: 100%; border-collapse: collapse; }
@@ -484,10 +522,18 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
             <div>${escapeHtml(t('paymentMethod'))}: ${escapeHtml(details.paymentType)}</div>
             <div>${escapeHtml(t('paymentStatus'))}: ${escapeHtml(details.paymentStatus)}</div>
             ${details.paymentReference ? `<div>Reference: ${escapeHtml(details.paymentReference)}</div>` : ''}
+            ${
+              details.paymentType === 'card' && details.cardLastFour
+                ? `<div>Card Last 4: ${escapeHtml(details.cardLastFour)}</div>`
+                : ''
+            }
           </section>
 
           <div class="line"></div>
-          <footer class="center muted">${escapeHtml(details.receiptFooter)}</footer>
+          <footer class="center muted">
+            <div>${escapeHtml(details.receiptFooter)}</div>
+            <strong class="powered">${escapeHtml(t(receiptBrandingLine))}</strong>
+          </footer>
         </main>
         <script>
           window.onload = function () {
@@ -706,6 +752,7 @@ function POS() {
   const paidRequired = paymentType !== 'credit'
   const isCardPayment = paymentType === 'card'
   const needsReference = ['card', 'qr', 'bank_transfer'].includes(paymentType)
+  const requiresReference = ['qr', 'bank_transfer'].includes(paymentType)
   const paidInvalid = paidRequired && paidAmount === ''
   const selectedCustomer = customers.find(
     (customer) => Number(customer.id) === Number(selectedCustomerId),
@@ -948,10 +995,15 @@ function POS() {
     }
 
     if (
-      paymentDetails.card_last_four &&
+      isCardPayment &&
       !/^\d{4}$/.test(paymentDetails.card_last_four.trim())
     ) {
-      setError('Card last 4 digits must contain exactly 4 digits')
+      setError(t('Card last 4 digits are required and must contain exactly 4 digits.'))
+      return
+    }
+
+    if (requiresReference && !paymentDetails.payment_reference.trim()) {
+      setError(t('Transaction reference number is required for QR and bank transfer payments.'))
       return
     }
 
@@ -1395,6 +1447,7 @@ function POS() {
                       payment_reference: event.target.value,
                     })
                   }
+                  required={requiresReference}
                 />
               </label>
             )}
@@ -1417,6 +1470,7 @@ function POS() {
                   <input
                     inputMode="numeric"
                     maxLength="4"
+                    pattern="[0-9]{4}"
                     value={paymentDetails.card_last_four}
                     onChange={(event) =>
                       setPaymentDetails({
@@ -1424,6 +1478,7 @@ function POS() {
                         card_last_four: event.target.value.replace(/\D/g, '').slice(0, 4),
                       })
                     }
+                    required
                   />
                 </label>
               </>
@@ -1533,6 +1588,9 @@ function POS() {
                 {receiptDetails.paymentReference && (
                   <span>{t('Reference')}: {receiptDetails.paymentReference}</span>
                 )}
+                {receiptDetails.paymentType === 'card' && receiptDetails.cardLastFour && (
+                  <span>{t('Card Last 4')}: {receiptDetails.cardLastFour}</span>
+                )}
               </div>
 
               {receiptDetails.customerName && (
@@ -1620,11 +1678,18 @@ function POS() {
                     <strong>{receiptDetails.paymentReference}</strong>
                   </div>
                 )}
-                <div>
-                  <span>{t('Footer')}</span>
-                  <strong>{receiptDetails.receiptFooter}</strong>
-                </div>
+                {receiptDetails.paymentType === 'card' && receiptDetails.cardLastFour && (
+                  <div>
+                    <span>{t('Card Last 4')}</span>
+                    <strong>{receiptDetails.cardLastFour}</strong>
+                  </div>
+                )}
               </div>
+              <footer className="receipt-footer-branding">
+                <span>{receiptDetails.receiptFooter}</span>
+                <strong>{t(receiptBrandingLine)}</strong>
+                <small>{t(receiptBrandingSubline)}</small>
+              </footer>
             </div>
           </section>
         </div>

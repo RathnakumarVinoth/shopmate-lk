@@ -139,6 +139,16 @@ const paymentVerificationColumns = [
       "ALTER TABLE payment_verifications ADD COLUMN reference_no VARCHAR(100) NULL",
   },
   {
+    name: "approval_code",
+    definition:
+      "ALTER TABLE payment_verifications ADD COLUMN approval_code VARCHAR(50) NULL",
+  },
+  {
+    name: "card_last_four",
+    definition:
+      "ALTER TABLE payment_verifications ADD COLUMN card_last_four VARCHAR(4) NULL",
+  },
+  {
     name: "status",
     definition:
       "ALTER TABLE payment_verifications ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'pending'",
@@ -237,6 +247,8 @@ const ensurePaymentVerificationTable = async () => {
       payment_method VARCHAR(50) NOT NULL,
       amount DECIMAL(10,2) NOT NULL DEFAULT 0,
       reference_no VARCHAR(100) NULL,
+      approval_code VARCHAR(50) NULL,
+      card_last_four VARCHAR(4) NULL,
       status VARCHAR(20) NOT NULL DEFAULT 'pending',
       verified_by INT NULL,
       verified_at DATETIME NULL,

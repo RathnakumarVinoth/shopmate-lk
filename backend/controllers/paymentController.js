@@ -39,6 +39,7 @@ const formatPayment = (payment) => {
     reference_no: payment.reference_no || paymentReference,
     approval_code: payment.approval_code || null,
     card_last_four: payment.card_last_four || null,
+    card_last4: payment.card_last_four || null,
   };
 };
 
@@ -75,6 +76,8 @@ exports.getPendingPayments = async (req, res) => {
          payment_verifications.status AS verification_status,
          COALESCE(payment_verifications.reference_no, sales.payment_reference) AS payment_reference,
          payment_verifications.reference_no,
+         COALESCE(payment_verifications.approval_code, sales.approval_code) AS approval_code,
+         COALESCE(payment_verifications.card_last_four, sales.card_last_four) AS card_last_four,
          sales.created_at,
          customers.customer_name
        FROM sales
@@ -125,7 +128,7 @@ exports.verifyPayment = async (req, res) => {
     await connection.beginTransaction();
 
     const [sales] = await connection.query(
-      `SELECT id, payment_type, total_amount, payment_reference
+      `SELECT id, payment_type, total_amount, payment_reference, approval_code, card_last_four
        FROM sales
        WHERE id = ? AND shop_id = ?
        LIMIT 1
@@ -172,6 +175,8 @@ exports.verifyPayment = async (req, res) => {
       `UPDATE payment_verifications
        SET status = 'verified',
            reference_no = COALESCE(?, reference_no),
+           approval_code = COALESCE(?, approval_code),
+           card_last_four = COALESCE(?, card_last_four),
            amount = ?,
            payment_method = ?,
            verified_by = ?,
@@ -180,6 +185,8 @@ exports.verifyPayment = async (req, res) => {
        WHERE sale_id = ? AND shop_id = ?`,
       [
         paymentReference,
+        approvalCode,
+        cardLastFour,
         sales[0].total_amount,
         sales[0].payment_type,
         req.user.id,
@@ -191,14 +198,17 @@ exports.verifyPayment = async (req, res) => {
     if (verificationUpdate.affectedRows === 0) {
       await connection.query(
         `INSERT INTO payment_verifications
-         (sale_id, shop_id, payment_method, amount, reference_no, status, verified_by, verified_at)
-         VALUES (?, ?, ?, ?, ?, 'verified', ?, NOW())`,
+         (sale_id, shop_id, payment_method, amount, reference_no, approval_code,
+          card_last_four, status, verified_by, verified_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'verified', ?, NOW())`,
         [
           saleId,
           req.user.shop_id,
           sales[0].payment_type,
           sales[0].total_amount,
           paymentReference || sales[0].payment_reference || null,
+          approvalCode || sales[0].approval_code || null,
+          cardLastFour || sales[0].card_last_four || null,
           req.user.id,
         ]
       );
@@ -217,8 +227,8 @@ exports.verifyPayment = async (req, res) => {
          payment_verifications.status AS verification_status,
          COALESCE(payment_verifications.reference_no, sales.payment_reference) AS payment_reference,
          payment_verifications.reference_no,
-         sales.approval_code,
-         sales.card_last_four,
+         COALESCE(payment_verifications.approval_code, sales.approval_code) AS approval_code,
+         COALESCE(payment_verifications.card_last_four, sales.card_last_four) AS card_last_four,
          sales.verified_by,
          sales.verified_at,
          sales.created_at,
@@ -275,7 +285,7 @@ exports.failPayment = async (req, res) => {
     await connection.beginTransaction();
 
     const [sales] = await connection.query(
-      `SELECT id, payment_type, total_amount, payment_reference
+      `SELECT id, payment_type, total_amount, payment_reference, approval_code, card_last_four
        FROM sales
        WHERE id = ? AND shop_id = ?
        LIMIT 1
@@ -310,6 +320,8 @@ exports.failPayment = async (req, res) => {
            amount = ?,
            payment_method = ?,
            reference_no = COALESCE(reference_no, ?),
+           approval_code = COALESCE(approval_code, ?),
+           card_last_four = COALESCE(card_last_four, ?),
            verified_by = NULL,
            verified_at = NULL,
            failed_at = NOW()
@@ -318,6 +330,8 @@ exports.failPayment = async (req, res) => {
         sales[0].total_amount,
         sales[0].payment_type,
         sales[0].payment_reference || null,
+        sales[0].approval_code || null,
+        sales[0].card_last_four || null,
         saleId,
         req.user.shop_id,
       ]
@@ -326,14 +340,17 @@ exports.failPayment = async (req, res) => {
     if (verificationUpdate.affectedRows === 0) {
       await connection.query(
         `INSERT INTO payment_verifications
-         (sale_id, shop_id, payment_method, amount, reference_no, status, failed_at)
-         VALUES (?, ?, ?, ?, ?, 'failed', NOW())`,
+         (sale_id, shop_id, payment_method, amount, reference_no, approval_code,
+          card_last_four, status, failed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'failed', NOW())`,
         [
           saleId,
           req.user.shop_id,
           sales[0].payment_type,
           sales[0].total_amount,
           sales[0].payment_reference || null,
+          sales[0].approval_code || null,
+          sales[0].card_last_four || null,
         ]
       );
     }

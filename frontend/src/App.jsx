@@ -88,7 +88,7 @@ function App() {
           <Route
             path="/payment-verification"
             element={
-              <ProtectedRoute permission="payment_verification_access">
+              <ProtectedRoute roles={['owner']} permission="payment_verification_access">
                 <PaymentVerification />
               </ProtectedRoute>
             }
