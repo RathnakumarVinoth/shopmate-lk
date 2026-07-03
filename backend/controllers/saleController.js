@@ -4,6 +4,7 @@ const {
   ensureSalesPaymentColumns,
 } = require("../utils/paymentSchema");
 const { ensureProductCatalogSchema } = require("../utils/productCatalogSchema");
+const { ensureSaasSchema } = require("../utils/saasSchema");
 const { ensureShopSettingsColumns } = require("../utils/shopSchema");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
 
@@ -256,10 +257,14 @@ const buildReceipt = ({ sale, shop, customer, items }) => {
     paid_amount: formattedSale.paid_amount,
     balance_amount: formattedSale.balance_amount,
     payment_type: formattedSale.payment_type,
-    payment_status: formattedSale.payment_status,
     payment_reference: formattedSale.payment_reference || null,
     approval_code: formattedSale.approval_code || null,
     card_last_four: formattedSale.card_last_four || null,
+    billed_by:
+      formattedSale.cashier_name ||
+      formattedSale.user_name ||
+      formattedSale.billed_by ||
+      null,
     created_at: formattedSale.created_at,
   };
 };
@@ -275,6 +280,8 @@ exports.createSale = async (req, res) => {
   const shopId = req.user.shop_id;
   const userId = req.user.id;
   const paymentType = req.body.payment_type || "cash";
+  const localOfflineId = optionalText(req.body.local_offline_id);
+  const syncSource = optionalText(req.body.sync_source) || "online";
   const requiresVerification = verifiablePaymentTypes.includes(paymentType);
   const paymentStatus = getPaymentStatus(paymentType);
   const paymentReference = optionalText(req.body.payment_reference);
@@ -315,6 +322,7 @@ exports.createSale = async (req, res) => {
     await ensurePaymentVerificationTable();
     await ensureShopSettingsColumns();
     await ensureProductCatalogSchema();
+    await ensureSaasSchema();
     await connection.beginTransaction();
 
     const [shops] = await connection.query(
@@ -331,6 +339,11 @@ exports.createSale = async (req, res) => {
     );
 
     let customer = null;
+    const [cashiers] = await connection.query(
+      "SELECT name FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    const cashierName = cashiers[0]?.name || null;
 
     if (customerId) {
       const [customers] = await connection.query(
@@ -503,16 +516,18 @@ exports.createSale = async (req, res) => {
 
     const [saleResult] = await connection.query(
       `INSERT INTO sales
-       (shop_id, user_id, customer_id, subtotal, item_discount_total,
+       (shop_id, user_id, created_by, customer_id, subtotal, item_discount_total,
         bill_discount, discount_amount, tax_percentage, tax_amount,
         total_before_tax, total_amount, total_profit, payment_type,
         paid_amount, balance_amount, payment_status, payment_reference,
-        approval_code, card_last_four, verified_by, verified_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${
+        approval_code, card_last_four, cashier_name, local_offline_id,
+        sync_source, verified_by, verified_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ${
          paymentStatus === "verified" ? "NOW()" : "NULL"
        })`,
       [
         shopId,
+        userId,
         userId,
         customerId,
         subtotal,
@@ -531,6 +546,9 @@ exports.createSale = async (req, res) => {
         paymentReference,
         approvalCode,
         cardLastFour,
+        cashierName,
+        localOfflineId,
+        syncSource,
         verifiedBy,
       ]
     );
@@ -616,9 +634,11 @@ exports.createSale = async (req, res) => {
     }
 
     const [sales] = await connection.query(
-      `SELECT sales.*, customers.customer_name, customers.phone AS customer_phone,
+      `SELECT sales.*, users.name AS user_name,
+              customers.customer_name, customers.phone AS customer_phone,
               customers.address AS customer_address
        FROM sales
+       LEFT JOIN users ON users.id = sales.user_id
        LEFT JOIN customers ON customers.id = sales.customer_id
        WHERE sales.id = ? AND sales.shop_id = ?
        LIMIT 1`,
@@ -677,12 +697,13 @@ exports.createSale = async (req, res) => {
 exports.getSales = async (req, res) => {
   try {
     await ensureSalesPaymentColumns();
+    await ensureSaasSchema();
     await ensureShopSettingsColumns();
     await ensureProductCatalogSchema();
 
     const [sales] = await db.promise().query(
       `SELECT sales.id, sales.invoice_no, sales.shop_id, sales.user_id,
-              users.name AS user_name, sales.subtotal, sales.item_discount_total,
+              users.name AS user_name, sales.cashier_name, sales.subtotal, sales.item_discount_total,
               sales.bill_discount, sales.discount_amount, sales.tax_percentage,
               sales.tax_amount, sales.total_before_tax, sales.total_amount,
               sales.total_profit, sales.payment_type,
@@ -718,6 +739,7 @@ exports.getSaleById = async (req, res) => {
 
   try {
     await ensureSalesPaymentColumns();
+    await ensureSaasSchema();
     await ensureProductCatalogSchema();
 
     const [sales] = await db.promise().query(
@@ -725,6 +747,7 @@ exports.getSaleById = async (req, res) => {
               shops.shop_name, shops.phone, shops.email, shops.address,
               shops.receipt_footer, shops.currency, shops.logo_url,
               shops.default_receipt_size,
+              sales.cashier_name,
               customers.customer_name, customers.phone AS customer_phone,
               customers.address AS customer_address
        FROM sales
@@ -774,5 +797,197 @@ exports.getSaleById = async (req, res) => {
   } catch (error) {
     console.error("Get sale error:", error.message);
     return res.status(500).json({ message: "Server error while fetching sale" });
+  }
+};
+
+const runSaleCreateForSync = async (req, saleBody) => {
+  const captured = {
+    statusCode: 200,
+    payload: null,
+  };
+  const mockRes = {
+    status(code) {
+      captured.statusCode = code;
+      return this;
+    },
+    json(payload) {
+      captured.payload = payload;
+      return this;
+    },
+  };
+
+  await exports.createSale(
+    {
+      ...req,
+      body: saleBody,
+    },
+    mockRes
+  );
+
+  return captured;
+};
+
+const normalizeOfflineSalePayload = (sale) => ({
+  local_offline_id: optionalText(sale.local_offline_id),
+  sync_source: "offline_lite",
+  customer_id: sale.customer_id || null,
+  payment_type: "cash",
+  bill_discount: Number(sale.bill_discount ?? sale.discount_amount ?? 0),
+  discount_amount: Number(sale.bill_discount ?? sale.discount_amount ?? 0),
+  tax_percentage: Number(sale.tax_percentage || 0),
+  paid_amount: Number(sale.paid_amount || sale.total_amount || 0),
+  items: (sale.items || sale.cart_items || []).map((item) => ({
+    product_id: Number(item.product_id || item.id),
+    quantity: Number(item.quantity),
+    item_discount: Number(item.item_discount || 0),
+    item_discount_type: item.item_discount_type || "fixed",
+  })),
+});
+
+exports.syncOfflineSales = async (req, res) => {
+  const sales = Array.isArray(req.body.sales)
+    ? req.body.sales
+    : req.body.sale
+    ? [req.body.sale]
+    : Array.isArray(req.body)
+    ? req.body
+    : [];
+
+  if (sales.length === 0) {
+    return res.status(400).json({ message: "sales must be a non-empty array" });
+  }
+
+  try {
+    await ensureSaasSchema();
+    await ensureSalesPaymentColumns();
+
+    const results = [];
+
+    for (const sale of sales) {
+      const localOfflineId = optionalText(sale.local_offline_id);
+
+      if (!localOfflineId) {
+        results.push({
+          local_offline_id: null,
+          sync_status: "failed",
+          message: "local_offline_id is required",
+        });
+        continue;
+      }
+
+      if (sale.shop_id && Number(sale.shop_id) !== Number(req.user.shop_id)) {
+        results.push({
+          local_offline_id: localOfflineId,
+          sync_status: "failed",
+          message: "Offline sale does not belong to this shop",
+        });
+        continue;
+      }
+
+      if ((sale.payment_method || sale.payment_type || "cash") !== "cash") {
+        results.push({
+          local_offline_id: localOfflineId,
+          sync_status: "failed",
+          message: "Only cash offline sales can be synced",
+        });
+        continue;
+      }
+
+      const [existingSales] = await db.promise().query(
+        `SELECT id, invoice_no
+         FROM sales
+         WHERE shop_id = ? AND local_offline_id = ?
+         LIMIT 1`,
+        [req.user.shop_id, localOfflineId]
+      );
+
+      if (existingSales.length > 0) {
+        results.push({
+          local_offline_id: localOfflineId,
+          real_sale_id: existingSales[0].id,
+          real_invoice_no: existingSales[0].invoice_no,
+          sync_status: "synced",
+          duplicate: true,
+        });
+        continue;
+      }
+
+      const createResult = await runSaleCreateForSync(
+        req,
+        normalizeOfflineSalePayload(sale)
+      );
+
+      if (createResult.statusCode >= 400) {
+        const syncMessage = createResult.payload?.message || "Sync failed";
+        const stockMatch = syncMessage.match(/^Not enough stock for (.+)$/i);
+        results.push({
+          local_offline_id: localOfflineId,
+          sync_status: "failed",
+          message: stockMatch
+            ? `Sync failed: insufficient stock for ${stockMatch[1]}`
+            : syncMessage,
+          errors: createResult.payload?.errors || undefined,
+        });
+        continue;
+      }
+
+      const saleId = createResult.payload?.sale?.id || createResult.payload?.receipt?.sale_id;
+      const invoiceNo =
+        createResult.payload?.receipt?.invoice_no ||
+        createResult.payload?.sale?.invoice_no ||
+        null;
+
+      try {
+        await db.promise().query(
+          `UPDATE sales
+           SET local_offline_id = ?, sync_source = 'offline_lite', created_by = ?
+           WHERE id = ? AND shop_id = ?`,
+          [localOfflineId, req.user.id, saleId, req.user.shop_id]
+        );
+      } catch (error) {
+        if (error.code !== "ER_DUP_ENTRY") {
+          throw error;
+        }
+
+        const [duplicateSales] = await db.promise().query(
+          `SELECT id, invoice_no
+           FROM sales
+           WHERE shop_id = ? AND local_offline_id = ?
+           LIMIT 1`,
+          [req.user.shop_id, localOfflineId]
+        );
+
+        results.push({
+          local_offline_id: localOfflineId,
+          real_sale_id: duplicateSales[0]?.id || null,
+          real_invoice_no: duplicateSales[0]?.invoice_no || null,
+          sync_status: "synced",
+          duplicate: true,
+        });
+        continue;
+      }
+
+      await createAuditLogFromRequest(req, {
+        action: "offline_sale_sync",
+        entity_type: "sale",
+        entity_id: saleId,
+        description: `Synced offline sale ${sale.temporary_invoice_no || localOfflineId}`,
+      });
+
+      results.push({
+        local_offline_id: localOfflineId,
+        real_sale_id: saleId,
+        real_invoice_no: invoiceNo,
+        sync_status: "synced",
+      });
+    }
+
+    return res.json({
+      message: "Offline sales sync completed",
+      results,
+    });
+  } catch (error) {
+    console.error("Sync offline sales error:", error.message);
+    return res.status(500).json({ message: "Server error while syncing offline sales" });
   }
 };

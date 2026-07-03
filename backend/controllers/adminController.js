@@ -1,7 +1,20 @@
+const bcrypt = require("bcryptjs");
 const db = require("../config/db");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
+const {
+  getRolePermissions,
+  normalizePermissions,
+  serializePermissions,
+  staffRoles,
+} = require("../utils/permissions");
+const { ensureSaasSchema } = require("../utils/saasSchema");
+const { validateStrongPassword } = require("../utils/security");
 
 const allowedPlans = ["starter", "business", "pro"];
 const allowedStatuses = ["trial", "active", "expired", "suspended"];
+const receiptSizes = ["58mm", "80mm"];
+const languages = ["en", "si", "ta"];
+const userRoles = ["owner", ...staffRoles];
 
 const isPositiveInteger = (value) =>
   Number.isInteger(Number(value)) && Number(value) > 0;
@@ -34,14 +47,34 @@ const toBooleanNumber = (value) => {
 };
 
 const toNumber = (value) => Number(value || 0);
+const optionalText = (value) =>
+  value === undefined || value === null || String(value).trim() === ""
+    ? null
+    : String(value).trim();
+
+const generateTemporaryPassword = () =>
+  `ShopMate#${Math.random().toString(36).slice(2, 8)}${Math.floor(1000 + Math.random() * 9000)}`;
+
+const normalizeReceiptSize = (value) =>
+  receiptSizes.includes(value) ? value : "80mm";
+
+const normalizeLanguage = (value) => (languages.includes(value) ? value : "en");
 
 const formatShop = (shop) => ({
   id: shop.id,
   shop_id: shop.id,
   shop_name: shop.shop_name,
+  shop_code: shop.shop_code || null,
+  login_email: shop.login_email || null,
   owner_name: shop.owner_name || null,
   owner_email: shop.owner_email || null,
   phone: shop.phone || null,
+  email: shop.email || null,
+  address: shop.address || null,
+  currency: shop.currency || "LKR",
+  tax_percentage: toNumber(shop.tax_percentage),
+  default_receipt_size: normalizeReceiptSize(shop.default_receipt_size),
+  language: normalizeLanguage(shop.language),
   subscription_plan: shop.subscription_plan || null,
   subscription_status: shop.subscription_status || null,
   subscription_start_date: shop.subscription_start_date || null,
@@ -52,12 +85,22 @@ const formatShop = (shop) => ({
 });
 
 const getShopById = async (shopId) => {
+  await ensureSaasSchema();
+
   const [shops] = await db.promise().query(
     `SELECT
        shops.id,
        shops.shop_name,
+       shops.shop_code,
+       shops.login_email,
+       shops.owner_name AS stored_owner_name,
        shops.phone,
+       shops.email,
        shops.address,
+       shops.currency,
+       shops.tax_percentage,
+       shops.default_receipt_size,
+       shops.language,
        shops.subscription_plan,
        shops.subscription_status,
        shops.subscription_start_date,
@@ -66,7 +109,7 @@ const getShopById = async (shopId) => {
        shops.is_enabled,
        shops.created_at,
        owners.id AS owner_id,
-       owners.name AS owner_name,
+       COALESCE(shops.owner_name, owners.name) AS owner_name,
        owners.email AS owner_email
      FROM shops
      LEFT JOIN users AS owners ON owners.id = shops.owner_id
@@ -80,11 +123,21 @@ const getShopById = async (shopId) => {
 
 exports.getShops = async (req, res) => {
   try {
+    await ensureSaasSchema();
+
     const [shops] = await db.promise().query(
       `SELECT
          shops.id,
          shops.shop_name,
+         shops.shop_code,
+         shops.login_email,
          shops.phone,
+         shops.email,
+         shops.address,
+         shops.currency,
+         shops.tax_percentage,
+         shops.default_receipt_size,
+         shops.language,
          shops.subscription_plan,
          shops.subscription_status,
          shops.subscription_start_date,
@@ -92,7 +145,7 @@ exports.getShops = async (req, res) => {
          shops.monthly_fee,
          shops.is_enabled,
          shops.created_at,
-         owners.name AS owner_name,
+         COALESCE(shops.owner_name, owners.name) AS owner_name,
          owners.email AS owner_email
        FROM shops
        LEFT JOIN users AS owners ON owners.id = shops.owner_id
@@ -106,6 +159,153 @@ exports.getShops = async (req, res) => {
   } catch (error) {
     console.error("Get admin shops error:", error.message);
     return res.status(500).json({ message: "Server error while fetching shops" });
+  }
+};
+
+exports.createShop = async (req, res) => {
+  const {
+    shop_name,
+    owner_name,
+    login_email,
+    login_password,
+    owner_username,
+    owner_password,
+    phone,
+    email,
+    address,
+    language,
+    currency,
+    tax_percentage,
+    default_receipt_size,
+    subscription_plan,
+    subscription_status,
+    subscription_start_date,
+    subscription_expiry_date,
+    monthly_fee,
+    is_enabled,
+  } = req.body;
+
+  const errors = [];
+  if (!optionalText(shop_name)) errors.push("shop_name is required");
+  if (!optionalText(owner_name)) errors.push("owner_name is required");
+  if (!optionalText(login_email)) errors.push("shop login email is required");
+  if (!optionalText(owner_username)) errors.push("owner username is required");
+
+  const shopPassword = optionalText(login_password) || generateTemporaryPassword();
+  const rolePassword = optionalText(owner_password) || generateTemporaryPassword();
+  const shopPasswordError = validateStrongPassword(shopPassword);
+  const rolePasswordError = validateStrongPassword(rolePassword);
+
+  if (shopPasswordError) errors.push(`shop login password: ${shopPasswordError}`);
+  if (rolePasswordError) errors.push(`owner password: ${rolePasswordError}`);
+
+  const plan = allowedPlans.includes(subscription_plan) ? subscription_plan : "starter";
+  const status = allowedStatuses.includes(subscription_status) ? subscription_status : "trial";
+  const enabledValue = toBooleanNumber(is_enabled === undefined ? true : is_enabled);
+
+  if (errors.length > 0) {
+    return res.status(400).json({ message: "Validation failed", errors });
+  }
+
+  const connection = db.promise();
+
+  try {
+    await ensureSaasSchema();
+    await connection.beginTransaction();
+
+    const shopCode = `SHOP-${Date.now().toString(36).toUpperCase()}`;
+    const shopPasswordHash = await bcrypt.hash(shopPassword, 10);
+    const ownerPasswordHash = await bcrypt.hash(rolePassword, 10);
+
+    const [shopResult] = await connection.query(
+      `INSERT INTO shops
+       (shop_name, owner_name, login_email, login_password_hash, shop_code,
+        phone, email, address, language, currency, tax_percentage,
+        default_receipt_size, subscription_plan, subscription_status,
+        subscription_start_date, subscription_expiry_date, monthly_fee,
+        is_enabled, created_by_admin)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        optionalText(shop_name),
+        optionalText(owner_name),
+        optionalText(login_email).toLowerCase(),
+        shopPasswordHash,
+        shopCode,
+        optionalText(phone),
+        optionalText(email),
+        optionalText(address),
+        normalizeLanguage(language),
+        optionalText(currency) || "LKR",
+        Number(tax_percentage || 0),
+        normalizeReceiptSize(default_receipt_size),
+        plan,
+        status,
+        optionalDate(subscription_start_date),
+        optionalDate(subscription_expiry_date),
+        Number(monthly_fee || 0),
+        enabledValue === null ? 1 : enabledValue,
+        req.user.id,
+      ]
+    );
+
+    const shopId = shopResult.insertId;
+    const [ownerResult] = await connection.query(
+      `INSERT INTO users
+       (name, username, email, password, role, permissions, shop_id, is_active)
+       VALUES (?, ?, ?, ?, 'owner', ?, ?, 1)`,
+      [
+        optionalText(owner_name),
+        optionalText(owner_username),
+        optionalText(email),
+        ownerPasswordHash,
+        serializePermissions(getRolePermissions("owner")),
+        shopId,
+      ]
+    );
+
+    await connection.query("UPDATE shops SET owner_id = ? WHERE id = ?", [
+      ownerResult.insertId,
+      shopId,
+    ]);
+
+    await connection.commit();
+
+    await createAuditLogFromRequest(req, {
+      shop_id: shopId,
+      action: "shop_created",
+      entity_type: "shop",
+      entity_id: shopId,
+      description: `Created shop ${optionalText(shop_name)}`,
+    });
+
+    const createdShop = await getShopById(shopId);
+
+    return res.status(201).json({
+      message: "Shop created successfully",
+      shop: formatShop(createdShop),
+      credentials: {
+        shop_login_email: optionalText(login_email).toLowerCase(),
+        shop_temporary_password: shopPassword,
+        owner_username: optionalText(owner_username),
+        owner_temporary_password: rolePassword,
+      },
+    });
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch (rollbackError) {
+      console.error("Create shop rollback failed:", rollbackError.message);
+    }
+
+    console.error("Create shop error:", error.message);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res
+        .status(409)
+        .json({ message: "Shop login email, shop code, or username already exists" });
+    }
+
+    return res.status(500).json({ message: "Server error while creating shop" });
   }
 };
 
@@ -137,8 +337,8 @@ exports.getShopDetails = async (req, res) => {
         shopId,
       ]),
       db.promise().query(
-        "SELECT COUNT(*) AS total_staff FROM users WHERE shop_id = ? AND role = 'staff'",
-        [shopId]
+        "SELECT COUNT(*) AS total_staff FROM users WHERE shop_id = ? AND role IN (?)",
+        [shopId, staffRoles]
       ),
       db.promise().query(
         "SELECT COUNT(*) AS total_customers FROM customers WHERE shop_id = ?",
@@ -212,6 +412,8 @@ exports.updateSubscription = async (req, res) => {
   }
 
   try {
+    await ensureSaasSchema();
+
     const [result] = await db.promise().query(
       `UPDATE shops
        SET subscription_plan = ?,
@@ -250,6 +452,360 @@ exports.updateSubscription = async (req, res) => {
   }
 };
 
+exports.updateShop = async (req, res) => {
+  const shopId = req.params.id;
+  const {
+    shop_name,
+    owner_name,
+    login_email,
+    phone,
+    email,
+    address,
+    language,
+    currency,
+    tax_percentage,
+    default_receipt_size,
+    subscription_plan,
+    subscription_status,
+    subscription_start_date,
+    subscription_expiry_date,
+    monthly_fee,
+    is_enabled,
+  } = req.body;
+
+  if (!isPositiveInteger(shopId)) {
+    return res.status(400).json({ message: "Valid shop id is required" });
+  }
+
+  if (!optionalText(shop_name) || !optionalText(owner_name) || !optionalText(login_email)) {
+    return res
+      .status(400)
+      .json({ message: "shop_name, owner_name, and login_email are required" });
+  }
+
+  const enabledValue = toBooleanNumber(is_enabled === undefined ? true : is_enabled);
+
+  try {
+    await ensureSaasSchema();
+
+    const [result] = await db.promise().query(
+      `UPDATE shops
+       SET shop_name = ?, owner_name = ?, login_email = ?, phone = ?, email = ?,
+           address = ?, language = ?, currency = ?, tax_percentage = ?,
+           default_receipt_size = ?, subscription_plan = ?,
+           subscription_status = ?, subscription_start_date = ?,
+           subscription_expiry_date = ?, monthly_fee = ?, is_enabled = ?
+       WHERE id = ?`,
+      [
+        optionalText(shop_name),
+        optionalText(owner_name),
+        optionalText(login_email).toLowerCase(),
+        optionalText(phone),
+        optionalText(email),
+        optionalText(address),
+        normalizeLanguage(language),
+        optionalText(currency) || "LKR",
+        Number(tax_percentage || 0),
+        normalizeReceiptSize(default_receipt_size),
+        allowedPlans.includes(subscription_plan) ? subscription_plan : "starter",
+        allowedStatuses.includes(subscription_status) ? subscription_status : "trial",
+        optionalDate(subscription_start_date),
+        optionalDate(subscription_expiry_date),
+        Number(monthly_fee || 0),
+        enabledValue === null ? 1 : enabledValue,
+        shopId,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+
+    const updatedShop = await getShopById(shopId);
+
+    await createAuditLogFromRequest(req, {
+      shop_id: Number(shopId),
+      action: "shop_settings_updated",
+      entity_type: "shop",
+      entity_id: Number(shopId),
+      description: `Updated shop settings for ${updatedShop.shop_name}`,
+    });
+
+    return res.json({
+      message: "Shop updated successfully",
+      shop: formatShop(updatedShop),
+    });
+  } catch (error) {
+    console.error("Update shop error:", error.message);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "Shop login email already exists" });
+    }
+
+    return res.status(500).json({ message: "Server error while updating shop" });
+  }
+};
+
+const formatAdminUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  username: user.username,
+  email: user.email || null,
+  role: user.role,
+  permissions: normalizePermissions(user.permissions),
+  shop_id: user.shop_id,
+  is_active: Boolean(Number(user.is_active ?? 1)),
+  created_at: user.created_at,
+});
+
+exports.getShopUsers = async (req, res) => {
+  const shopId = req.params.id;
+
+  if (!isPositiveInteger(shopId)) {
+    return res.status(400).json({ message: "Valid shop id is required" });
+  }
+
+  try {
+    await ensureSaasSchema();
+
+    const [users] = await db.promise().query(
+      `SELECT id, name, username, email, role, permissions, shop_id, is_active, created_at
+       FROM users
+       WHERE shop_id = ? AND role IN (?)
+       ORDER BY role = 'owner' DESC, id DESC`,
+      [shopId, userRoles]
+    );
+
+    return res.json({
+      message: "Shop users fetched successfully",
+      users: users.map(formatAdminUser),
+    });
+  } catch (error) {
+    console.error("Get shop users error:", error.message);
+    return res.status(500).json({ message: "Server error while fetching shop users" });
+  }
+};
+
+exports.createShopUser = async (req, res) => {
+  const shopId = req.params.id;
+  const { name, username, email, password, role, permissions } = req.body;
+
+  if (!isPositiveInteger(shopId)) {
+    return res.status(400).json({ message: "Valid shop id is required" });
+  }
+
+  const nextRole = userRoles.includes(role) ? role : "staff";
+  const temporaryPassword = optionalText(password) || generateTemporaryPassword();
+  const passwordError = validateStrongPassword(temporaryPassword);
+
+  if (!optionalText(name) || !optionalText(username)) {
+    return res.status(400).json({ message: "name and username are required" });
+  }
+
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
+  }
+
+  try {
+    await ensureSaasSchema();
+
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    const userPermissions =
+      permissions === undefined
+        ? getRolePermissions(nextRole)
+        : normalizePermissions(permissions);
+
+    const [result] = await db.promise().query(
+      `INSERT INTO users
+       (name, username, email, password, role, permissions, shop_id, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        optionalText(name),
+        optionalText(username),
+        optionalText(email),
+        hashedPassword,
+        nextRole,
+        serializePermissions(userPermissions),
+        shopId,
+      ]
+    );
+
+    await createAuditLogFromRequest(req, {
+      shop_id: Number(shopId),
+      action: "admin_user_created",
+      entity_type: "user",
+      entity_id: result.insertId,
+      description: `Created ${nextRole} user ${optionalText(username)}`,
+    });
+
+    return res.status(201).json({
+      message: "User created successfully",
+      user_id: result.insertId,
+      temporary_password: temporaryPassword,
+    });
+  } catch (error) {
+    console.error("Create shop user error:", error.message);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res
+        .status(409)
+        .json({ message: "Username already exists for this shop" });
+    }
+
+    return res.status(500).json({ message: "Server error while creating user" });
+  }
+};
+
+exports.updateShopUser = async (req, res) => {
+  const { id: shopId, userId } = req.params;
+  const { name, username, email, role, permissions, is_active } = req.body;
+
+  if (!isPositiveInteger(shopId) || !isPositiveInteger(userId)) {
+    return res.status(400).json({ message: "Valid shop and user ids are required" });
+  }
+
+  const nextRole = userRoles.includes(role) ? role : "staff";
+
+  if (!optionalText(name) || !optionalText(username)) {
+    return res.status(400).json({ message: "name and username are required" });
+  }
+
+  try {
+    await ensureSaasSchema();
+
+    const [result] = await db.promise().query(
+      `UPDATE users
+       SET name = ?, username = ?, email = ?, role = ?, permissions = ?, is_active = ?
+       WHERE id = ? AND shop_id = ? AND role IN (?)`,
+      [
+        optionalText(name),
+        optionalText(username),
+        optionalText(email),
+        nextRole,
+        serializePermissions(
+          permissions === undefined ? getRolePermissions(nextRole) : permissions
+        ),
+        is_active === false || is_active === 0 || is_active === "0" ? 0 : 1,
+        userId,
+        shopId,
+        userRoles,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    await createAuditLogFromRequest(req, {
+      shop_id: Number(shopId),
+      action: "admin_user_updated",
+      entity_type: "user",
+      entity_id: Number(userId),
+      description: `Updated shop user ${optionalText(username)}`,
+    });
+
+    return res.json({ message: "User updated successfully" });
+  } catch (error) {
+    console.error("Update shop user error:", error.message);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res
+        .status(409)
+        .json({ message: "Username already exists for this shop" });
+    }
+
+    return res.status(500).json({ message: "Server error while updating user" });
+  }
+};
+
+exports.resetShopPassword = async (req, res) => {
+  const shopId = req.params.id;
+  const temporaryPassword = optionalText(req.body.password) || generateTemporaryPassword();
+  const passwordError = validateStrongPassword(temporaryPassword);
+
+  if (!isPositiveInteger(shopId)) {
+    return res.status(400).json({ message: "Valid shop id is required" });
+  }
+
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
+  }
+
+  try {
+    await ensureSaasSchema();
+
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    const [result] = await db.promise().query(
+      "UPDATE shops SET login_password_hash = ? WHERE id = ?",
+      [hashedPassword, shopId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+
+    await createAuditLogFromRequest(req, {
+      shop_id: Number(shopId),
+      action: "shop_password_reset",
+      entity_type: "shop",
+      entity_id: Number(shopId),
+      description: "Reset shop login password",
+    });
+
+    return res.json({
+      message: "Shop password reset successfully",
+      temporary_password: temporaryPassword,
+    });
+  } catch (error) {
+    console.error("Reset shop password error:", error.message);
+    return res.status(500).json({ message: "Server error while resetting shop password" });
+  }
+};
+
+exports.resetShopUserPassword = async (req, res) => {
+  const { id: shopId, userId } = req.params;
+  const temporaryPassword = optionalText(req.body.password) || generateTemporaryPassword();
+  const passwordError = validateStrongPassword(temporaryPassword);
+
+  if (!isPositiveInteger(shopId) || !isPositiveInteger(userId)) {
+    return res.status(400).json({ message: "Valid shop and user ids are required" });
+  }
+
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
+  }
+
+  try {
+    await ensureSaasSchema();
+
+    const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
+    const [result] = await db.promise().query(
+      "UPDATE users SET password = ? WHERE id = ? AND shop_id = ?",
+      [hashedPassword, userId, shopId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    await createAuditLogFromRequest(req, {
+      shop_id: Number(shopId),
+      action: "user_password_reset",
+      entity_type: "user",
+      entity_id: Number(userId),
+      description: "Reset shop user password",
+    });
+
+    return res.json({
+      message: "User password reset successfully",
+      temporary_password: temporaryPassword,
+    });
+  } catch (error) {
+    console.error("Reset user password error:", error.message);
+    return res.status(500).json({ message: "Server error while resetting user password" });
+  }
+};
+
 exports.enableShop = async (req, res) => {
   const shopId = req.params.id;
 
@@ -258,6 +814,8 @@ exports.enableShop = async (req, res) => {
   }
 
   try {
+    await ensureSaasSchema();
+
     const [result] = await db
       .promise()
       .query("UPDATE shops SET is_enabled = 1 WHERE id = ?", [shopId]);
@@ -281,6 +839,8 @@ exports.disableShop = async (req, res) => {
   }
 
   try {
+    await ensureSaasSchema();
+
     const [result] = await db
       .promise()
       .query("UPDATE shops SET is_enabled = 0 WHERE id = ?", [shopId]);
@@ -298,6 +858,8 @@ exports.disableShop = async (req, res) => {
 
 exports.getSummary = async (req, res) => {
   try {
+    await ensureSaasSchema();
+
     const [rows] = await db.promise().query(
       `SELECT
          COUNT(*) AS total_shops,

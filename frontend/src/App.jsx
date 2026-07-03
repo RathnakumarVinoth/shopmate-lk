@@ -27,8 +27,10 @@ import Products from './pages/Products.jsx'
 import PurchaseSuggestions from './pages/PurchaseSuggestions.jsx'
 import Register from './pages/Register.jsx'
 import Reports from './pages/Reports.jsx'
+import RoleLogin from './pages/RoleLogin.jsx'
 import Returns from './pages/Returns.jsx'
 import Settings from './pages/Settings.jsx'
+import ShopLogin from './pages/ShopLogin.jsx'
 import Staff from './pages/Staff.jsx'
 import Stock from './pages/Stock.jsx'
 import Suppliers from './pages/Suppliers.jsx'
@@ -49,8 +51,10 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={<Navigate to={hasToken ? homePath : '/login'} replace />}
+          element={<Navigate to={hasToken ? homePath : '/shop-login'} replace />}
         />
+        <Route path="/shop-login" element={<ShopLogin />} />
+        <Route path="/role-login" element={<RoleLogin />} />
         <Route path="/login" element={<Login />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/register" element={<Register />} />

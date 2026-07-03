@@ -6,6 +6,28 @@ import { formatMoney, getApiMessage } from '../utils/formatters'
 
 const plans = ['starter', 'business', 'pro']
 const statuses = ['trial', 'active', 'expired', 'suspended']
+const receiptSizes = ['58mm', '80mm']
+
+const initialCreateForm = {
+  shop_name: '',
+  owner_name: '',
+  login_email: '',
+  login_password: '',
+  owner_username: '',
+  owner_password: '',
+  phone: '',
+  email: '',
+  address: '',
+  language: 'en',
+  currency: 'LKR',
+  tax_percentage: '0',
+  default_receipt_size: '80mm',
+  subscription_plan: 'starter',
+  subscription_status: 'trial',
+  subscription_expiry_date: '',
+  monthly_fee: '0',
+  is_enabled: true,
+}
 
 const formatDate = (value) => {
   if (!value) return '-'
@@ -25,7 +47,10 @@ function AdminShops() {
   const navigate = useNavigate()
   const [shops, setShops] = useState([])
   const [editingShop, setEditingShop] = useState(null)
+  const [creatingShop, setCreatingShop] = useState(false)
   const [form, setForm] = useState(null)
+  const [createForm, setCreateForm] = useState(initialCreateForm)
+  const [temporaryCredentials, setTemporaryCredentials] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -62,6 +87,38 @@ function AdminShops() {
       ...current,
       [name]: type === 'checkbox' ? checked : value,
     }))
+  }
+
+  const updateCreateField = (event) => {
+    const { name, value, checked, type } = event.target
+    setCreateForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
+  }
+
+  const createShop = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    setMessage('')
+    setTemporaryCredentials(null)
+
+    try {
+      const response = await api.post('/admin/shops', {
+        ...createForm,
+        tax_percentage: Number(createForm.tax_percentage || 0),
+        monthly_fee: Number(createForm.monthly_fee || 0),
+      })
+      setTemporaryCredentials(response.data.credentials || null)
+      setCreateForm(initialCreateForm)
+      setMessage('Shop created successfully')
+      await loadShops(false)
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to create shop'))
+    } finally {
+      setSaving(false)
+    }
   }
 
   const saveSubscription = async (event) => {
@@ -111,9 +168,14 @@ function AdminShops() {
       <section className="panel">
         <div className="section-heading">
           <h2>{t('Shops')}</h2>
-          <button type="button" className="ghost-button" onClick={() => loadShops(false)}>
-            {t('Refresh')}
-          </button>
+          <div className="table-actions">
+            <button type="button" onClick={() => setCreatingShop(true)}>
+              {t('Create Shop')}
+            </button>
+            <button type="button" className="ghost-button" onClick={() => loadShops(false)}>
+              {t('Refresh')}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -128,6 +190,7 @@ function AdminShops() {
                 <th>{t('Shop Name')}</th>
                 <th>{t('Owner')}</th>
                 <th>{t('Email')}</th>
+                <th>{t('Shop Login')}</th>
                 <th>{t('Plan')}</th>
                 <th>{t('Status')}</th>
                 <th>{t('Expiry Date')}</th>
@@ -144,6 +207,7 @@ function AdminShops() {
                   </td>
                   <td>{shop.owner_name || '-'}</td>
                   <td>{shop.owner_email || '-'}</td>
+                  <td>{shop.login_email || '-'}</td>
                   <td>{shop.subscription_plan || '-'}</td>
                   <td>
                     <span className={`status ${shop.subscription_status || 'trial'}`}>
@@ -179,7 +243,7 @@ function AdminShops() {
               ))}
               {shops.length === 0 && (
                 <tr>
-                  <td colSpan="9" className="empty-cell">
+                  <td colSpan="10" className="empty-cell">
                     {t('No shops found.')}
                   </td>
                 </tr>
@@ -278,6 +342,110 @@ function AdminShops() {
               </label>
               <button type="submit" className="full-width" disabled={saving}>
                 {saving ? t('Saving...') : t('Save Subscription')}
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {creatingShop && (
+        <div className="modal-backdrop">
+          <section className="receipt-modal admin-modal">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">{t('Master Admin')}</p>
+                <h2>{t('Create Shop')}</h2>
+              </div>
+              <button type="button" className="ghost-button" onClick={() => setCreatingShop(false)}>
+                {t('Close')}
+              </button>
+            </div>
+            {temporaryCredentials && (
+              <div className="info-banner">
+                <strong>{t('Temporary Credentials')}</strong>
+                <div>{t('Shop Email')}: {temporaryCredentials.shop_login_email}</div>
+                <div>{t('Shop Password')}: {temporaryCredentials.shop_temporary_password}</div>
+                <div>{t('Owner Username')}: {temporaryCredentials.owner_username}</div>
+                <div>{t('Owner Password')}: {temporaryCredentials.owner_temporary_password}</div>
+              </div>
+            )}
+            <form className="form-grid" onSubmit={createShop}>
+              <label>
+                {t('Shop Name')}
+                <input name="shop_name" value={createForm.shop_name} onChange={updateCreateField} required />
+              </label>
+              <label>
+                {t('Owner Name')}
+                <input name="owner_name" value={createForm.owner_name} onChange={updateCreateField} required />
+              </label>
+              <label>
+                {t('Shop Email')}
+                <input name="login_email" type="email" value={createForm.login_email} onChange={updateCreateField} required />
+              </label>
+              <label>
+                {t('Shop Password')}
+                <input name="login_password" type="password" value={createForm.login_password} onChange={updateCreateField} placeholder={t('Leave blank to generate')} />
+              </label>
+              <label>
+                {t('Owner Username')}
+                <input name="owner_username" value={createForm.owner_username} onChange={updateCreateField} required />
+              </label>
+              <label>
+                {t('Owner Password')}
+                <input name="owner_password" type="password" value={createForm.owner_password} onChange={updateCreateField} placeholder={t('Leave blank to generate')} />
+              </label>
+              <label>
+                {t('Phone')}
+                <input name="phone" value={createForm.phone} onChange={updateCreateField} />
+              </label>
+              <label>
+                {t('Email')}
+                <input name="email" type="email" value={createForm.email} onChange={updateCreateField} />
+              </label>
+              <label className="full-width">
+                {t('Address')}
+                <input name="address" value={createForm.address} onChange={updateCreateField} />
+              </label>
+              <label>
+                {t('Currency')}
+                <input name="currency" value={createForm.currency} onChange={updateCreateField} />
+              </label>
+              <label>
+                {t('Tax Percentage')}
+                <input name="tax_percentage" type="number" min="0" step="0.01" value={createForm.tax_percentage} onChange={updateCreateField} />
+              </label>
+              <label>
+                {t('Thermal Receipt Size')}
+                <select name="default_receipt_size" value={createForm.default_receipt_size} onChange={updateCreateField}>
+                  {receiptSizes.map((size) => <option key={size} value={size}>{size}</option>)}
+                </select>
+              </label>
+              <label>
+                {t('Plan')}
+                <select name="subscription_plan" value={createForm.subscription_plan} onChange={updateCreateField}>
+                  {plans.map((plan) => <option key={plan} value={plan}>{plan}</option>)}
+                </select>
+              </label>
+              <label>
+                {t('Status')}
+                <select name="subscription_status" value={createForm.subscription_status} onChange={updateCreateField}>
+                  {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </label>
+              <label>
+                {t('Expiry Date')}
+                <input name="subscription_expiry_date" type="date" value={createForm.subscription_expiry_date} onChange={updateCreateField} />
+              </label>
+              <label>
+                {t('Monthly Fee')}
+                <input name="monthly_fee" type="number" min="0" step="0.01" value={createForm.monthly_fee} onChange={updateCreateField} />
+              </label>
+              <label className="checkbox-row">
+                <input name="is_enabled" type="checkbox" checked={createForm.is_enabled} onChange={updateCreateField} />
+                {t('Enabled')}
+              </label>
+              <button type="submit" className="full-width" disabled={saving}>
+                {saving ? t('Saving...') : t('Create Shop')}
               </button>
             </form>
           </section>

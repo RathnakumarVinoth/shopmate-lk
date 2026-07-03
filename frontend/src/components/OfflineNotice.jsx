@@ -23,7 +23,7 @@ function OfflineNotice() {
 
   return (
     <div className="offline-notice" role="status">
-      {t('You are offline. Some features may not work.')}
+      {t('You are offline. Cash billing is available. Sales will sync when internet returns.')}
     </div>
   )
 }

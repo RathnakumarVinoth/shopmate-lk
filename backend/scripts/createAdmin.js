@@ -1,11 +1,15 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 
 const db = require("../config/db");
+
+const generateAdminPassword = () =>
+  `ShopMateAdmin#${crypto.randomBytes(6).toString("base64url")}7Aa!`;
 
 const adminUser = {
   name: "Super Admin",
   email: "admin@shopmate.lk",
-  password: "admin123",
+  password: process.env.ADMIN_PASSWORD || generateAdminPassword(),
   role: "admin",
 };
 

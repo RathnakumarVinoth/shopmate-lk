@@ -9,6 +9,7 @@ const {
   serializePermissions,
   staffRoles,
 } = require("../utils/permissions");
+const { ensureSaasSchema } = require("../utils/saasSchema");
 const { validateStrongPassword } = require("../utils/security");
 
 const isMissing = (value) => value === undefined || value === null || value === "";
@@ -19,6 +20,7 @@ const isPositiveInteger = (value) =>
 const formatStaff = (staff) => ({
   id: staff.id,
   name: staff.name,
+  username: staff.username,
   email: staff.email,
   role: staff.role,
   permissions: normalizePermissions(staff.permissions),
@@ -28,17 +30,17 @@ const formatStaff = (staff) => ({
 });
 
 exports.addStaff = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, username, email, password } = req.body;
   const role = staffRoles.includes(req.body.role) ? req.body.role : "staff";
   const permissions =
     req.body.permissions === undefined
       ? getRolePermissions(role)
       : normalizePermissions(req.body.permissions);
 
-  if (!name || !email || !password) {
+  if (!name || !username || !password) {
     return res
       .status(400)
-      .json({ message: "name, email, and password are required" });
+      .json({ message: "name, username, and password are required" });
   }
 
   const passwordError = validateStrongPassword(password);
@@ -48,27 +50,28 @@ exports.addStaff = async (req, res) => {
   }
 
   try {
+    await ensureSaasSchema();
     await ensureUserPermissionColumns();
 
     const [existingUsers] = await db.promise().query(
-      "SELECT id FROM users WHERE email = ? LIMIT 1",
-      [email]
+      "SELECT id FROM users WHERE shop_id = ? AND username = ? LIMIT 1",
+      [req.user.shop_id, username]
     );
 
     if (existingUsers.length > 0) {
-      return res.status(409).json({ message: "Email is already registered" });
+      return res.status(409).json({ message: "Username already exists for this shop" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const [result] = await db.promise().query(
-      `INSERT INTO users (name, email, password, role, permissions, shop_id, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, 1)`,
-      [name, email, hashedPassword, role, serializePermissions(permissions), req.user.shop_id]
+      `INSERT INTO users (name, username, email, password, role, permissions, shop_id, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+      [name, username, email || null, hashedPassword, role, serializePermissions(permissions), req.user.shop_id]
     );
 
     const [staffRows] = await db.promise().query(
-      `SELECT id, name, email, role, permissions, shop_id, is_active, created_at
+      `SELECT id, name, username, email, role, permissions, shop_id, is_active, created_at
        FROM users
        WHERE id = ? AND shop_id = ? AND role IN (?)
        LIMIT 1`,
@@ -90,7 +93,7 @@ exports.addStaff = async (req, res) => {
     console.error("Add staff error:", error.message);
 
     if (error.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ message: "Email is already registered" });
+      return res.status(409).json({ message: "Username already exists for this shop" });
     }
 
     return res.status(500).json({ message: "Server error while adding staff" });
@@ -99,10 +102,11 @@ exports.addStaff = async (req, res) => {
 
 exports.getStaff = async (req, res) => {
   try {
+    await ensureSaasSchema();
     await ensureUserPermissionColumns();
 
     const [staffRows] = await db.promise().query(
-      `SELECT id, name, email, role, permissions, shop_id, is_active, created_at
+      `SELECT id, name, username, email, role, permissions, shop_id, is_active, created_at
        FROM users
        WHERE shop_id = ? AND role IN (?)
        ORDER BY id DESC`,
@@ -121,7 +125,7 @@ exports.getStaff = async (req, res) => {
 
 exports.updateStaff = async (req, res) => {
   const { id } = req.params;
-  const { name, email, is_active, password } = req.body;
+  const { name, username, email, is_active, password } = req.body;
   const role = staffRoles.includes(req.body.role) ? req.body.role : "staff";
   const permissions =
     req.body.permissions === undefined
@@ -133,8 +137,8 @@ exports.updateStaff = async (req, res) => {
     return res.status(400).json({ message: "Valid staff id is required" });
   }
 
-  if (isMissing(name) || isMissing(email)) {
-    return res.status(400).json({ message: "name and email are required" });
+  if (isMissing(name) || isMissing(username)) {
+    return res.status(400).json({ message: "name and username are required" });
   }
 
   if (newPassword.trim()) {
@@ -148,10 +152,12 @@ exports.updateStaff = async (req, res) => {
   const activeValue = is_active === undefined ? 1 : is_active ? 1 : 0;
 
   try {
+    await ensureSaasSchema();
     await ensureUserPermissionColumns();
 
     const fields = [
       "name = ?",
+      "username = ?",
       "email = ?",
       "role = ?",
       "permissions = ?",
@@ -159,7 +165,8 @@ exports.updateStaff = async (req, res) => {
     ];
     const values = [
       name,
-      email,
+      username,
+      email || null,
       role,
       serializePermissions(permissions),
       activeValue,
@@ -199,7 +206,7 @@ exports.updateStaff = async (req, res) => {
     console.error("Update staff error:", error.message);
 
     if (error.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ message: "Email is already registered" });
+      return res.status(409).json({ message: "Username already exists for this shop" });
     }
 
     return res.status(500).json({ message: "Server error while updating staff" });
@@ -214,6 +221,7 @@ exports.deleteStaff = async (req, res) => {
   }
 
   try {
+    await ensureSaasSchema();
     await ensureUserPermissionColumns();
 
     const [staffRows] = await db.promise().query(

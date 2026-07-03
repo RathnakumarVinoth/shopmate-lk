@@ -37,7 +37,7 @@ function Sidebar({ shopName = 'ShopMate LK', onNavigate, onClose }) {
   const logout = () => {
     clearSession()
     onNavigate?.()
-    navigate('/login')
+    navigate('/shop-login')
   }
 
   return (

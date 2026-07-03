@@ -8,6 +8,7 @@ const {
   getEffectivePermissions,
   serializePermissions,
 } = require("../utils/permissions");
+const { ensureSaasSchema } = require("../utils/saasSchema");
 const {
   createLoginActivity,
   ensureSecurityTables,
@@ -15,6 +16,7 @@ const {
   hashToken,
   validateStrongPassword,
 } = require("../utils/security");
+const { getShopAccessError } = require("../utils/shopAccess");
 
 const MAX_JWT_LIFETIME_SECONDS = 8 * 60 * 60;
 
@@ -50,6 +52,8 @@ const signToken = (user) => {
     {
       id: user.id,
       email: user.email,
+      username: user.username || null,
+      name: user.name,
       role: user.role,
       shop_id: user.shop_id,
       permissions: user.permissions || [],
@@ -84,90 +88,9 @@ const getRequestMeta = (req) => ({
 });
 
 exports.register = async (req, res) => {
-  const { name, email, password, shop_name, phone, address } = req.body;
-
-  if (!name || !email || !password || !shop_name || !phone || !address) {
-    return res.status(400).json({
-      message:
-        "name, email, password, shop_name, phone, and address are required",
-    });
-  }
-
-  const passwordError = validateStrongPassword(password);
-
-  if (passwordError) {
-    return res.status(400).json({ message: passwordError });
-  }
-
-  const connection = db.promise();
-
-  try {
-    await ensureUserPermissionColumns();
-    await ensureSecurityTables();
-
-    const [existingUsers] = await connection.query(
-      "SELECT id FROM users WHERE email = ? LIMIT 1",
-      [email]
-    );
-
-    if (existingUsers.length > 0) {
-      return res.status(409).json({ message: "Email is already registered" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await connection.beginTransaction();
-
-    const [userResult] = await connection.query(
-      "INSERT INTO users (name, email, password, role, permissions, is_active) VALUES (?, ?, ?, ?, ?, 1)",
-      [name, email, hashedPassword, "owner", serializePermissions([])]
-    );
-
-    const ownerId = userResult.insertId;
-
-    const [shopResult] = await connection.query(
-      "INSERT INTO shops (owner_id, shop_name, phone, address) VALUES (?, ?, ?, ?)",
-      [ownerId, shop_name, phone, address]
-    );
-
-    await connection.query("UPDATE users SET shop_id = ? WHERE id = ?", [
-      shopResult.insertId,
-      ownerId,
-    ]);
-
-    await connection.commit();
-
-    const user = {
-      id: ownerId,
-      name,
-      email,
-      role: "owner",
-      shop_id: shopResult.insertId,
-    };
-    user.permissions = getEffectivePermissions(user);
-
-    const token = signToken(user);
-
-    return res.status(201).json({
-      message: "Registration successful",
-      token,
-      user,
-    });
-  } catch (error) {
-    try {
-      await connection.rollback();
-    } catch (rollbackError) {
-      console.error("Registration rollback failed:", rollbackError.message);
-    }
-
-    console.error("Register error:", error.message);
-
-    if (error.code === "ER_DUP_ENTRY") {
-      return res.status(409).json({ message: "Email is already registered" });
-    }
-
-    return res.status(500).json({ message: "Server error during registration" });
-  }
+  return res.status(403).json({
+    message: "Accounts are created by ShopMate LK admin.",
+  });
 };
 
 exports.login = async (req, res) => {
@@ -178,6 +101,7 @@ exports.login = async (req, res) => {
   }
 
   try {
+    await ensureSaasSchema();
     await ensureUserPermissionColumns();
     await ensureSecurityTables();
 
@@ -206,6 +130,19 @@ exports.login = async (req, res) => {
 
     const user = users[0];
 
+    if (user.role !== "admin") {
+      await createLoginActivity({
+        user_id: user.id,
+        shop_id: user.shop_id,
+        email: user.email,
+        role: user.role,
+        status: "failed",
+        message: "Use shop login",
+        ...getRequestMeta(req),
+      });
+      return res.status(403).json({ message: "Use shop login to access this shop." });
+    }
+
     if (!user.is_active) {
       await createLoginActivity({
         user_id: user.id,
@@ -232,85 +169,13 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    if (user.role !== "admin") {
-      if (!user.shop_id) {
-        await createLoginActivity({
-          user_id: user.id,
-          shop_id: null,
-          email: user.email,
-          role: user.role,
-          status: "failed",
-          ...getRequestMeta(req),
-        });
-        return res.status(403).json({ message: "Shop account not found" });
-      }
-
-      if (user.is_enabled !== null && Number(user.is_enabled) === 0) {
-        await createLoginActivity({
-          user_id: user.id,
-          shop_id: user.shop_id,
-          email: user.email,
-          role: user.role,
-          status: "failed",
-          ...getRequestMeta(req),
-        });
-        return res
-          .status(403)
-          .json({ message: "Shop account is disabled. Contact support." });
-      }
-
-      if (user.subscription_status === "suspended") {
-        await createLoginActivity({
-          user_id: user.id,
-          shop_id: user.shop_id,
-          email: user.email,
-          role: user.role,
-          status: "failed",
-          ...getRequestMeta(req),
-        });
-        return res
-          .status(403)
-          .json({ message: "Subscription suspended. Contact support." });
-      }
-
-      if (user.subscription_status === "expired") {
-        await createLoginActivity({
-          user_id: user.id,
-          shop_id: user.shop_id,
-          email: user.email,
-          role: user.role,
-          status: "failed",
-          ...getRequestMeta(req),
-        });
-        return res
-          .status(403)
-          .json({ message: "Subscription expired. Please renew." });
-      }
-
-      if (
-        user.subscription_expiry_date &&
-        new Date(user.subscription_expiry_date) < new Date()
-      ) {
-        await createLoginActivity({
-          user_id: user.id,
-          shop_id: user.shop_id,
-          email: user.email,
-          role: user.role,
-          status: "failed",
-          ...getRequestMeta(req),
-        });
-        return res
-          .status(403)
-          .json({ message: "Subscription expired. Please renew." });
-      }
-    }
-
     const tokenUser = {
       id: user.id,
       name: user.name,
       email: user.email,
+      username: user.username || null,
       role: user.role,
-      shop_id: user.role === "admin" ? null : user.shop_id,
+      shop_id: null,
       permissions: getEffectivePermissions(user),
     };
 
@@ -345,6 +210,175 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error("Login error:", error.message);
     return res.status(500).json({ message: "Server error during login" });
+  }
+};
+
+exports.roleLogin = async (req, res) => {
+  const { username, password, shop_token } = req.body;
+  const loginUsername = String(username || "").trim();
+  let tokenShopId = null;
+
+  if (!loginUsername || !password) {
+    return res.status(400).json({ message: "username and password are required" });
+  }
+
+  try {
+    await ensureSaasSchema();
+    await ensureUserPermissionColumns();
+    await ensureSecurityTables();
+
+    if (!shop_token) {
+      await createLoginActivity({
+        email: loginUsername,
+        status: "failed",
+        message: "Shop session is required",
+        ...getRequestMeta(req),
+      });
+      return res.status(400).json({ message: "Shop session is required" });
+    }
+
+    try {
+      const decodedShop = jwt.verify(shop_token, process.env.JWT_SECRET);
+      if (decodedShop.type !== "shop") {
+        await createLoginActivity({
+          email: loginUsername,
+          status: "failed",
+          message: "Invalid shop session",
+          ...getRequestMeta(req),
+        });
+        return res.status(401).json({ message: "Invalid shop session" });
+      }
+      tokenShopId = decodedShop.shop_id;
+    } catch {
+      await createLoginActivity({
+        email: loginUsername,
+        status: "failed",
+        message: "Invalid or expired shop session",
+        ...getRequestMeta(req),
+      });
+      return res.status(401).json({ message: "Invalid or expired shop session" });
+    }
+
+    if (!tokenShopId) {
+      return res.status(400).json({ message: "Shop session is required" });
+    }
+
+    const [shops] = await db.promise().query(
+      `SELECT id, shop_name, shop_code, is_enabled, subscription_status,
+              subscription_expiry_date
+       FROM shops
+       WHERE id = ?
+       LIMIT 1`,
+      [tokenShopId]
+    );
+    const shop = shops[0];
+    const accessError = getShopAccessError(shop);
+
+    if (accessError) {
+      await createLoginActivity({
+        shop_id: tokenShopId,
+        status: "failed",
+        message: accessError.message,
+        ...getRequestMeta(req),
+      });
+      return res.status(accessError.status).json({ message: accessError.message });
+    }
+
+    const [users] = await db.promise().query(
+      `SELECT id, name, username, email, password, role, permissions, shop_id, is_active
+       FROM users
+       WHERE shop_id = ? AND username = ?
+       LIMIT 1`,
+      [tokenShopId, loginUsername]
+    );
+
+    if (users.length === 0) {
+      await createLoginActivity({
+        shop_id: tokenShopId,
+        email: loginUsername,
+        status: "failed",
+        message: "Invalid username/password",
+        ...getRequestMeta(req),
+      });
+      return res.status(401).json({ message: "Invalid username/password" });
+    }
+
+    const user = users[0];
+
+    if (!user.is_active) {
+      await createLoginActivity({
+        user_id: user.id,
+        shop_id: user.shop_id,
+        email: user.email || user.username,
+        role: user.role,
+        status: "failed",
+        message: "User inactive",
+        ...getRequestMeta(req),
+      });
+      return res.status(403).json({ message: "User inactive" });
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatches) {
+      await createLoginActivity({
+        user_id: user.id,
+        shop_id: user.shop_id,
+        email: user.email || user.username,
+        role: user.role,
+        status: "failed",
+        message: "Invalid username/password",
+        ...getRequestMeta(req),
+      });
+      return res.status(401).json({ message: "Invalid username/password" });
+    }
+
+    const tokenUser = {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      email: user.email || null,
+      role: user.role,
+      shop_id: user.shop_id,
+      permissions: getEffectivePermissions(user),
+    };
+    const token = signToken(tokenUser);
+
+    await createLoginActivity({
+      user_id: tokenUser.id,
+      shop_id: tokenUser.shop_id,
+      email: tokenUser.email || tokenUser.username,
+      role: tokenUser.role,
+      status: "role_success",
+      message: "Role login success",
+      ...getRequestMeta(req),
+    });
+
+    await createAuditLog({
+      shop_id: tokenUser.shop_id,
+      user_id: tokenUser.id,
+      user_name: tokenUser.name,
+      user_role: tokenUser.role,
+      action: "role_login",
+      entity_type: "user",
+      entity_id: tokenUser.id,
+      description: `${tokenUser.name} logged in to ${shop.shop_name}`,
+      ip_address: req.ip,
+    });
+
+    return res.json({
+      message: "Login successful",
+      token,
+      user: tokenUser,
+      shop: {
+        shop_id: shop.id,
+        shop_name: shop.shop_name,
+        shop_code: shop.shop_code || null,
+      },
+    });
+  } catch (error) {
+    console.error("Role login error:", error.message);
+    return res.status(500).json({ message: "Server error during role login" });
   }
 };
 

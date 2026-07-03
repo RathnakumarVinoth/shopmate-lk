@@ -9,13 +9,50 @@ const formatDate = (value) => {
   return String(value).slice(0, 10)
 }
 
+const roleOptions = ['owner', 'cashier', 'manager', 'stock_keeper', 'staff']
+
+const initialUserForm = {
+  id: null,
+  name: '',
+  username: '',
+  email: '',
+  role: 'cashier',
+  password: '',
+  is_active: true,
+}
+
+const shopToForm = (shop) => ({
+  shop_name: shop?.shop_name || '',
+  owner_name: shop?.owner_name || '',
+  login_email: shop?.login_email || '',
+  phone: shop?.phone || '',
+  email: shop?.email || '',
+  address: shop?.address || '',
+  currency: shop?.currency || 'LKR',
+  tax_percentage: String(shop?.tax_percentage ?? 0),
+  default_receipt_size: shop?.default_receipt_size || '80mm',
+  language: shop?.language || 'en',
+  subscription_plan: shop?.subscription_plan || 'starter',
+  subscription_status: shop?.subscription_status || 'trial',
+  subscription_start_date: formatDate(shop?.subscription_start_date) === '-' ? '' : formatDate(shop?.subscription_start_date),
+  subscription_expiry_date: formatDate(shop?.subscription_expiry_date) === '-' ? '' : formatDate(shop?.subscription_expiry_date),
+  monthly_fee: String(shop?.monthly_fee ?? 0),
+  is_enabled: Boolean(shop?.is_enabled),
+})
+
 function AdminShopDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [shop, setShop] = useState(null)
+  const [shopForm, setShopForm] = useState(shopToForm(null))
   const [usage, setUsage] = useState({})
+  const [users, setUsers] = useState([])
+  const [userForm, setUserForm] = useState(initialUserForm)
+  const [temporaryPassword, setTemporaryPassword] = useState('')
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     const loadShop = async () => {
@@ -24,8 +61,12 @@ function AdminShopDetails() {
 
       try {
         const response = await api.get(`/admin/shops/${id}`)
-        setShop(response.data.shop || null)
+        const usersResponse = await api.get(`/admin/shops/${id}/users`)
+        const nextShop = response.data.shop || null
+        setShop(nextShop)
+        setShopForm(shopToForm(nextShop))
         setUsage(response.data.usage || {})
+        setUsers(usersResponse.data.users || [])
       } catch (err) {
         setError(getApiMessage(err, 'Failed to load shop details'))
       } finally {
@@ -35,6 +76,124 @@ function AdminShopDetails() {
 
     loadShop()
   }, [id])
+
+  const loadUsers = async () => {
+    const response = await api.get(`/admin/shops/${id}/users`)
+    setUsers(response.data.users || [])
+  }
+
+  const updateUserField = (event) => {
+    const { name, value, checked, type } = event.target
+    setUserForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
+  }
+
+  const updateShopField = (event) => {
+    const { name, value, checked, type } = event.target
+    setShopForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
+  }
+
+  const saveShop = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await api.put(`/admin/shops/${id}`, {
+        ...shopForm,
+        tax_percentage: Number(shopForm.tax_percentage || 0),
+        monthly_fee: Number(shopForm.monthly_fee || 0),
+      })
+      const nextShop = response.data.shop || shop
+      setShop(nextShop)
+      setShopForm(shopToForm(nextShop))
+      setMessage('Shop updated successfully')
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to update shop'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const editUser = (user) => {
+    setUserForm({
+      id: user.id,
+      name: user.name || '',
+      username: user.username || '',
+      email: user.email || '',
+      role: user.role || 'staff',
+      password: '',
+      is_active: Boolean(user.is_active),
+    })
+    setTemporaryPassword('')
+  }
+
+  const resetUserForm = () => {
+    setUserForm(initialUserForm)
+  }
+
+  const saveUser = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setError('')
+    setMessage('')
+    setTemporaryPassword('')
+
+    try {
+      if (userForm.id) {
+        await api.put(`/admin/shops/${id}/users/${userForm.id}`, userForm)
+        setMessage('User updated successfully')
+      } else {
+        const response = await api.post(`/admin/shops/${id}/users`, userForm)
+        setTemporaryPassword(response.data.temporary_password || '')
+        setMessage('User created successfully')
+      }
+      resetUserForm()
+      await loadUsers()
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to save user'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const resetShopPassword = async () => {
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await api.put(`/admin/shops/${id}/reset-password`)
+      setTemporaryPassword(response.data.temporary_password || '')
+      setMessage('Shop login password reset successfully')
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to reset shop password'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const resetUserPassword = async (user) => {
+    setSaving(true)
+    setError('')
+    setMessage('')
+
+    try {
+      const response = await api.put(`/admin/shops/${id}/users/${user.id}/reset-password`)
+      setTemporaryPassword(response.data.temporary_password || '')
+      setMessage(`Password reset for ${user.username}`)
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to reset user password'))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   if (loading) {
     return <div className="panel loading-panel">{t('Loading shop details...')}</div>
@@ -66,6 +225,10 @@ function AdminShopDetails() {
           </button>
         </div>
         <div className="summary-box admin-detail-grid">
+          <div>
+            <span>{t('Shop Login')}</span>
+            <strong>{shop.login_email || '-'}</strong>
+          </div>
           <div>
             <span>{t('Owner')}</span>
             <strong>{shop.owner_name || '-'}</strong>
@@ -113,7 +276,20 @@ function AdminShopDetails() {
             <strong>{formatDate(shop.created_at)}</strong>
           </div>
         </div>
+        <div className="settings-actions">
+          <button type="button" className="ghost-button" onClick={resetShopPassword} disabled={saving}>
+            {t('Reset Shop Password')}
+          </button>
+        </div>
       </section>
+
+      {error && <div className="alert">{error}</div>}
+      {message && <div className="success">{message}</div>}
+      {temporaryPassword && (
+        <div className="info-banner">
+          {t('Temporary Password')}: <strong>{temporaryPassword}</strong>
+        </div>
+      )}
 
       <div className="metric-grid compact-metrics">
         {usageCards.map((card) => (
@@ -123,6 +299,177 @@ function AdminShopDetails() {
           </article>
         ))}
       </div>
+
+      <section className="panel">
+        <div className="section-heading">
+          <h2>{t('Shop Settings')}</h2>
+        </div>
+        <form className="form-grid" onSubmit={saveShop}>
+          <label>
+            {t('Shop Name')}
+            <input name="shop_name" value={shopForm.shop_name} onChange={updateShopField} required />
+          </label>
+          <label>
+            {t('Owner Name')}
+            <input name="owner_name" value={shopForm.owner_name} onChange={updateShopField} required />
+          </label>
+          <label>
+            {t('Shop Email')}
+            <input name="login_email" type="email" value={shopForm.login_email} onChange={updateShopField} required />
+          </label>
+          <label>
+            {t('Phone')}
+            <input name="phone" value={shopForm.phone} onChange={updateShopField} />
+          </label>
+          <label>
+            {t('Email')}
+            <input name="email" type="email" value={shopForm.email} onChange={updateShopField} />
+          </label>
+          <label className="full-width">
+            {t('Address')}
+            <input name="address" value={shopForm.address} onChange={updateShopField} />
+          </label>
+          <label>
+            {t('Currency')}
+            <input name="currency" value={shopForm.currency} onChange={updateShopField} />
+          </label>
+          <label>
+            {t('Tax Percentage')}
+            <input name="tax_percentage" type="number" min="0" step="0.01" value={shopForm.tax_percentage} onChange={updateShopField} />
+          </label>
+          <label>
+            {t('Thermal Receipt Size')}
+            <select name="default_receipt_size" value={shopForm.default_receipt_size} onChange={updateShopField}>
+              <option value="58mm">58mm</option>
+              <option value="80mm">80mm</option>
+            </select>
+          </label>
+          <label>
+            {t('Plan')}
+            <select name="subscription_plan" value={shopForm.subscription_plan} onChange={updateShopField}>
+              <option value="starter">starter</option>
+              <option value="business">business</option>
+              <option value="pro">pro</option>
+            </select>
+          </label>
+          <label>
+            {t('Status')}
+            <select name="subscription_status" value={shopForm.subscription_status} onChange={updateShopField}>
+              <option value="trial">trial</option>
+              <option value="active">active</option>
+              <option value="expired">expired</option>
+              <option value="suspended">suspended</option>
+            </select>
+          </label>
+          <label>
+            {t('Expiry Date')}
+            <input name="subscription_expiry_date" type="date" value={shopForm.subscription_expiry_date} onChange={updateShopField} />
+          </label>
+          <label>
+            {t('Monthly Fee')}
+            <input name="monthly_fee" type="number" min="0" step="0.01" value={shopForm.monthly_fee} onChange={updateShopField} />
+          </label>
+          <label className="checkbox-row">
+            <input name="is_enabled" type="checkbox" checked={shopForm.is_enabled} onChange={updateShopField} />
+            {t('Enabled')}
+          </label>
+          <button type="submit" className="full-width" disabled={saving}>
+            {saving ? t('Saving...') : t('Save Settings')}
+          </button>
+        </form>
+      </section>
+
+      <section className="page-grid">
+        <section className="panel">
+          <div className="section-heading">
+            <h2>{userForm.id ? t('Edit User') : t('Create User')}</h2>
+          </div>
+          <form className="form-stack" onSubmit={saveUser}>
+            <label>
+              {t('Name')}
+              <input name="name" value={userForm.name} onChange={updateUserField} required />
+            </label>
+            <label>
+              {t('Username')}
+              <input name="username" value={userForm.username} onChange={updateUserField} required />
+            </label>
+            <label>
+              {t('Email')}
+              <input name="email" type="email" value={userForm.email} onChange={updateUserField} />
+            </label>
+            <label>
+              {t('Role')}
+              <select name="role" value={userForm.role} onChange={updateUserField}>
+                {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
+              </select>
+            </label>
+            {!userForm.id && (
+              <label>
+                {t('Temporary Password')}
+                <input name="password" type="password" value={userForm.password} onChange={updateUserField} placeholder={t('Leave blank to generate')} />
+              </label>
+            )}
+            <label className="checkbox-row">
+              <input name="is_active" type="checkbox" checked={userForm.is_active} onChange={updateUserField} />
+              {t('Active account')}
+            </label>
+            <button type="submit" disabled={saving}>
+              {saving ? t('Saving...') : userForm.id ? t('Save User') : t('Create User')}
+            </button>
+            {userForm.id && (
+              <button type="button" className="ghost-button" onClick={resetUserForm}>
+                {t('Cancel Edit')}
+              </button>
+            )}
+          </form>
+        </section>
+        <section className="panel wide-panel">
+          <div className="section-heading">
+            <h2>{t('Users')}</h2>
+            <button type="button" className="ghost-button" onClick={loadUsers}>
+              {t('Refresh')}
+            </button>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('Name')}</th>
+                  <th>{t('Username')}</th>
+                  <th>{t('Role')}</th>
+                  <th>{t('Status')}</th>
+                  <th>{t('Action')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user.id}>
+                    <td>{user.name}</td>
+                    <td>{user.username}</td>
+                    <td><span className={`status role-${user.role}`}>{user.role}</span></td>
+                    <td>{user.is_active ? t('Active') : t('Inactive')}</td>
+                    <td>
+                      <div className="table-actions">
+                        <button type="button" className="ghost-button" onClick={() => editUser(user)}>
+                          {t('Edit')}
+                        </button>
+                        <button type="button" className="ghost-button" onClick={() => resetUserPassword(user)} disabled={saving}>
+                          {t('Reset Password')}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan="5" className="empty-cell">{t('No users found.')}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
     </section>
   )
 }

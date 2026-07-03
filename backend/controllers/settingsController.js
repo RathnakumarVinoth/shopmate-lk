@@ -96,7 +96,75 @@ exports.getSecuritySettings = async (req, res) => {
   }
 };
 
+exports.updateSecuritySettings = async (req, res) => {
+  const { idle_timeout_minutes, background_logout_minutes } = req.body;
+
+  if (!isIntegerInRange(idle_timeout_minutes, 1, 480)) {
+    return res
+      .status(400)
+      .json({ message: "idle_timeout_minutes must be between 1 and 480" });
+  }
+
+  if (!isIntegerInRange(background_logout_minutes, 1, 60)) {
+    return res
+      .status(400)
+      .json({ message: "background_logout_minutes must be between 1 and 60" });
+  }
+
+  try {
+    await ensureShopSettingsColumns();
+
+    const [result] = await db.promise().query(
+      `UPDATE shops
+       SET idle_timeout_minutes = ?,
+           background_logout_minutes = ?
+       WHERE id = ?`,
+      [
+        Number(idle_timeout_minutes),
+        Number(background_logout_minutes),
+        req.user.shop_id,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Shop settings not found" });
+    }
+
+    await createAuditLogFromRequest(req, {
+      action: "security_settings_update",
+      entity_type: "settings",
+      entity_id: req.user.shop_id,
+      description: "Updated session security settings",
+    });
+
+    return res.json({
+      message: "Security settings updated successfully",
+      settings: {
+        idle_timeout_minutes: Number(idle_timeout_minutes),
+        background_logout_minutes: Number(background_logout_minutes),
+      },
+    });
+  } catch (error) {
+    console.error("Update security settings error:", error.message);
+    return res
+      .status(500)
+      .json({ message: "Server error while updating security settings" });
+  }
+};
+
 exports.updateSettings = async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      message: "Shop settings are managed by Master Admin. Please contact support.",
+    });
+  }
+
+  const targetShopId = req.body.shop_id || req.user.shop_id;
+
+  if (!targetShopId) {
+    return res.status(400).json({ message: "shop_id is required for admin settings updates" });
+  }
+
   const {
     shop_name,
     phone,
@@ -198,7 +266,7 @@ exports.updateSettings = async (req, res) => {
         nextLanguage,
         nextIdleTimeout,
         nextBackgroundTimeout,
-        req.user.shop_id,
+        targetShopId,
       ]
     );
 
@@ -206,12 +274,12 @@ exports.updateSettings = async (req, res) => {
       return res.status(404).json({ message: "Shop settings not found" });
     }
 
-    const settings = await getShopSettings(req.user.shop_id);
+    const settings = await getShopSettings(targetShopId);
 
     await createAuditLogFromRequest(req, {
       action: "settings_update",
       entity_type: "settings",
-      entity_id: req.user.shop_id,
+      entity_id: targetShopId,
       description: `Updated shop settings for ${settings.shop_name}`,
     });
 

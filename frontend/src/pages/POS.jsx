@@ -4,7 +4,19 @@ import autoTable from 'jspdf-autotable'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, getShopSettings, notifyDashboardChanged } from '../utils/formatters'
-import { getSessionUser } from '../utils/session'
+import {
+  getShopSession,
+  getSessionUser,
+  getStoredSettings,
+  isTokenExpired,
+} from '../utils/session'
+import {
+  cachePosData,
+  getCachedPosData,
+  getOfflineSales,
+  saveOfflineSale,
+  syncPendingOfflineSales,
+} from '../utils/offlinePos'
 
 const getProductsFromResponse = (data) => {
   if (Array.isArray(data)) return data
@@ -57,6 +69,18 @@ const formatDateTime = (value) => {
   return date.toLocaleString()
 }
 
+const formatCompactDateTime = (date = new Date()) => {
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(
+    date.getHours(),
+  )}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+}
+
+const createOfflineInvoiceNo = (date = new Date()) => `OFFLINE-${formatCompactDateTime(date)}`
+
+const createLocalOfflineId = () =>
+  `offline-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+
 const formatQuantity = (item) => {
   const quantity = Number(item.quantity || 0)
   return item.unit ? `${quantity} ${item.unit}` : String(quantity)
@@ -68,6 +92,11 @@ const getReceiptDetails = (receipt) => {
   const settings = getShopSettings()
   const saleId = receipt?.sale_id || receipt?.id || 'receipt'
   const invoiceNo = receipt?.invoice_no || `SALE-${saleId}`
+  const offlinePending = Boolean(
+    receipt?.offline_pending ||
+      receipt?.sync_status === 'pending' ||
+      String(invoiceNo).startsWith('OFFLINE-'),
+  )
   const shopName = receipt?.shop_name || settings.shop_name || 'ShopMate LK'
   const customerName = receipt?.customer_name || ''
   const customerPhone = receipt?.customer_phone || ''
@@ -87,7 +116,6 @@ const getReceiptDetails = (receipt) => {
   const paidAmount = Number(receipt?.paid_amount || 0)
   const balanceAmount = Number(receipt?.balance_amount || 0)
   const paymentType = receipt?.payment_type || 'cash'
-  const paymentStatus = receipt?.payment_status || 'verified'
   const createdAt = receipt?.created_at || new Date().toISOString()
   const currency = receipt?.currency || settings.currency || 'LKR'
   const receiptFooter =
@@ -100,6 +128,8 @@ const getReceiptDetails = (receipt) => {
 
   return {
     invoiceNo,
+    offlinePending,
+    temporaryInvoiceNo: receipt?.temporary_invoice_no || (offlinePending ? invoiceNo : ''),
     saleId,
     shopName,
     customerId: receipt?.customer_id || null,
@@ -127,10 +157,10 @@ const getReceiptDetails = (receipt) => {
     balanceAmount,
     balanceLabel,
     paymentType,
-    paymentStatus,
     paymentReference: receipt?.payment_reference || '',
     approvalCode: receipt?.approval_code || '',
     cardLastFour: receipt?.card_last_four || receipt?.card_last4 || '',
+    billedBy: receipt?.billed_by || receipt?.cashier_name || receipt?.user_name || '',
     createdAt,
   }
 }
@@ -184,11 +214,17 @@ const generateInvoicePDF = (receipt) => {
   }
   doc.text(`Invoice: ${details.invoiceNo}`, 14, metaY)
   metaY += 8
+  if (details.offlinePending) {
+    doc.text('OFFLINE SALE - Pending Sync', 14, metaY)
+    metaY += 8
+  }
   doc.text(`Date: ${formatDateTime(details.createdAt)}`, 14, metaY)
   metaY += 8
   doc.text(`${t('paymentMethod')}: ${details.paymentType}`, 14, metaY)
-  metaY += 8
-  doc.text(`${t('paymentStatus')}: ${details.paymentStatus}`, 14, metaY)
+  if (details.billedBy) {
+    metaY += 8
+    doc.text(`${t('Billed by')}: ${details.billedBy}`, 14, metaY)
+  }
   if (details.paymentReference) {
     metaY += 8
     doc.text(`Reference: ${details.paymentReference}`, 14, metaY)
@@ -265,9 +301,10 @@ const shareInvoiceWhatsApp = (receipt) => {
     details.customerName ? `Customer: ${details.customerName}` : '',
     details.customerPhone ? `Customer Phone: ${details.customerPhone}` : '',
     `Invoice: ${details.invoiceNo}`,
+    details.offlinePending ? 'OFFLINE SALE - Pending Sync' : '',
     `Date: ${formatDateTime(details.createdAt)}`,
     `Payment: ${details.paymentType}`,
-    `Payment Status: ${details.paymentStatus}`,
+    details.billedBy ? `Billed by: ${details.billedBy}` : '',
     details.paymentReference ? `Reference: ${details.paymentReference}` : '',
     details.paymentType === 'card' && details.cardLastFour
       ? `Card Last 4: ${details.cardLastFour}`
@@ -349,9 +386,10 @@ const printReceipt = (receipt) => {
           ${details.customerPhone ? `<div class="meta">Customer Phone: ${details.customerPhone}</div>` : ''}
           ${details.customerAddress ? `<div class="meta">Customer Address: ${details.customerAddress}</div>` : ''}
           <div class="meta">Invoice: ${details.invoiceNo}</div>
+          ${details.offlinePending ? '<div class="meta"><strong>OFFLINE SALE - Pending Sync</strong></div>' : ''}
           <div class="meta">Date: ${formatDateTime(details.createdAt)}</div>
           <div class="meta">${t('paymentMethod')}: ${details.paymentType}</div>
-          <div class="meta">${t('paymentStatus')}: ${details.paymentStatus}</div>
+          ${details.billedBy ? `<div class="meta">${t('Billed by')}: ${details.billedBy}</div>` : ''}
           ${details.paymentReference ? `<div class="meta">Reference: ${details.paymentReference}</div>` : ''}
           ${
             details.paymentType === 'card' && details.cardLastFour
@@ -463,7 +501,13 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
           <div class="line"></div>
           <section>
             <div class="row"><span>${escapeHtml(t('Invoice'))}</span><strong>${escapeHtml(details.invoiceNo)}</strong></div>
+            ${
+              details.offlinePending
+                ? `<div class="center"><strong>${escapeHtml('OFFLINE SALE - Pending Sync')}</strong></div>`
+                : ''
+            }
             <div class="row"><span>${escapeHtml(t('Date'))}</span><span>${escapeHtml(formatDateTime(details.createdAt))}</span></div>
+            ${details.billedBy ? `<div>${escapeHtml(t('Billed by'))}: ${escapeHtml(details.billedBy)}</div>` : ''}
             ${
               details.customerName
                 ? `<div>Customer: ${escapeHtml(details.customerName)}</div>`
@@ -520,7 +564,6 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
           <div class="line"></div>
           <section>
             <div>${escapeHtml(t('paymentMethod'))}: ${escapeHtml(details.paymentType)}</div>
-            <div>${escapeHtml(t('paymentStatus'))}: ${escapeHtml(details.paymentStatus)}</div>
             ${details.paymentReference ? `<div>Reference: ${escapeHtml(details.paymentReference)}</div>` : ''}
             ${
               details.paymentType === 'card' && details.cardLastFour
@@ -533,6 +576,7 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
           <footer class="center muted">
             <div>${escapeHtml(details.receiptFooter)}</div>
             <strong class="powered">${escapeHtml(t(receiptBrandingLine))}</strong>
+            <div class="powered">${escapeHtml(t(receiptBrandingSubline))}</div>
           </footer>
         </main>
         <script>
@@ -549,6 +593,7 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
 
 function POS() {
   const user = getSessionUser()
+  const shopSession = getShopSession()
   const [products, setProducts] = useState([])
   const [customers, setCustomers] = useState([])
   const [cart, setCart] = useState({})
@@ -576,6 +621,11 @@ function POS() {
   const [savingCustomer, setSavingCustomer] = useState(false)
   const [savingSale, setSavingSale] = useState(false)
   const [scanningCode, setScanningCode] = useState(false)
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine,
+  )
+  const [offlineSales, setOfflineSales] = useState([])
+  const [syncingOffline, setSyncingOffline] = useState(false)
   const codeInputRef = useRef(null)
 
   const loadProducts = useCallback(async () => {
@@ -583,10 +633,23 @@ function POS() {
     setError('')
 
     try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const cached = await getCachedPosData()
+        setProducts(cached?.products || [])
+        return
+      }
+
       const response = await api.get('/products')
-      setProducts(getProductsFromResponse(response.data))
+      const nextProducts = getProductsFromResponse(response.data)
+      setProducts(nextProducts)
     } catch (err) {
-      setError(getApiMessage(err, 'Failed to load products'))
+      const cached = await getCachedPosData()
+      if (cached?.products?.length) {
+        setProducts(cached.products)
+        setMessage(t('Loaded cached products for Offline POS Lite.'))
+      } else {
+        setError(getApiMessage(err, 'Failed to load products'))
+      }
     } finally {
       setLoadingProducts(false)
     }
@@ -596,10 +659,19 @@ function POS() {
     setLoadingCustomers(true)
 
     try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const cached = await getCachedPosData()
+        setCustomers(cached?.customers || [])
+        return
+      }
+
       const response = await api.get('/credits/customers')
       setCustomers(response.data.customers || [])
     } catch (err) {
-      if (user.role === 'owner') {
+      const cached = await getCachedPosData()
+      if (cached?.customers) {
+        setCustomers(cached.customers)
+      } else if (user.role === 'owner') {
         setError(getApiMessage(err, 'Failed to load customers'))
       }
     } finally {
@@ -611,6 +683,78 @@ function POS() {
     loadProducts()
     loadCustomers()
   }, [loadProducts, loadCustomers])
+
+  const refreshOfflineSales = useCallback(async () => {
+    setOfflineSales(await getOfflineSales())
+  }, [])
+
+  const syncOfflineSales = useCallback(async () => {
+    if (!isOnline || isTokenExpired()) return
+
+    setSyncingOffline(true)
+    setError('')
+
+    try {
+      const results = await syncPendingOfflineSales(api)
+      await refreshOfflineSales()
+      if (results.some((result) => result.sync_status === 'synced')) {
+        setMessage(t('Offline sales synced successfully.'))
+        notifyDashboardChanged()
+        await loadProducts()
+      }
+      const failed = results.find((result) => result.sync_status === 'failed')
+      if (failed) {
+        const failureMessage = failed.message || 'Please retry.'
+        setError(failureMessage.startsWith('Sync failed') ? failureMessage : `Sync failed: ${failureMessage}`)
+      }
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to sync offline sales'))
+      await refreshOfflineSales()
+    } finally {
+      setSyncingOffline(false)
+    }
+  }, [isOnline, loadProducts, refreshOfflineSales])
+
+  useEffect(() => {
+    refreshOfflineSales()
+  }, [refreshOfflineSales])
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isOnline) {
+      syncOfflineSales()
+    }
+  }, [isOnline, syncOfflineSales])
+
+  useEffect(() => {
+    if (!isOnline && paymentType !== 'cash') {
+      setPaymentType('cash')
+    }
+  }, [isOnline, paymentType])
+
+  useEffect(() => {
+    if (!isOnline) return
+
+    cachePosData({
+      products,
+      customers,
+      settings: getStoredSettings(),
+      user,
+      shop: shopSession?.shop || null,
+    }).catch(() => {})
+  }, [products, customers, isOnline, user, shopSession?.shop])
 
   useEffect(() => {
     codeInputRef.current?.focus()
@@ -759,6 +903,10 @@ function POS() {
   )
   const creditBalance = Math.max(total - paid, 0)
   const saleBalance = paymentType === 'credit' ? creditBalance : balance
+  const isOffline = !isOnline
+  const pendingOfflineCount = offlineSales.filter((sale) =>
+    ['pending', 'syncing', 'failed'].includes(sale.sync_status),
+  ).length
 
   const filteredCustomers = useMemo(() => {
     const term = customerSearch.trim().toLowerCase()
@@ -773,6 +921,12 @@ function POS() {
     event.preventDefault()
     setError('')
     setMessage('')
+
+    if (isOffline) {
+      setError(t('Customer creation is disabled while offline.'))
+      return
+    }
+
     setSavingCustomer(true)
 
     try {
@@ -863,6 +1017,24 @@ function POS() {
     setMessage('')
 
     try {
+      if (isOffline) {
+        const normalizedCode = code.toLowerCase()
+        const product = products.find(
+          (item) =>
+            String(item.product_code || '').toLowerCase() === normalizedCode ||
+            String(item.barcode || '').toLowerCase() === normalizedCode,
+        )
+
+        if (!product) {
+          setError(t('Product not found in offline cache'))
+          codeInputRef.current?.focus()
+          return
+        }
+
+        addScannedProductToCart(product)
+        return
+      }
+
       const response = await api.get(`/products/search-code/${encodeURIComponent(code)}`)
       addScannedProductToCart(response.data)
     } catch (err) {
@@ -950,6 +1122,109 @@ function POS() {
     setMobileCartOpen(false)
   }
 
+  const completeOfflineSale = async () => {
+    if (isTokenExpired()) {
+      setError(t('Session expired. Please login again before creating offline sales.'))
+      return
+    }
+
+    if (paymentType !== 'cash') {
+      setError(t('Only cash payment is available while offline.'))
+      return
+    }
+
+    const createdAt = new Date()
+    const localOfflineId = createLocalOfflineId()
+    const temporaryInvoiceNo = createOfflineInvoiceNo(createdAt)
+    const settings = getStoredSettings()
+    const cashierName = user.name || user.username || (user.role === 'owner' ? 'Owner' : 'Cashier')
+    const offlineItems = cartItems.map((item) => ({
+      product_id: item.id,
+      product_name: item.product_name,
+      unit: item.unit || null,
+      quantity: item.quantity,
+      selling_price: Number(item.selling_price || 0),
+      unit_price: Number(item.selling_price || 0),
+      item_discount: Number(item.item_discount || 0),
+      item_discount_type: item.item_discount_type || 'fixed',
+      tax_percentage: cartTotals.taxPercentage,
+      tax_amount: item.tax_amount,
+      line_total_before_tax: item.line_total_before_tax,
+      line_total: item.line_total,
+      subtotal: item.subtotal,
+    }))
+
+    const offlineSale = {
+      local_offline_id: localOfflineId,
+      temporary_invoice_no: temporaryInvoiceNo,
+      invoice_no: temporaryInvoiceNo,
+      shop_id: user.shop_id,
+      user_id: user.id,
+      cashier_name: cashierName,
+      billed_by: cashierName,
+      customer_id: selectedCustomer ? Number(selectedCustomer.id) : null,
+      customer_name: selectedCustomer?.customer_name || null,
+      customer_phone: selectedCustomer?.phone || null,
+      customer_address: selectedCustomer?.address || null,
+      items: offlineItems,
+      subtotal,
+      item_discount_total: itemDiscountTotal,
+      bill_discount: discount,
+      discount_amount: itemDiscountTotal + discount,
+      tax_percentage: cartTotals.taxPercentage,
+      tax_amount: tax,
+      total_before_tax: totalBeforeTax,
+      total_amount: total,
+      final_total: total,
+      paid_amount: paid,
+      balance_amount: balance,
+      payment_method: 'cash',
+      payment_type: 'cash',
+      created_at: createdAt.toISOString(),
+      sync_status: 'pending',
+      offline_pending: true,
+      shop_name: settings.shop_name || shopSession?.shop?.shop_name || 'ShopMate LK',
+      shop_phone: settings.phone || '',
+      shop_email: settings.email || '',
+      shop_address: settings.address || '',
+      receipt_footer: settings.receipt_footer || 'Thank you for shopping with us.',
+      currency: settings.currency || 'LKR',
+      default_receipt_size: settings.default_receipt_size || '80mm',
+      logo_url: settings.logo_url || '',
+    }
+
+    await saveOfflineSale(offlineSale)
+
+    const nextProducts = products.map((product) => {
+      const soldItem = cartItems.find((item) => Number(item.id) === Number(product.id))
+      if (!soldItem) return product
+
+      return {
+        ...product,
+        stock_quantity: Math.max(0, Number(product.stock_quantity || 0) - soldItem.quantity),
+      }
+    })
+
+    setProducts(nextProducts)
+    await cachePosData({
+      products: nextProducts,
+      customers,
+      settings,
+      user,
+      shop: shopSession?.shop || null,
+    })
+    await refreshOfflineSales()
+
+    setReceipt(offlineSale)
+    setCart({})
+    setMobileCartOpen(false)
+    setSelectedCustomerId('')
+    setDiscountAmount('')
+    setPaidAmount('')
+    setPaymentDetails(initialPaymentDetails)
+    setMessage(t('Offline cash sale saved. It will sync when internet returns.'))
+  }
+
   const completeSale = async () => {
     setMessage('')
     setError('')
@@ -1007,8 +1282,8 @@ function POS() {
       return
     }
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setError(t('You are offline. Sales cannot be submitted until internet is back.'))
+    if (isOffline) {
+      await completeOfflineSale()
       return
     }
 
@@ -1034,6 +1309,7 @@ function POS() {
       })
 
       const saleReceipt = response.data.receipt || {}
+      const salePaymentStatus = response.data.sale?.payment_status || 'verified'
       const customerReceiptDetails = selectedCustomer
         ? {
             customer_id: saleReceipt.customer_id || Number(selectedCustomer.id),
@@ -1056,7 +1332,7 @@ function POS() {
       setMessage(
         paymentType === 'credit'
           ? 'Credit sale created and added to Credit Book.'
-          : saleReceipt.payment_status === 'pending'
+          : salePaymentStatus === 'pending'
             ? 'Sale completed with pending payment verification.'
             : 'Sale completed successfully',
       )
@@ -1074,10 +1350,59 @@ function POS() {
       <section className="panel">
         <div className="section-heading">
           <h2>{t('products')}</h2>
-          <button type="button" className="ghost-button" onClick={loadProducts} disabled={loadingProducts}>
-            {loadingProducts ? t('refreshing') : t('refresh')}
-          </button>
+          <div className="table-actions">
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={syncOfflineSales}
+              disabled={syncingOffline || !isOnline || pendingOfflineCount === 0}
+            >
+              {syncingOffline ? t('Syncing...') : t('Sync Offline Sales')}
+            </button>
+            <button type="button" className="ghost-button" onClick={loadProducts} disabled={loadingProducts}>
+              {loadingProducts ? t('refreshing') : t('refresh')}
+            </button>
+          </div>
         </div>
+
+        <section className="offline-sync-panel">
+          <div className="section-heading">
+            <h3>{t('Offline Sales / Pending Sync')}</h3>
+            <span className="status pending">{pendingOfflineCount} {t('pending')}</span>
+          </div>
+          {offlineSales.length > 0 ? (
+            <div className="table-wrap compact-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t('Invoice')}</th>
+                    <th>{t('total')}</th>
+                    <th>{t('Date')}</th>
+                    <th>{t('Status')}</th>
+                    <th>{t('Message')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {offlineSales.slice(0, 5).map((sale) => (
+                    <tr key={sale.local_offline_id}>
+                      <td>{sale.real_invoice_no || sale.temporary_invoice_no}</td>
+                      <td>{formatMoney(sale.total_amount, sale.currency)}</td>
+                      <td>{formatDateTime(sale.created_at)}</td>
+                      <td>
+                        <span className={`status ${sale.sync_status}`}>
+                          {sale.sync_status}
+                        </span>
+                      </td>
+                      <td>{sale.sync_error || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted">{t('No offline sales pending sync.')}</p>
+          )}
+        </section>
 
         <section className="barcode-scanner">
           <label>
@@ -1106,6 +1431,7 @@ function POS() {
                 type="button"
                 className="ghost-button"
                 onClick={() => setShowCustomerForm((current) => !current)}
+                disabled={isOffline}
               >
                 {showCustomerForm ? t('Close') : t('Add New Customer')}
               </button>
@@ -1141,6 +1467,11 @@ function POS() {
               {t('Selected')}: {selectedCustomer.customer_name}
               {selectedCustomer.phone ? `, ${selectedCustomer.phone}` : ''}
               {selectedCustomer.address ? `, ${selectedCustomer.address}` : ''}
+            </p>
+          )}
+          {isOffline && (
+            <p className="muted">
+              {t('Offline POS Lite uses cached customers. New customers and credit sales are disabled.')}
             </p>
           )}
           {showCustomerForm && (
@@ -1377,6 +1708,11 @@ function POS() {
 
           <section className="payment-box">
           <h3>{t('Payment')}</h3>
+          {isOffline && (
+            <div className="info-banner">
+              {t('Offline POS Lite accepts Cash only. Card, QR, Bank Transfer, and Credit are disabled.')}
+            </div>
+          )}
           <div className="payment-method-buttons" role="group" aria-label={t('Payment Method')}>
             {paymentTypes.map((type) => (
               <button
@@ -1384,6 +1720,7 @@ function POS() {
                 key={type.value}
                 className={paymentType === type.value ? 'active' : 'ghost-button'}
                 onClick={() => setPaymentType(type.value)}
+                disabled={isOffline && type.value !== 'cash'}
               >
                 {t(type.label)}
               </button>
@@ -1394,7 +1731,7 @@ function POS() {
               {t('paymentMethod')}
               <select value={paymentType} onChange={(event) => setPaymentType(event.target.value)}>
                 {paymentTypes.map((type) => (
-                  <option key={type.value} value={type.value}>
+                  <option key={type.value} value={type.value} disabled={isOffline && type.value !== 'cash'}>
                     {t(type.label)}
                   </option>
                 ))}
@@ -1538,7 +1875,9 @@ function POS() {
           <section className="receipt-modal">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">{t('receipt')}</p>
+                <p className="eyebrow">
+                  {receiptDetails.offlinePending ? t('OFFLINE SALE - Pending Sync') : t('receipt')}
+                </p>
                 <h2>{receiptDetails.invoiceNo}</h2>
               </div>
               <div className="receipt-actions no-print">
@@ -1583,8 +1922,11 @@ function POS() {
                 {receiptDetails.shopEmail && <span>{t('Email')}: {receiptDetails.shopEmail}</span>}
                 <span>{formatDateTime(receiptDetails.createdAt)}</span>
                 <span>{t('Invoice')}: {receiptDetails.invoiceNo}</span>
+                {receiptDetails.offlinePending && (
+                  <strong>{t('OFFLINE SALE - Pending Sync')}</strong>
+                )}
+                {receiptDetails.billedBy && <span>{t('Billed by')}: {receiptDetails.billedBy}</span>}
                 <span>{t('paymentMethod')}: {receiptDetails.paymentType}</span>
-                <span>{t('paymentStatus')}: {receiptDetails.paymentStatus}</span>
                 {receiptDetails.paymentReference && (
                   <span>{t('Reference')}: {receiptDetails.paymentReference}</span>
                 )}
@@ -1666,12 +2008,12 @@ function POS() {
                   <span>{t('paymentMethod')}</span>
                   <strong>{receiptDetails.paymentType}</strong>
                 </div>
-                <div>
-                  <span>{t('paymentStatus')}</span>
-                  <strong className={`status ${receiptDetails.paymentStatus}`}>
-                    {receiptDetails.paymentStatus}
-                  </strong>
-                </div>
+                {receiptDetails.billedBy && (
+                  <div>
+                    <span>{t('Billed by')}</span>
+                    <strong>{receiptDetails.billedBy}</strong>
+                  </div>
+                )}
                 {receiptDetails.paymentReference && (
                   <div>
                     <span>{t('Reference')}</span>

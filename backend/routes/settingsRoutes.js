@@ -3,6 +3,7 @@ const express = require("express");
 const {
   getSecuritySettings,
   getSettings,
+  updateSecuritySettings,
   updateSettings,
 } = require("../controllers/settingsController");
 const authMiddleware = require("../middleware/authMiddleware");
@@ -17,10 +18,20 @@ router.get(
   allowRoles("owner", "staff"),
   getSecuritySettings
 );
+router.put(
+  "/security",
+  authMiddleware,
+  allowRoles("owner"),
+  updateSecuritySettings
+);
 
-router.use(authMiddleware, allowRoles("owner", "staff"), requirePermission("settings_access"));
-
-router.get("/", getSettings);
-router.put("/", updateSettings);
+router.get("/", authMiddleware, allowRoles("owner", "staff"), getSettings);
+router.put(
+  "/",
+  authMiddleware,
+  allowRoles("admin", "owner", "staff"),
+  requirePermission("settings_access"),
+  updateSettings
+);
 
 module.exports = router;

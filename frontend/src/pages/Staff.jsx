@@ -7,6 +7,7 @@ import { permissions, rolePermissions, staffRoleOptions } from '../utils/permiss
 const initialForm = {
   id: null,
   name: '',
+  username: '',
   email: '',
   password: '',
   role: 'staff',
@@ -20,6 +21,7 @@ const getRoleLabel = (role) =>
 const staffToForm = (staffMember) => ({
   id: staffMember.id,
   name: staffMember.name || '',
+  username: staffMember.username || '',
   email: staffMember.email || '',
   password: '',
   role: staffMember.role || 'staff',
@@ -102,6 +104,7 @@ function Staff() {
 
     const payload = {
       name: form.name,
+      username: form.username,
       email: form.email,
       role: form.role,
       permissions: form.permissions,
@@ -191,8 +194,12 @@ function Staff() {
             <input name="name" value={form.name} onChange={updateField} required />
           </label>
           <label>
+            {t('Username')}
+            <input name="username" value={form.username} onChange={updateField} required />
+          </label>
+          <label>
             {t('Email')}
-            <input name="email" type="email" value={form.email} onChange={updateField} required />
+            <input name="email" type="email" value={form.email} onChange={updateField} />
           </label>
           {!editing && (
             <label>
@@ -279,6 +286,7 @@ function Staff() {
               <thead>
                 <tr>
                   <th>{t('Name')}</th>
+                  <th>{t('Username')}</th>
                   <th>{t('Email')}</th>
                   <th>{t('Role')}</th>
                   <th>{t('Permissions')}</th>
@@ -290,7 +298,8 @@ function Staff() {
                 {staff.map((staffMember) => (
                   <tr key={staffMember.id}>
                     <td>{staffMember.name}</td>
-                    <td>{staffMember.email}</td>
+                    <td>{staffMember.username || '-'}</td>
+                    <td>{staffMember.email || '-'}</td>
                     <td>
                       <span className={`status role-${staffMember.role}`}>
                         {getRoleLabel(staffMember.role)}
@@ -329,7 +338,7 @@ function Staff() {
                 ))}
                 {staff.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="empty-cell">
+                    <td colSpan="7" className="empty-cell">
                       {t('No staff accounts found.')}
                     </td>
                   </tr>

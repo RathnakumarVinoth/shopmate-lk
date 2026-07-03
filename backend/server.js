@@ -23,6 +23,7 @@ const reportRoutes = require("./routes/reportRoutes");
 const returnRoutes = require("./routes/returnRoutes");
 const saleRoutes = require("./routes/saleRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
+const shopAuthRoutes = require("./routes/shopAuthRoutes");
 const staffRoutes = require("./routes/staffRoutes");
 const stockRoutes = require("./routes/stockRoutes");
 const supplierRoutes = require("./routes/supplierRoutes");
@@ -87,6 +88,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/shop-auth", authLimiter, shopAuthRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
 app.use("/api/categories", categoryRoutes);

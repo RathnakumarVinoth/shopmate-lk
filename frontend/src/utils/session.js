@@ -1,6 +1,7 @@
 const AUTH_CHANNEL = 'shopmate-auth'
 const AUTH_EVENT_KEY = 'shopmate-auth-event'
 const HIDDEN_AT_KEY = 'shopmate-hidden-at'
+const SHOP_SESSION_KEY = 'shopmate-shop-session'
 const DEFAULT_IDLE_TIMEOUT_MINUTES = 15
 const DEFAULT_BACKGROUND_LOGOUT_MINUTES = 3
 
@@ -40,6 +41,20 @@ export const saveSession = ({ token, user }) => {
   clearLegacyAuthStorage()
   window.dispatchEvent(new Event('shopmate:session-started'))
 }
+
+export const saveShopSession = ({ shopToken, shop }) => {
+  sessionStorage.setItem(
+    SHOP_SESSION_KEY,
+    JSON.stringify({
+      shopToken,
+      shop: shop || {},
+    }),
+  )
+}
+
+export const getShopSession = () => safeJsonParse(sessionStorage.getItem(SHOP_SESSION_KEY), null)
+
+export const clearShopSession = () => sessionStorage.removeItem(SHOP_SESSION_KEY)
 
 export const getSessionToken = () => sessionStorage.getItem('token')
 
@@ -130,6 +145,7 @@ export const clearSession = (message, options = {}) => {
   sessionStorage.removeItem('token')
   sessionStorage.removeItem('user')
   sessionStorage.removeItem('shopSettings')
+  sessionStorage.removeItem(SHOP_SESSION_KEY)
   sessionStorage.removeItem(HIDDEN_AT_KEY)
   clearLegacyAuthStorage()
 
@@ -154,7 +170,7 @@ export const redirectToLogin = (
   message = 'Session expired. Please login again.',
   options = {},
 ) => {
-  const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/login'
+  const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/shop-login'
   clearSession(message, options)
 
   if (window.location.pathname !== loginPath) {

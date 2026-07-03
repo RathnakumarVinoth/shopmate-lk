@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { getLanguage, languageOptions, setLanguage, t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
-import { getSessionUser, saveStoredSettings } from '../utils/session'
+import { getSessionUser, getStoredSettings, saveStoredSettings } from '../utils/session'
 
 const currencies = ['LKR', 'USD', 'GBP', 'AUD', 'CAD', 'EUR']
 const receiptSizes = ['58mm', '80mm']
@@ -52,7 +52,6 @@ function Settings() {
     current_password: '',
     new_password: '',
   })
-  const [savedSettings, setSavedSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -65,7 +64,6 @@ function Settings() {
     try {
       const response = await api.get('/settings')
       const settings = response.data || {}
-      setSavedSettings(settings)
       setForm(settingsToForm(settings))
       saveStoredSettings(settings)
       if (settings.language) {
@@ -97,57 +95,6 @@ function Settings() {
     setPasswordForm((current) => ({ ...current, [name]: value }))
   }
 
-  const resetForm = () => {
-    setForm(settingsToForm(savedSettings || initialForm))
-    setMessage('')
-    setError('')
-  }
-
-  const saveSettings = async (event) => {
-    event.preventDefault()
-    setSaving(true)
-    setMessage('')
-    setError('')
-
-    try {
-      const settingsPayload = {
-        ...form,
-        default_low_stock_limit: Number(form.default_low_stock_limit || 0),
-        tax_percentage: Number(form.tax_percentage || 0),
-        default_receipt_size: receiptSizes.includes(form.default_receipt_size)
-          ? form.default_receipt_size
-          : '80mm',
-        language: form.language,
-      }
-
-      if (user.role === 'owner') {
-        settingsPayload.idle_timeout_minutes = Number(form.idle_timeout_minutes || 15)
-        settingsPayload.background_logout_minutes = Number(
-          form.background_logout_minutes || 3,
-        )
-      } else {
-        delete settingsPayload.idle_timeout_minutes
-        delete settingsPayload.background_logout_minutes
-      }
-
-      const response = await api.put('/settings', settingsPayload)
-      const settings = response.data.settings || response.data
-
-      setSavedSettings(settings)
-      setForm(settingsToForm(settings))
-      saveStoredSettings(settings)
-      if (settings.language) {
-        setLanguage(settings.language)
-      }
-      window.dispatchEvent(new Event('shopmate:settings-changed'))
-      setMessage(t('Settings saved successfully'))
-    } catch (err) {
-      setError(getApiMessage(err, 'Failed to save settings'))
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const changePassword = async (event) => {
     event.preventDefault()
     setSaving(true)
@@ -165,6 +112,28 @@ function Settings() {
     }
   }
 
+  const saveSecuritySettings = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setMessage('')
+    setError('')
+
+    try {
+      const response = await api.put('/settings/security', {
+        idle_timeout_minutes: Number(form.idle_timeout_minutes),
+        background_logout_minutes: Number(form.background_logout_minutes),
+      })
+      const settings = response.data.settings || {}
+      saveStoredSettings({ ...getStoredSettings(), ...settings })
+      window.dispatchEvent(new Event('shopmate:settings-changed'))
+      setMessage(t('Security settings updated successfully'))
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to update security settings'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return <div className="panel loading-panel">{t('Loading settings...')}</div>
   }
@@ -174,7 +143,13 @@ function Settings() {
       {error && <div className="alert">{error}</div>}
       {message && <div className="success">{message}</div>}
 
-      <form onSubmit={saveSettings} className="page-stack">
+      <section className="panel">
+        <div className="info-banner">
+          {t('Shop settings are managed by Master Admin. Please contact support.')}
+        </div>
+      </section>
+
+      <fieldset className="page-stack readonly-settings" disabled>
         <section className="panel">
           <div className="section-heading">
             <h2>{t('Shop Profile')}</h2>
@@ -283,52 +258,47 @@ function Settings() {
           </div>
         </section>
 
-        {user.role === 'owner' && (
-          <section className="panel">
-            <div className="section-heading">
-              <h2>{t('Security Settings')}</h2>
-              <button type="button" className="ghost-button" onClick={() => navigate('/login-activity')}>
-                {t('Login Activity')}
-              </button>
-            </div>
-            <div className="form-grid">
-              <label>
-                {t('Idle timeout (minutes)')}
-                <input
-                  name="idle_timeout_minutes"
-                  type="number"
-                  min="1"
-                  max="480"
-                  value={form.idle_timeout_minutes}
-                  onChange={updateField}
-                  required
-                />
-              </label>
-              <label>
-                {t('Background logout (minutes)')}
-                <input
-                  name="background_logout_minutes"
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={form.background_logout_minutes}
-                  onChange={updateField}
-                  required
-                />
-              </label>
-            </div>
-          </section>
-        )}
+      </fieldset>
 
-        <div className="settings-actions">
-          <button type="submit" disabled={saving}>
-            {saving ? t('saving') : t('saveSettings')}
-          </button>
-          <button type="button" className="ghost-button" onClick={resetForm} disabled={saving}>
-            {t('Reset Form')}
-          </button>
-        </div>
-      </form>
+      {user.role === 'owner' && (
+        <section className="panel">
+          <div className="section-heading">
+            <h2>{t('Security Settings')}</h2>
+            <button type="button" className="ghost-button" onClick={() => navigate('/login-activity')}>
+              {t('Login Activity')}
+            </button>
+          </div>
+          <form className="form-grid" onSubmit={saveSecuritySettings}>
+            <label>
+              {t('Idle timeout (minutes)')}
+              <input
+                name="idle_timeout_minutes"
+                type="number"
+                min="1"
+                max="480"
+                value={form.idle_timeout_minutes}
+                onChange={updateField}
+                required
+              />
+            </label>
+            <label>
+              {t('Background logout (minutes)')}
+              <input
+                name="background_logout_minutes"
+                type="number"
+                min="1"
+                max="60"
+                value={form.background_logout_minutes}
+                onChange={updateField}
+                required
+              />
+            </label>
+            <button type="submit" className="full-width" disabled={saving}>
+              {saving ? t('Saving...') : t('Save Security Settings')}
+            </button>
+          </form>
+        </section>
+      )}
 
       <section className="panel">
         <div className="section-heading">

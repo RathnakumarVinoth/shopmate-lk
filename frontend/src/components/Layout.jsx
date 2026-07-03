@@ -4,6 +4,7 @@ import api from '../services/api'
 import { setLanguage, t } from '../i18n/translations'
 import {
   clearStoredSettings,
+  getShopSession,
   getStoredSettings,
   getSessionUser,
   saveStoredSettings,
@@ -18,12 +19,13 @@ function Layout() {
   const [, setSettingsVersion] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const settings = getStoredSettings()
-  const shopName = settings.shop_name || 'ShopMate LK'
+  const shopSession = getShopSession()
+  const shopName = settings.shop_name || shopSession?.shop?.shop_name || 'ShopMate LK'
 
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const response = await api.get(user.role === 'owner' ? '/settings' : '/settings/security')
+        const response = await api.get('/settings')
         const settings = response.data || {}
         saveStoredSettings({ ...getStoredSettings(), ...settings })
         if (settings.language) {

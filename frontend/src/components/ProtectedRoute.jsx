@@ -3,6 +3,7 @@ import { t } from '../i18n/translations'
 import { hasPermission, roleAllowed } from '../utils/permissions'
 import {
   clearSession,
+  getShopSession,
   getSessionToken,
   getSessionUser,
   isTokenExpired,
@@ -10,8 +11,13 @@ import {
 
 function ProtectedRoute({ children, roles, permission }) {
   const token = getSessionToken()
+  const shopSession = getShopSession()
   const user = getSessionUser()
-  const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/login'
+  const loginPath = window.location.pathname.startsWith('/admin')
+    ? '/admin/login'
+    : shopSession?.shopToken
+      ? '/role-login'
+      : '/shop-login'
 
   if (!token) {
     return <Navigate to={loginPath} replace />
@@ -22,6 +28,11 @@ function ProtectedRoute({ children, roles, permission }) {
       recordReason: 'Session expired',
     })
     return <Navigate to={loginPath} replace />
+  }
+
+  if (user.role !== 'admin' && !shopSession?.shopToken) {
+    clearSession('Shop session expired. Please login again.', { broadcast: false })
+    return <Navigate to="/shop-login" replace />
   }
 
   if (roles && !roleAllowed(user.role, roles)) {

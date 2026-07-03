@@ -7,6 +7,7 @@ const {
   login,
   register,
   resetPassword,
+  roleLogin,
 } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 
@@ -14,6 +15,7 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/role-login", roleLogin);
 router.post("/auto-logout", authMiddleware, autoLogout);
 router.put("/change-password", authMiddleware, changePassword);
 router.post("/forgot-password", forgotPassword);
