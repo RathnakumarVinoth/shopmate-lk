@@ -14,6 +14,26 @@ const ensureShopSettingsColumns = async () => {
       .query("ALTER TABLE shops ADD COLUMN default_receipt_size VARCHAR(10) DEFAULT '80mm'");
   }
 
+  if (!existingColumns.has("receipt_footer")) {
+    await db
+      .promise()
+      .query("ALTER TABLE shops ADD COLUMN receipt_footer VARCHAR(255) NULL");
+  }
+
+  if (!existingColumns.has("logo_url")) {
+    await db
+      .promise()
+      .query("ALTER TABLE shops ADD COLUMN logo_url TEXT NULL");
+  }
+
+  if (!existingColumns.has("default_low_stock_limit")) {
+    await db
+      .promise()
+      .query(
+        "ALTER TABLE shops ADD COLUMN default_low_stock_limit INT NOT NULL DEFAULT 5"
+      );
+  }
+
   if (!existingColumns.has("language")) {
     await db
       .promise()

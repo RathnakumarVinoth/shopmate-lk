@@ -112,6 +112,27 @@ const ensureSaasSchema = async () => {
     connection,
     "shops",
     existingShopColumns,
+    "receipt_footer",
+    "receipt_footer VARCHAR(255) NULL"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
+    "logo_url",
+    "logo_url TEXT NULL"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
+    "default_low_stock_limit",
+    "default_low_stock_limit INT NOT NULL DEFAULT 5"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
     "default_receipt_size",
     "default_receipt_size VARCHAR(10) DEFAULT '80mm'"
   );

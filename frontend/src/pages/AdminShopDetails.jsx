@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
+import { permissions, rolePermissions } from '../utils/permissions'
 
 const formatDate = (value) => {
   if (!value) return '-'
@@ -17,6 +18,7 @@ const initialUserForm = {
   username: '',
   email: '',
   role: 'cashier',
+  permissions: rolePermissions.cashier,
   password: '',
   is_active: true,
 }
@@ -28,7 +30,10 @@ const shopToForm = (shop) => ({
   phone: shop?.phone || '',
   email: shop?.email || '',
   address: shop?.address || '',
+  receipt_footer: shop?.receipt_footer || '',
+  logo_url: shop?.logo_url || '',
   currency: shop?.currency || 'LKR',
+  default_low_stock_limit: String(shop?.default_low_stock_limit ?? 5),
   tax_percentage: String(shop?.tax_percentage ?? 0),
   default_receipt_size: shop?.default_receipt_size || '80mm',
   language: shop?.language || 'en',
@@ -53,6 +58,10 @@ function AdminShopDetails() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const selectedPermissionSet = useMemo(
+    () => new Set(userForm.permissions || []),
+    [userForm.permissions],
+  )
 
   useEffect(() => {
     const loadShop = async () => {
@@ -84,10 +93,34 @@ function AdminShopDetails() {
 
   const updateUserField = (event) => {
     const { name, value, checked, type } = event.target
+
+    if (name === 'role') {
+      setUserForm((current) => ({
+        ...current,
+        role: value,
+        permissions: rolePermissions[value] || rolePermissions.staff,
+      }))
+      return
+    }
+
     setUserForm((current) => ({
       ...current,
       [name]: type === 'checkbox' ? checked : value,
     }))
+  }
+
+  const togglePermission = (permission) => {
+    setUserForm((current) => {
+      const nextPermissions = new Set(current.permissions || [])
+
+      if (nextPermissions.has(permission)) {
+        nextPermissions.delete(permission)
+      } else {
+        nextPermissions.add(permission)
+      }
+
+      return { ...current, permissions: [...nextPermissions] }
+    })
   }
 
   const updateShopField = (event) => {
@@ -108,6 +141,7 @@ function AdminShopDetails() {
       const response = await api.put(`/admin/shops/${id}`, {
         ...shopForm,
         tax_percentage: Number(shopForm.tax_percentage || 0),
+        default_low_stock_limit: Number(shopForm.default_low_stock_limit || 5),
         monthly_fee: Number(shopForm.monthly_fee || 0),
       })
       const nextShop = response.data.shop || shop
@@ -128,6 +162,9 @@ function AdminShopDetails() {
       username: user.username || '',
       email: user.email || '',
       role: user.role || 'staff',
+      permissions: Array.isArray(user.permissions)
+        ? user.permissions
+        : rolePermissions[user.role] || rolePermissions.staff,
       password: '',
       is_active: Boolean(user.is_active),
     })
@@ -329,9 +366,29 @@ function AdminShopDetails() {
             {t('Address')}
             <input name="address" value={shopForm.address} onChange={updateShopField} />
           </label>
+          <label className="full-width">
+            {t('Receipt Footer Message')}
+            <input name="receipt_footer" value={shopForm.receipt_footer} onChange={updateShopField} />
+          </label>
+          <label className="full-width">
+            {t('Logo URL')}
+            <input name="logo_url" value={shopForm.logo_url} onChange={updateShopField} />
+          </label>
+          <label>
+            {t('language')}
+            <select name="language" value={shopForm.language} onChange={updateShopField}>
+              <option value="en">{t('english')}</option>
+              <option value="si">{t('sinhala')}</option>
+              <option value="ta">{t('tamil')}</option>
+            </select>
+          </label>
           <label>
             {t('Currency')}
             <input name="currency" value={shopForm.currency} onChange={updateShopField} />
+          </label>
+          <label>
+            {t('Default Low Stock Limit')}
+            <input name="default_low_stock_limit" type="number" min="0" value={shopForm.default_low_stock_limit} onChange={updateShopField} />
           </label>
           <label>
             {t('Tax Percentage')}
@@ -403,6 +460,18 @@ function AdminShopDetails() {
                 {roleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
               </select>
             </label>
+            <div className="permission-grid">
+              {permissions.map((permission) => (
+                <label className="checkbox-row" key={permission.value}>
+                  <input
+                    type="checkbox"
+                    checked={selectedPermissionSet.has(permission.value)}
+                    onChange={() => togglePermission(permission.value)}
+                  />
+                  {permission.label}
+                </label>
+              ))}
+            </div>
             {!userForm.id && (
               <label>
                 {t('Temporary Password')}

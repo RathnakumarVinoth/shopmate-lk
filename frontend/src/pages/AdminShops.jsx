@@ -18,8 +18,11 @@ const initialCreateForm = {
   phone: '',
   email: '',
   address: '',
+  receipt_footer: '',
+  logo_url: '',
   language: 'en',
   currency: 'LKR',
+  default_low_stock_limit: '5',
   tax_percentage: '0',
   default_receipt_size: '80mm',
   subscription_plan: 'starter',
@@ -51,6 +54,7 @@ function AdminShops() {
   const [form, setForm] = useState(null)
   const [createForm, setCreateForm] = useState(initialCreateForm)
   const [temporaryCredentials, setTemporaryCredentials] = useState(null)
+  const [temporaryPassword, setTemporaryPassword] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -102,12 +106,14 @@ function AdminShops() {
     setSaving(true)
     setError('')
     setMessage('')
+    setTemporaryPassword('')
     setTemporaryCredentials(null)
 
     try {
       const response = await api.post('/admin/shops', {
         ...createForm,
         tax_percentage: Number(createForm.tax_percentage || 0),
+        default_low_stock_limit: Number(createForm.default_low_stock_limit || 5),
         monthly_fee: Number(createForm.monthly_fee || 0),
       })
       setTemporaryCredentials(response.data.credentials || null)
@@ -159,6 +165,23 @@ function AdminShops() {
     }
   }
 
+  const resetShopPassword = async (shop) => {
+    setSaving(true)
+    setError('')
+    setMessage('')
+    setTemporaryPassword('')
+
+    try {
+      const response = await api.put(`/admin/shops/${shop.id}/reset-password`)
+      setTemporaryPassword(response.data.temporary_password || '')
+      setMessage(`Shop login password reset for ${shop.shop_name}`)
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to reset shop password'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return <div className="panel loading-panel">{t('Loading shops...')}</div>
   }
@@ -181,6 +204,11 @@ function AdminShops() {
 
       {error && <div className="alert">{error}</div>}
       {message && <div className="success">{message}</div>}
+      {temporaryPassword && (
+        <div className="info-banner">
+          {t('Temporary Password')}: <strong>{temporaryPassword}</strong>
+        </div>
+      )}
 
       <section className="panel">
         <div className="table-wrap">
@@ -224,7 +252,22 @@ function AdminShops() {
                         className="ghost-button"
                         onClick={() => navigate(`/admin/shops/${shop.id}`)}
                       >
-                        {t('View')}
+                        {t('View/Edit')}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => navigate(`/admin/shops/${shop.id}`)}
+                      >
+                        {t('Manage Users')}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => resetShopPassword(shop)}
+                        disabled={saving}
+                      >
+                        {t('Reset Password')}
                       </button>
                       <button type="button" onClick={() => openEditor(shop)}>
                         {t('Edit Subscription')}
@@ -406,9 +449,29 @@ function AdminShops() {
                 {t('Address')}
                 <input name="address" value={createForm.address} onChange={updateCreateField} />
               </label>
+              <label className="full-width">
+                {t('Receipt Footer Message')}
+                <input name="receipt_footer" value={createForm.receipt_footer} onChange={updateCreateField} />
+              </label>
+              <label className="full-width">
+                {t('Logo URL')}
+                <input name="logo_url" value={createForm.logo_url} onChange={updateCreateField} />
+              </label>
+              <label>
+                {t('language')}
+                <select name="language" value={createForm.language} onChange={updateCreateField}>
+                  <option value="en">{t('english')}</option>
+                  <option value="si">{t('sinhala')}</option>
+                  <option value="ta">{t('tamil')}</option>
+                </select>
+              </label>
               <label>
                 {t('Currency')}
                 <input name="currency" value={createForm.currency} onChange={updateCreateField} />
+              </label>
+              <label>
+                {t('Default Low Stock Limit')}
+                <input name="default_low_stock_limit" type="number" min="0" value={createForm.default_low_stock_limit} onChange={updateCreateField} />
               </label>
               <label>
                 {t('Tax Percentage')}
