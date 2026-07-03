@@ -109,6 +109,8 @@ function Staff() {
 
     if (!editing) {
       payload.password = form.password
+    } else if (form.password.trim()) {
+      payload.password = form.password
     }
 
     try {
@@ -139,10 +141,11 @@ function Staff() {
     setError('')
     setMessage('')
     setSaving(true)
+    const { password, ...payload } = staffToForm(staffMember)
 
     try {
       await api.put(`/staff/${staffMember.id}`, {
-        ...staffToForm(staffMember),
+        ...payload,
         is_active: !staffMember.is_active,
       })
       setMessage(`Staff account ${staffMember.is_active ? 'deactivated' : 'activated'} successfully`)
@@ -199,6 +202,18 @@ function Staff() {
                 value={form.password}
                 onChange={updateField}
                 required
+              />
+            </label>
+          )}
+          {editing && (
+            <label>
+              New Password
+              <input
+                name="password"
+                type="password"
+                value={form.password}
+                onChange={updateField}
+                placeholder="Leave blank to keep current password"
               />
             </label>
           )}

@@ -121,12 +121,13 @@ exports.getStaff = async (req, res) => {
 
 exports.updateStaff = async (req, res) => {
   const { id } = req.params;
-  const { name, email, is_active } = req.body;
+  const { name, email, is_active, password } = req.body;
   const role = staffRoles.includes(req.body.role) ? req.body.role : "staff";
   const permissions =
     req.body.permissions === undefined
       ? getRolePermissions(role)
       : normalizePermissions(req.body.permissions);
+  const newPassword = password === undefined || password === null ? "" : String(password);
 
   if (!isPositiveInteger(id)) {
     return res.status(400).json({ message: "Valid staff id is required" });
@@ -136,25 +137,47 @@ exports.updateStaff = async (req, res) => {
     return res.status(400).json({ message: "name and email are required" });
   }
 
+  if (newPassword.trim()) {
+    const passwordError = validateStrongPassword(newPassword);
+
+    if (passwordError) {
+      return res.status(400).json({ message: passwordError });
+    }
+  }
+
   const activeValue = is_active === undefined ? 1 : is_active ? 1 : 0;
 
   try {
     await ensureUserPermissionColumns();
 
+    const fields = [
+      "name = ?",
+      "email = ?",
+      "role = ?",
+      "permissions = ?",
+      "is_active = ?",
+    ];
+    const values = [
+      name,
+      email,
+      role,
+      serializePermissions(permissions),
+      activeValue,
+    ];
+
+    if (newPassword.trim()) {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      fields.push("password = ?");
+      values.push(hashedPassword);
+    }
+
+    values.push(id, req.user.shop_id, staffRoles);
+
     const [result] = await db.promise().query(
       `UPDATE users
-       SET name = ?, email = ?, role = ?, permissions = ?, is_active = ?
+       SET ${fields.join(", ")}
        WHERE id = ? AND shop_id = ? AND role IN (?)`,
-      [
-        name,
-        email,
-        role,
-        serializePermissions(permissions),
-        activeValue,
-        id,
-        req.user.shop_id,
-        staffRoles,
-      ]
+      values
     );
 
     if (result.affectedRows === 0) {
