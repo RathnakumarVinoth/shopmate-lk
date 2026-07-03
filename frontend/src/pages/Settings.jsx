@@ -3,6 +3,7 @@ import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 
 const currencies = ['LKR', 'USD', 'GBP', 'AUD', 'CAD', 'EUR']
+const receiptSizes = ['58mm', '80mm']
 
 const initialForm = {
   shop_name: '',
@@ -14,6 +15,7 @@ const initialForm = {
   default_low_stock_limit: '5',
   tax_percentage: '0',
   logo_url: '',
+  default_receipt_size: '80mm',
 }
 
 const settingsToForm = (settings) => ({
@@ -26,6 +28,9 @@ const settingsToForm = (settings) => ({
   default_low_stock_limit: String(settings.default_low_stock_limit ?? 5),
   tax_percentage: String(settings.tax_percentage ?? 0),
   logo_url: settings.logo_url || '',
+  default_receipt_size: receiptSizes.includes(settings.default_receipt_size)
+    ? settings.default_receipt_size
+    : '80mm',
 })
 
 function Settings() {
@@ -79,6 +84,9 @@ function Settings() {
         ...form,
         default_low_stock_limit: Number(form.default_low_stock_limit || 0),
         tax_percentage: Number(form.tax_percentage || 0),
+        default_receipt_size: receiptSizes.includes(form.default_receipt_size)
+          ? form.default_receipt_size
+          : '80mm',
       })
       const settings = response.data.settings || response.data
 
@@ -145,6 +153,20 @@ function Settings() {
             <label className="full-width">
               Logo URL
               <input name="logo_url" value={form.logo_url} onChange={updateField} />
+            </label>
+            <label>
+              Thermal Receipt Size
+              <select
+                name="default_receipt_size"
+                value={form.default_receipt_size}
+                onChange={updateField}
+              >
+                {receiptSizes.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
         </section>

@@ -3,6 +3,7 @@ const {
   ensurePaymentVerificationTable,
   ensureSalesPaymentColumns,
 } = require("../utils/paymentSchema");
+const { ensureShopSettingsColumns } = require("../utils/shopSchema");
 
 const allowedPaymentTypes = ["cash", "card", "bank_transfer", "qr", "credit"];
 const paidRequiredTypes = ["cash", "card", "bank_transfer", "qr"];
@@ -164,6 +165,7 @@ const buildReceipt = ({ sale, shop, customer, items }) => {
     receipt_footer: shop?.receipt_footer || "Thank you for shopping with us.",
     currency: shop?.currency || "LKR",
     logo_url: shop?.logo_url || null,
+    default_receipt_size: shop?.default_receipt_size || "80mm",
     items: receiptItems.map((item) => ({
       product_id: item.product_id,
       product_name: item.product_name,
@@ -226,10 +228,12 @@ exports.createSale = async (req, res) => {
   try {
     await ensureSalesPaymentColumns();
     await ensurePaymentVerificationTable();
+    await ensureShopSettingsColumns();
     await connection.beginTransaction();
 
     const [shops] = await connection.query(
-      `SELECT shop_name, phone, email, address, receipt_footer, currency, logo_url
+      `SELECT shop_name, phone, email, address, receipt_footer, currency, logo_url,
+              default_receipt_size
        FROM shops
        WHERE id = ?
        LIMIT 1`,
@@ -474,6 +478,7 @@ exports.createSale = async (req, res) => {
 exports.getSales = async (req, res) => {
   try {
     await ensureSalesPaymentColumns();
+    await ensureShopSettingsColumns();
 
     const [sales] = await db.promise().query(
       `SELECT sales.id, sales.invoice_no, sales.shop_id, sales.user_id,
@@ -516,6 +521,7 @@ exports.getSaleById = async (req, res) => {
       `SELECT sales.*, users.name AS user_name,
               shops.shop_name, shops.phone, shops.email, shops.address,
               shops.receipt_footer, shops.currency, shops.logo_url,
+              shops.default_receipt_size,
               customers.customer_name, customers.phone AS customer_phone,
               customers.address AS customer_address
        FROM sales

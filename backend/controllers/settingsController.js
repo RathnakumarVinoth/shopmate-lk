@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { ensureShopSettingsColumns } = require("../utils/shopSchema");
 
 const isMissing = (value) =>
   value === undefined || value === null || String(value).trim() === "";
@@ -18,10 +19,17 @@ const isNonNegativeNumber = (value) =>
   !Number.isNaN(Number(value)) &&
   Number(value) >= 0;
 
+const receiptSizes = ["58mm", "80mm"];
+
+const normalizeReceiptSize = (value) =>
+  receiptSizes.includes(value) ? value : "80mm";
+
 const getShopSettings = async (shopId) => {
+  await ensureShopSettingsColumns();
+
   const [shops] = await db.promise().query(
     `SELECT shop_name, phone, email, address, receipt_footer, currency,
-            default_low_stock_limit, tax_percentage, logo_url
+            default_low_stock_limit, tax_percentage, logo_url, default_receipt_size
      FROM shops
      WHERE id = ?
      LIMIT 1`,
@@ -44,6 +52,7 @@ exports.getSettings = async (req, res) => {
       currency: settings.currency || "LKR",
       default_low_stock_limit: Number(settings.default_low_stock_limit || 0),
       tax_percentage: Number(settings.tax_percentage || 0),
+      default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
     });
   } catch (error) {
     console.error("Get settings error:", error.message);
@@ -62,6 +71,7 @@ exports.updateSettings = async (req, res) => {
     default_low_stock_limit,
     tax_percentage,
     logo_url,
+    default_receipt_size,
   } = req.body;
 
   if (isMissing(shop_name)) {
@@ -78,11 +88,26 @@ exports.updateSettings = async (req, res) => {
     return res.status(400).json({ message: "tax_percentage must be 0 or greater" });
   }
 
+  if (
+    default_receipt_size !== undefined &&
+    !receiptSizes.includes(default_receipt_size)
+  ) {
+    return res
+      .status(400)
+      .json({ message: "default_receipt_size must be 58mm or 80mm" });
+  }
+
+  const nextReceiptSize =
+    default_receipt_size === undefined ? null : normalizeReceiptSize(default_receipt_size);
+
   try {
+    await ensureShopSettingsColumns();
+
     const [result] = await db.promise().query(
       `UPDATE shops
        SET shop_name = ?, phone = ?, email = ?, address = ?, receipt_footer = ?,
-           currency = ?, default_low_stock_limit = ?, tax_percentage = ?, logo_url = ?
+           currency = ?, default_low_stock_limit = ?, tax_percentage = ?, logo_url = ?,
+           default_receipt_size = COALESCE(?, default_receipt_size)
        WHERE id = ?`,
       [
         String(shop_name).trim(),
@@ -94,6 +119,7 @@ exports.updateSettings = async (req, res) => {
         Number(default_low_stock_limit || 0),
         Number(tax_percentage || 0),
         optionalText(logo_url),
+        nextReceiptSize,
         req.user.shop_id,
       ]
     );
@@ -111,6 +137,7 @@ exports.updateSettings = async (req, res) => {
         currency: settings.currency || "LKR",
         default_low_stock_limit: Number(settings.default_low_stock_limit || 0),
         tax_percentage: Number(settings.tax_percentage || 0),
+        default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
       },
     });
   } catch (error) {

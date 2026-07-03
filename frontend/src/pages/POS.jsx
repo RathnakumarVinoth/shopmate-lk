@@ -29,6 +29,18 @@ const paymentTypes = [
   { value: 'credit', label: 'Credit' },
 ]
 
+const receiptSizes = ['58mm', '80mm']
+
+const normalizeReceiptSize = (value) => (receiptSizes.includes(value) ? value : '80mm')
+
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+
 const formatCurrency = (value, currency) => formatMoney(value, currency)
 
 const formatDateTime = (value) => {
@@ -61,6 +73,9 @@ const getReceiptDetails = (receipt) => {
   const currency = receipt?.currency || settings.currency || 'LKR'
   const receiptFooter =
     receipt?.receipt_footer || settings.receipt_footer || 'Thank you for shopping with us.'
+  const defaultReceiptSize = normalizeReceiptSize(
+    receipt?.default_receipt_size || settings.default_receipt_size,
+  )
   const balanceLabel =
     paymentType === 'credit' ? 'Credit Balance' : balanceAmount < 0 ? 'Balance Due' : 'Change'
 
@@ -77,6 +92,7 @@ const getReceiptDetails = (receipt) => {
     shopAddress: receipt?.shop_address || settings.address || '',
     logoUrl: receipt?.logo_url || settings.logo_url || '',
     receiptFooter,
+    defaultReceiptSize,
     currency,
     items,
     totalBeforeDiscount,
@@ -302,6 +318,144 @@ const printReceipt = (receipt) => {
   printWindow.print()
 }
 
+const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
+  const details = getReceiptDetails(receipt)
+  const width = normalizeReceiptSize(receiptSize || details.defaultReceiptSize)
+  const rows = details.items
+    .map(
+      (item) => `
+        <tr>
+          <td class="item-name">${escapeHtml(item.product_name || 'Item')}</td>
+          <td class="num">${Number(item.quantity || 0)}</td>
+          <td class="num">${escapeHtml(formatCurrency(item.selling_price, details.currency))}</td>
+          <td class="num">${escapeHtml(formatCurrency(item.subtotal, details.currency))}</td>
+        </tr>
+      `,
+    )
+    .join('')
+
+  const printWindow = window.open('', '_blank', 'width=420,height=700')
+
+  if (!printWindow) {
+    window.print()
+    return
+  }
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>${escapeHtml(details.invoiceNo)} Thermal Receipt</title>
+        <style>
+          @page { size: ${width} auto; margin: 0; }
+          * { box-sizing: border-box; }
+          body {
+            margin: 0;
+            background: #fff;
+            color: #000;
+            font-family: "Courier New", monospace;
+            font-size: ${width === '58mm' ? '10px' : '11px'};
+            line-height: 1.3;
+          }
+          .receipt {
+            width: ${width};
+            padding: ${width === '58mm' ? '3mm' : '4mm'};
+          }
+          .center { text-align: center; }
+          .shop-name { display: block; font-size: ${width === '58mm' ? '13px' : '15px'}; margin-bottom: 3px; }
+          .muted { font-size: ${width === '58mm' ? '9px' : '10px'}; }
+          .line { border-top: 1px dashed #000; margin: 6px 0; }
+          .row { display: flex; justify-content: space-between; gap: 8px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { padding: 2px 0; vertical-align: top; }
+          th { border-bottom: 1px dashed #000; font-weight: 700; text-align: left; }
+          .item-name { width: 40%; word-break: break-word; }
+          .num { text-align: right; white-space: nowrap; }
+          .totals .row { padding: 2px 0; }
+          .grand-total { font-weight: 700; font-size: ${width === '58mm' ? '11px' : '12px'}; }
+          @media print {
+            html, body { width: ${width}; margin: 0; }
+            .receipt { width: ${width}; }
+          }
+        </style>
+      </head>
+      <body>
+        <main class="receipt">
+          <header class="center">
+            <strong class="shop-name">${escapeHtml(details.shopName)}</strong>
+            ${details.shopAddress ? `<div>${escapeHtml(details.shopAddress)}</div>` : ''}
+            ${details.shopPhone ? `<div>Phone: ${escapeHtml(details.shopPhone)}</div>` : ''}
+          </header>
+
+          <div class="line"></div>
+          <section>
+            <div class="row"><span>Invoice</span><strong>${escapeHtml(details.invoiceNo)}</strong></div>
+            <div class="row"><span>Date</span><span>${escapeHtml(formatDateTime(details.createdAt))}</span></div>
+            ${
+              details.customerName
+                ? `<div>Customer: ${escapeHtml(details.customerName)}</div>`
+                : ''
+            }
+            ${
+              details.customerPhone
+                ? `<div>Phone: ${escapeHtml(details.customerPhone)}</div>`
+                : ''
+            }
+          </section>
+
+          <div class="line"></div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="num">Qty</th>
+                <th class="num">Price</th>
+                <th class="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+
+          <div class="line"></div>
+          <section class="totals">
+            <div class="row"><span>Subtotal</span><span>${escapeHtml(
+              formatCurrency(details.totalBeforeDiscount, details.currency),
+            )}</span></div>
+            <div class="row"><span>Discount</span><span>${escapeHtml(
+              formatCurrency(details.discountAmount, details.currency),
+            )}</span></div>
+            <div class="row grand-total"><span>Total</span><span>${escapeHtml(
+              formatCurrency(details.finalTotal, details.currency),
+            )}</span></div>
+            <div class="row"><span>Paid</span><span>${escapeHtml(
+              formatCurrency(details.paidAmount, details.currency),
+            )}</span></div>
+            <div class="row"><span>${escapeHtml(details.balanceLabel)}</span><span>${escapeHtml(
+              formatCurrency(Math.abs(details.balanceAmount), details.currency),
+            )}</span></div>
+          </section>
+
+          <div class="line"></div>
+          <section>
+            <div>Payment: ${escapeHtml(details.paymentType)}</div>
+            <div>Status: ${escapeHtml(details.paymentStatus)}</div>
+            ${details.paymentReference ? `<div>Reference: ${escapeHtml(details.paymentReference)}</div>` : ''}
+          </section>
+
+          <div class="line"></div>
+          <footer class="center muted">${escapeHtml(details.receiptFooter)}</footer>
+        </main>
+        <script>
+          window.onload = function () {
+            window.focus();
+            window.print();
+          };
+        </script>
+      </body>
+    </html>
+  `)
+  printWindow.document.close()
+}
+
 function POS() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [products, setProducts] = useState([])
@@ -318,6 +472,7 @@ function POS() {
   const [discountAmount, setDiscountAmount] = useState('')
   const [paidAmount, setPaidAmount] = useState('')
   const [receipt, setReceipt] = useState(null)
+  const [thermalReceiptSize, setThermalReceiptSize] = useState('80mm')
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loadingProducts, setLoadingProducts] = useState(true)
@@ -374,6 +529,12 @@ function POS() {
       setPaymentDetails(initialPaymentDetails)
     }
   }, [paymentType])
+
+  useEffect(() => {
+    if (receipt) {
+      setThermalReceiptSize(getReceiptDetails(receipt).defaultReceiptSize)
+    }
+  }, [receipt])
 
   const filteredProducts = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -1000,6 +1161,24 @@ function POS() {
                 </button>
                 <button type="button" className="ghost-button" onClick={() => printReceipt(receipt)}>
                   Print
+                </button>
+                <select
+                  value={thermalReceiptSize}
+                  onChange={(event) => setThermalReceiptSize(event.target.value)}
+                  aria-label="Thermal receipt size"
+                >
+                  {receiptSizes.map((size) => (
+                    <option key={size} value={size}>
+                      {size}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => thermalPrintReceipt(receipt, thermalReceiptSize)}
+                >
+                  Thermal Print
                 </button>
                 <button type="button" className="ghost-button" onClick={() => setReceipt(null)}>
                   Close
