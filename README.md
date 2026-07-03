@@ -1,120 +1,79 @@
-\# ShopMate LK
+# ShopMate LK
 
+ShopMate LK is a web-based POS and inventory management system for small businesses in Sri Lanka. It helps shop owners manage products, billing, stock, customer credit, suppliers, reports, subscriptions, and super admin shop control.
 
+## Features
 
-ShopMate LK is a web-based POS and inventory management system designed for small businesses in Sri Lanka. The system helps shop owners manage products, create bills, update stock automatically, maintain customer credit records, and view daily sales and profit reports.
+- User registration and JWT login
+- Shop owner and staff POS workflows
+- Product and stock management
+- Low-stock purchase suggestions
+- POS billing with payment verification
+- Sales, returns, customer credit, supplier, expense, and report modules
+- Super admin shop and subscription control
+- React frontend and Express/MySQL backend
 
+## Tech Stack
 
+Frontend:
 
-\## Features
+- React
+- Vite
+- Axios
+- React Router DOM
 
+Backend:
 
+- Node.js
+- Express
+- MySQL
+- JWT authentication
+- bcryptjs
+- dotenv
+- cors
+- helmet
+- express-rate-limit
 
-\- User registration and login
-
-\- Shop owner dashboard
-
-\- Product management
-
-\- Stock quantity tracking
-
-\- Low-stock alert
-
-\- POS billing system
-
-\- Automatic stock reduction after sales
-
-\- Sales history
-
-\- Credit customer management
-
-\- Credit payment tracking
-
-\- Daily sales and profit summary
-
-\- Clean React frontend interface
-
-
-
-\## Tech Stack
-
-
-
-\### Frontend
-
-\- React.js
-
-\- Vite
-
-\- Axios
-
-\- React Router DOM
-
-\- CSS
-
-
-
-\### Backend
-
-\- Node.js
-
-\- Express.js
-
-\- MySQL
-
-\- JWT Authentication
-
-\- bcryptjs
-
-\- dotenv
-
-\- cors
-
-
-
-\### Database
-
-\- MySQL
-
-
-
-\## Project Structure
-
-
+## Project Structure
 
 ```text
-
 shopmate-lk/
+  backend/
+    config/
+    controllers/
+    middleware/
+    routes/
+    scripts/
+    server.js
+    package.json
+  frontend/
+    src/
+    public/
+    package.json
+  DEPLOYMENT.md
+  README.md
+```
 
-│
+## Local Development
 
-├── backend/
+Backend:
 
-│   ├── config/
+```bash
+cd backend
+npm install
+npm run dev
+```
 
-│   ├── controllers/
+Frontend:
 
-│   ├── middleware/
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-│   ├── routes/
+## Deployment
 
-│   ├── server.js
+ShopMate LK includes production-ready environment examples, CORS configuration, MySQL pool configuration, security middleware, and a backend health check.
 
-│   └── package.json
-
-│
-
-├── frontend/
-
-│   ├── src/
-
-│   ├── public/
-
-│   └── package.json
-
-│
-
-├── .gitignore
-
-└── README.md
-
+See [DEPLOYMENT.md](DEPLOYMENT.md) for cloud setup, environment variables, database setup, build commands, health check details, and common fixes.

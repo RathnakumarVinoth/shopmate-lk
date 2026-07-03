@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
 
 require("./config/db");
@@ -22,15 +24,63 @@ const stockRoutes = require("./routes/stockRoutes");
 const supplierRoutes = require("./routes/supplierRoutes");
 
 const app = express();
+const isProduction = process.env.NODE_ENV === "production";
+const allowedOrigins = isProduction
+  ? [process.env.FRONTEND_URL].filter(Boolean)
+  : [
+      process.env.FRONTEND_URL || "http://localhost:5173",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+    ];
 
-app.use(cors());
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
+
+app.use(helmet());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  })
+);
 app.use(express.json());
+
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: isProduction ? 1000 : 5000,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: isProduction ? 30 : 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(globalLimiter);
 
 app.get("/", (req, res) => {
   res.send("ShopMate LK Backend Running");
 });
 
-app.use("/api/auth", authRoutes);
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "ShopMate LK API running",
+    environment: process.env.NODE_ENV || "development",
+  });
+});
+
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/credits", creditRoutes);
 app.use("/api/dashboard", dashboardRoutes);
