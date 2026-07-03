@@ -8,6 +8,7 @@ import AdminDashboard from './pages/AdminDashboard.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
 import AdminShopDetails from './pages/AdminShopDetails.jsx'
 import AdminShops from './pages/AdminShops.jsx'
+import AuditLogs from './pages/AuditLogs.jsx'
 import BackupExport from './pages/BackupExport.jsx'
 import CreditBook from './pages/CreditBook.jsx'
 import Dashboard from './pages/Dashboard.jsx'
@@ -123,6 +124,14 @@ function App() {
             }
           />
           <Route
+            path="/audit-logs"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <AuditLogs />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/backup-export"
             element={
               <ProtectedRoute roles={['owner']}>
@@ -149,6 +158,7 @@ function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/shops" element={<AdminShops />} />
           <Route path="/admin/shops/:id" element={<AdminShopDetails />} />
+          <Route path="/admin/audit-logs" element={<AuditLogs />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

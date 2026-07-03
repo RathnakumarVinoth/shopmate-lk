@@ -3,6 +3,7 @@ const {
   ensurePaymentVerificationTable,
   ensureSalesPaymentColumns,
 } = require("../utils/paymentSchema");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
 
 const verifiablePaymentTypes = ["card", "bank_transfer", "qr"];
 
@@ -234,6 +235,13 @@ exports.verifyPayment = async (req, res) => {
 
     await connection.commit();
 
+    await createAuditLogFromRequest(req, {
+      action: "payment_verified",
+      entity_type: "sale",
+      entity_id: Number(saleId),
+      description: `Verified ${sales[0].payment_type} payment for sale ${saleId}`,
+    });
+
     return res.json({
       message: "Payment verified successfully",
       payment: formatPayment(updatedPayments[0]),
@@ -331,6 +339,13 @@ exports.failPayment = async (req, res) => {
     }
 
     await connection.commit();
+
+    await createAuditLogFromRequest(req, {
+      action: "payment_failed",
+      entity_type: "sale",
+      entity_id: Number(saleId),
+      description: `Marked ${sales[0].payment_type} payment as failed for sale ${saleId}`,
+    });
 
     return res.json({ message: "Payment marked as failed" });
   } catch (error) {

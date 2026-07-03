@@ -12,6 +12,7 @@ const ownerLinks = [
   { to: '/returns', label: 'Returns' },
   { to: '/expenses', label: 'Expenses' },
   { to: '/reports', label: 'Reports' },
+  { to: '/audit-logs', label: 'Audit Logs' },
   { to: '/backup-export', label: 'Backup / Export' },
   { to: '/settings', label: 'Settings' },
   { to: '/staff', label: 'Staff' },

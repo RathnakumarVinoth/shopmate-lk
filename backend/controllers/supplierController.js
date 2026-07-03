@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
 
 const isMissing = (value) => value === undefined || value === null || value === "";
 
@@ -46,6 +47,13 @@ exports.addSupplier = async (req, res) => {
       "SELECT * FROM suppliers WHERE id = ? AND shop_id = ? LIMIT 1",
       [result.insertId, req.user.shop_id]
     );
+
+    await createAuditLogFromRequest(req, {
+      action: "supplier_add",
+      entity_type: "supplier",
+      entity_id: result.insertId,
+      description: `Added supplier ${supplier_name}`,
+    });
 
     return res.status(201).json({
       message: "Supplier added successfully",
@@ -98,6 +106,13 @@ exports.updateSupplier = async (req, res) => {
       return res.status(404).json({ message: "Supplier not found" });
     }
 
+    await createAuditLogFromRequest(req, {
+      action: "supplier_update",
+      entity_type: "supplier",
+      entity_id: Number(id),
+      description: `Updated supplier ${supplier_name}`,
+    });
+
     return res.json({ message: "Supplier updated successfully" });
   } catch (error) {
     console.error("Update supplier error:", error.message);
@@ -113,6 +128,11 @@ exports.deleteSupplier = async (req, res) => {
   }
 
   try {
+    const [suppliers] = await db.promise().query(
+      "SELECT supplier_name FROM suppliers WHERE id = ? AND shop_id = ? LIMIT 1",
+      [id, req.user.shop_id]
+    );
+
     const [result] = await db.promise().query(
       "DELETE FROM suppliers WHERE id = ? AND shop_id = ?",
       [id, req.user.shop_id]
@@ -121,6 +141,13 @@ exports.deleteSupplier = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Supplier not found" });
     }
+
+    await createAuditLogFromRequest(req, {
+      action: "supplier_delete",
+      entity_type: "supplier",
+      entity_id: Number(id),
+      description: `Deleted supplier ${suppliers[0]?.supplier_name || id}`,
+    });
 
     return res.json({ message: "Supplier deleted successfully" });
   } catch (error) {

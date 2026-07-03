@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const db = require("../config/db");
+const { createAuditLog } = require("../utils/auditLog");
 
 const signToken = (user) => {
   if (!process.env.JWT_SECRET) {
@@ -176,6 +177,18 @@ exports.login = async (req, res) => {
     };
 
     const token = signToken(tokenUser);
+
+    await createAuditLog({
+      shop_id: tokenUser.shop_id,
+      user_id: tokenUser.id,
+      user_name: tokenUser.name,
+      user_role: tokenUser.role,
+      action: "user_login",
+      entity_type: "user",
+      entity_id: tokenUser.id,
+      description: `${tokenUser.name} logged in`,
+      ip_address: req.ip,
+    });
 
     return res.json({
       message: "Login successful",

@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
 
 let returnTablesReady = false;
 
@@ -367,6 +368,13 @@ exports.createReturn = async (req, res) => {
     const createdReturn = await getReturnDetails(connection, shopId, returnId);
 
     await connection.commit();
+
+    await createAuditLogFromRequest(req, {
+      action: "sale_return",
+      entity_type: "return",
+      entity_id: returnId,
+      description: `Processed return for ${sale.invoice_no || `sale ${sale.id}`} with refund ${refundAmount}`,
+    });
 
     return res.status(201).json({
       message: "Return processed successfully",

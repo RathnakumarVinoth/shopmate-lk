@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
 const { ensureShopSettingsColumns } = require("../utils/shopSchema");
 
 const isMissing = (value) =>
@@ -129,6 +130,13 @@ exports.updateSettings = async (req, res) => {
     }
 
     const settings = await getShopSettings(req.user.shop_id);
+
+    await createAuditLogFromRequest(req, {
+      action: "settings_update",
+      entity_type: "settings",
+      entity_id: req.user.shop_id,
+      description: `Updated shop settings for ${settings.shop_name}`,
+    });
 
     return res.json({
       message: "Settings updated successfully",

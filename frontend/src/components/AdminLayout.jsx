@@ -29,6 +29,12 @@ function AdminLayout() {
           <NavLink to="/admin/shops" className={({ isActive }) => (isActive ? 'active' : '')}>
             Shops
           </NavLink>
+          <NavLink
+            to="/admin/audit-logs"
+            className={({ isActive }) => (isActive ? 'active' : '')}
+          >
+            Audit Logs
+          </NavLink>
         </nav>
 
         <button type="button" className="ghost-button sidebar-logout" onClick={logout}>

@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
 
 const isMissing = (value) => value === undefined || value === null || value === "";
 
@@ -53,6 +54,13 @@ exports.addExpense = async (req, res) => {
         note || null,
       ]
     );
+
+    await createAuditLogFromRequest(req, {
+      action: "expense_add",
+      entity_type: "expense",
+      entity_id: result.insertId,
+      description: `Added expense ${expense_name} for ${Number(amount)}`,
+    });
 
     return res.status(201).json({
       message: "Expense added successfully",
@@ -114,6 +122,13 @@ exports.updateExpense = async (req, res) => {
       return res.status(404).json({ message: "Expense not found" });
     }
 
+    await createAuditLogFromRequest(req, {
+      action: "expense_update",
+      entity_type: "expense",
+      entity_id: Number(id),
+      description: `Updated expense ${expense_name}`,
+    });
+
     return res.json({ message: "Expense updated successfully" });
   } catch (error) {
     console.error("Update expense error:", error.message);
@@ -129,6 +144,11 @@ exports.deleteExpense = async (req, res) => {
   }
 
   try {
+    const [expenses] = await db.promise().query(
+      "SELECT expense_name FROM expenses WHERE id = ? AND shop_id = ? LIMIT 1",
+      [id, req.user.shop_id]
+    );
+
     const [result] = await db.promise().query(
       "DELETE FROM expenses WHERE id = ? AND shop_id = ?",
       [id, req.user.shop_id]
@@ -137,6 +157,13 @@ exports.deleteExpense = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Expense not found" });
     }
+
+    await createAuditLogFromRequest(req, {
+      action: "expense_delete",
+      entity_type: "expense",
+      entity_id: Number(id),
+      description: `Deleted expense ${expenses[0]?.expense_name || id}`,
+    });
 
     return res.json({ message: "Expense deleted successfully" });
   } catch (error) {

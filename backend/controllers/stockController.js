@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
 
 const isPositiveInteger = (value) =>
   Number.isInteger(Number(value)) && Number(value) > 0;
@@ -167,6 +168,13 @@ exports.restockProduct = async (req, res) => {
     }
 
     await connection.commit();
+
+    await createAuditLogFromRequest(req, {
+      action: "stock_restock",
+      entity_type: "product",
+      entity_id: Number(product_id),
+      description: `Restocked ${product.product_name} by ${restockQuantity}; stock ${previousStock} to ${newStock}`,
+    });
 
     return res.status(201).json({
       message: "Product restocked successfully",

@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
 
 const normalizeOptionalText = (value) => {
   if (value === undefined || value === null || String(value).trim() === "") {
@@ -176,6 +177,13 @@ exports.addProduct = async (req, res) => {
       ]
     );
 
+    await createAuditLogFromRequest(req, {
+      action: "product_add",
+      entity_type: "product",
+      entity_id: result.insertId,
+      description: `Added product ${normalizedProductName}`,
+    });
+
     return res.status(201).json({
       message: "Product added successfully",
       product_id: result.insertId,
@@ -332,6 +340,13 @@ exports.updateProduct = async (req, res) => {
       return res.status(404).json({ message: "Product not found" });
     }
 
+    await createAuditLogFromRequest(req, {
+      action: "product_update",
+      entity_type: "product",
+      entity_id: Number(productId),
+      description: `Updated product ${normalizedProductName}`,
+    });
+
     return res.json({ message: "Product updated successfully" });
   } catch (error) {
     console.error("Update product error:", error.message);
@@ -350,6 +365,11 @@ exports.deleteProduct = async (req, res) => {
   }
 
   try {
+    const [products] = await db.promise().query(
+      "SELECT product_name FROM products WHERE id = ? AND shop_id = ? LIMIT 1",
+      [productId, req.user.shop_id]
+    );
+
     const [result] = await db.promise().query(
       "DELETE FROM products WHERE id = ? AND shop_id = ?",
       [productId, req.user.shop_id]
@@ -358,6 +378,13 @@ exports.deleteProduct = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Product not found" });
     }
+
+    await createAuditLogFromRequest(req, {
+      action: "product_delete",
+      entity_type: "product",
+      entity_id: Number(productId),
+      description: `Deleted product ${products[0]?.product_name || productId}`,
+    });
 
     return res.json({ message: "Product deleted successfully" });
   } catch (error) {

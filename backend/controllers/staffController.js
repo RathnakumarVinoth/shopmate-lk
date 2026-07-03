@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 
 const db = require("../config/db");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
 
 const isMissing = (value) => value === undefined || value === null || value === "";
 
@@ -51,6 +52,13 @@ exports.addStaff = async (req, res) => {
        LIMIT 1`,
       [result.insertId, req.user.shop_id]
     );
+
+    await createAuditLogFromRequest(req, {
+      action: "staff_add",
+      entity_type: "user",
+      entity_id: result.insertId,
+      description: `Added staff account ${name}`,
+    });
 
     return res.status(201).json({
       message: "Staff account added successfully",
@@ -113,6 +121,16 @@ exports.updateStaff = async (req, res) => {
       return res.status(404).json({ message: "Staff account not found" });
     }
 
+    await createAuditLogFromRequest(req, {
+      action: activeValue === 0 ? "staff_disable" : "staff_update",
+      entity_type: "user",
+      entity_id: Number(id),
+      description:
+        activeValue === 0
+          ? `Disabled staff account ${name}`
+          : `Updated staff account ${name}`,
+    });
+
     return res.json({ message: "Staff account updated successfully" });
   } catch (error) {
     console.error("Update staff error:", error.message);
@@ -133,6 +151,11 @@ exports.deleteStaff = async (req, res) => {
   }
 
   try {
+    const [staffRows] = await db.promise().query(
+      "SELECT name FROM users WHERE id = ? AND shop_id = ? AND role = 'staff' LIMIT 1",
+      [id, req.user.shop_id]
+    );
+
     const [result] = await db.promise().query(
       "DELETE FROM users WHERE id = ? AND shop_id = ? AND role = 'staff'",
       [id, req.user.shop_id]
@@ -141,6 +164,13 @@ exports.deleteStaff = async (req, res) => {
     if (result.affectedRows === 0) {
       return res.status(404).json({ message: "Staff account not found" });
     }
+
+    await createAuditLogFromRequest(req, {
+      action: "staff_disable",
+      entity_type: "user",
+      entity_id: Number(id),
+      description: `Removed staff account ${staffRows[0]?.name || id}`,
+    });
 
     return res.json({ message: "Staff account deleted successfully" });
   } catch (error) {

@@ -4,6 +4,7 @@ const {
   ensureSalesPaymentColumns,
 } = require("../utils/paymentSchema");
 const { ensureShopSettingsColumns } = require("../utils/shopSchema");
+const { createAuditLogFromRequest } = require("../utils/auditLog");
 
 const allowedPaymentTypes = ["cash", "card", "bank_transfer", "qr", "credit"];
 const paidRequiredTypes = ["cash", "card", "bank_transfer", "qr"];
@@ -451,6 +452,13 @@ exports.createSale = async (req, res) => {
       shop: shops[0],
       customer: customer || sales[0],
       items: saleItems,
+    });
+
+    await createAuditLogFromRequest(req, {
+      action: "sale_create",
+      entity_type: "sale",
+      entity_id: saleId,
+      description: `Created sale ${receipt.invoice_no} for ${receipt.final_total}`,
     });
 
     return res.status(201).json({
