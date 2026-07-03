@@ -11,7 +11,7 @@ const productSelect = `
   products.product_code,
   products.barcode,
   products.category_id,
-  COALESCE(product_categories.name, products.category) AS category,
+  COALESCE(categories.name, products.category) AS category,
   products.unit,
   products.buying_price,
   COALESCE(products.wholesale_price, products.buying_price) AS wholesale_price,
@@ -202,7 +202,7 @@ exports.getCategories = async (req, res) => {
     const [categories] = await db.promise().query(
       `SELECT id, shop_id, name, description, is_active, created_at
        FROM product_categories
-       WHERE products.shop_id = ?
+       WHERE shop_id = ?
        ORDER BY is_active DESC, name ASC`,
       [req.user.shop_id]
     );
@@ -458,7 +458,7 @@ exports.getProducts = async (req, res) => {
     const [products] = await db.promise().query(
       `SELECT ${productSelect}
        FROM products
-       LEFT JOIN product_categories ON product_categories.id = products.category_id
+       LEFT JOIN product_categories AS categories ON categories.id = products.category_id
        WHERE products.shop_id = ?
        ORDER BY products.id DESC`,
       [req.user.shop_id]
@@ -488,13 +488,13 @@ exports.getProductByCode = async (req, res) => {
     const [products] = await db.promise().query(
       `SELECT ${productSelect}
        FROM products
-       LEFT JOIN product_categories ON product_categories.id = products.category_id
-       WHERE shop_id = ?
+       LEFT JOIN product_categories AS categories ON categories.id = products.category_id
+       WHERE products.shop_id = ?
          AND (
-           product_code = ?
-           OR barcode = ?
-           OR LOWER(product_code) = ?
-           OR LOWER(barcode) = ?
+           products.product_code = ?
+           OR products.barcode = ?
+           OR LOWER(products.product_code) = ?
+           OR LOWER(products.barcode) = ?
          )
        LIMIT 1`,
       [req.user.shop_id, code, code, normalizedCode, normalizedCode]
@@ -521,7 +521,7 @@ exports.getLowStockProducts = async (req, res) => {
     const [products] = await db.promise().query(
       `SELECT ${productSelect}
        FROM products
-       LEFT JOIN product_categories ON product_categories.id = products.category_id
+       LEFT JOIN product_categories AS categories ON categories.id = products.category_id
        WHERE products.shop_id = ? AND stock_quantity <= low_stock_limit
        ORDER BY stock_quantity ASC`,
       [req.user.shop_id]

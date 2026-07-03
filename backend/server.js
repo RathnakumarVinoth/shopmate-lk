@@ -9,6 +9,7 @@ require("./config/db");
 const authRoutes = require("./routes/authRoutes");
 const auditLogRoutes = require("./routes/auditLogRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const categoryRoutes = require("./routes/categoryRoutes");
 const creditRoutes = require("./routes/creditRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
@@ -88,6 +89,7 @@ app.get("/api/health", (req, res) => {
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/audit-logs", auditLogRoutes);
+app.use("/api/categories", categoryRoutes);
 app.use("/api/credits", creditRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/expenses", expenseRoutes);

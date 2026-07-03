@@ -75,18 +75,23 @@ function Products() {
   const loadProducts = async () => {
     setLoading(true)
     setError('')
+    setCategoryError('')
 
     try {
-      const [productsResponse, categoriesResponse] = await Promise.all([
-        api.get('/products'),
-        api.get('/products/categories'),
-      ])
+      const productsResponse = await api.get('/products')
       setProducts(getProductsFromResponse(productsResponse.data))
-      setCategories(categoriesResponse.data.categories || [])
     } catch (err) {
       setError(getApiMessage(err, 'Failed to load products'))
     } finally {
       setLoading(false)
+    }
+
+    try {
+      const categoriesResponse = await api.get('/categories')
+      setCategories(categoriesResponse.data.categories || [])
+    } catch (err) {
+      setCategories([])
+      setCategoryError(getApiMessage(err, 'Failed to get categories'))
     }
   }
 
@@ -176,10 +181,10 @@ function Products() {
 
     try {
       if (editingCategoryId) {
-        await api.put(`/products/categories/${editingCategoryId}`, payload)
+        await api.put(`/categories/${editingCategoryId}`, payload)
         setCategoryMessage('Category updated successfully')
       } else {
-        await api.post('/products/categories', payload)
+        await api.post('/categories', payload)
         setCategoryMessage('Category added successfully')
       }
 
@@ -214,7 +219,7 @@ function Products() {
     setDeletingCategoryId(category.id)
 
     try {
-      await api.delete(`/products/categories/${category.id}`)
+      await api.delete(`/categories/${category.id}`)
       setCategoryMessage('Category deleted successfully')
       if (editingCategoryId === category.id) resetCategoryForm()
       await loadProducts()
