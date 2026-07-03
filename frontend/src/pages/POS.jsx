@@ -954,6 +954,11 @@ function POS() {
       return
     }
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setError(t('You are offline. Sales cannot be submitted until internet is back.'))
+      return
+    }
+
     setSavingSale(true)
 
     try {

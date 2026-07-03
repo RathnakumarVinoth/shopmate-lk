@@ -759,6 +759,7 @@ const extraEn = {
   'Activate': 'Activate',
   'Add by Code': 'Add by Code',
   'Add New Customer': 'Add New Customer',
+  'Add ShopMate LK to your home screen for faster access.': 'Add ShopMate LK to your home screen for faster access.',
   'Adding...': 'Adding...',
   'Adding credit...': 'Adding credit...',
   'Adding customer...': 'Adding customer...',
@@ -818,6 +819,7 @@ const extraEn = {
   'Increase quantity': 'Increase quantity',
   'IP Address': 'IP Address',
   'Inactive': 'Inactive',
+  'Install App': 'Install App',
   'Item Discounts': 'Item Discounts',
   'items': 'items',
   'Last Restock Summary': 'Last Restock Summary',
@@ -846,6 +848,7 @@ const extraEn = {
   'New shop?': 'New shop?',
   'New stock will be': 'New stock will be',
   'No': 'No',
+  'Not now': 'Not now',
   'No audit logs found.': 'No audit logs found.',
   'No category totals yet.': 'No category totals yet.',
   'No credit records found.': 'No credit records found.',
@@ -930,6 +933,8 @@ const extraEn = {
   'View History': 'View History',
   'Walk-in customer': 'Walk-in customer',
   'Yes': 'Yes',
+  'You are offline. Sales cannot be submitted until internet is back.': 'You are offline. Sales cannot be submitted until internet is back.',
+  'You are offline. Some features may not work.': 'You are offline. Some features may not work.',
 }
 
 const extraSi = {

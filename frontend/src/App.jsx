@@ -3,7 +3,9 @@ import './App.css'
 
 import AdminLayout from './components/AdminLayout.jsx'
 import Layout from './components/Layout.jsx'
+import OfflineNotice from './components/OfflineNotice.jsx'
 import ProtectedRoute from './components/ProtectedRoute.jsx'
+import PwaInstallPrompt from './components/PwaInstallPrompt.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
 import AdminShopDetails from './pages/AdminShopDetails.jsx'
@@ -35,6 +37,8 @@ function App() {
 
   return (
     <BrowserRouter>
+      <OfflineNotice />
+      <PwaInstallPrompt />
       <Routes>
         <Route
           path="/"
