@@ -25,11 +25,12 @@ import Settings from './pages/Settings.jsx'
 import Staff from './pages/Staff.jsx'
 import Stock from './pages/Stock.jsx'
 import Suppliers from './pages/Suppliers.jsx'
+import { getHomePath } from './utils/permissions.js'
 
 function App() {
   const hasToken = Boolean(localStorage.getItem('token'))
   const user = JSON.parse(localStorage.getItem('user') || '{}')
-  const homePath = user.role === 'admin' ? '/admin/dashboard' : '/dashboard'
+  const homePath = getHomePath(user)
 
   return (
     <BrowserRouter>
@@ -48,13 +49,34 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/pos" element={<POS />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute permission="dashboard_view">
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/products"
+            element={
+              <ProtectedRoute permission="products_view">
+                <Products />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pos"
+            element={
+              <ProtectedRoute permission="pos_access">
+                <POS />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/payment-verification"
             element={
-              <ProtectedRoute roles={['owner', 'staff']}>
+              <ProtectedRoute permission="payment_verification_access">
                 <PaymentVerification />
               </ProtectedRoute>
             }
@@ -62,7 +84,7 @@ function App() {
           <Route
             path="/credits"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="credit_book_access">
                 <CreditBook />
               </ProtectedRoute>
             }
@@ -70,7 +92,7 @@ function App() {
           <Route
             path="/credit-book"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="credit_book_access">
                 <CreditBook />
               </ProtectedRoute>
             }
@@ -78,7 +100,7 @@ function App() {
           <Route
             path="/suppliers"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="suppliers_access">
                 <Suppliers />
               </ProtectedRoute>
             }
@@ -86,7 +108,7 @@ function App() {
           <Route
             path="/stock"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="stock_access">
                 <Stock />
               </ProtectedRoute>
             }
@@ -94,7 +116,7 @@ function App() {
           <Route
             path="/purchase-suggestions"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="purchase_suggestions_access">
                 <PurchaseSuggestions />
               </ProtectedRoute>
             }
@@ -102,7 +124,7 @@ function App() {
           <Route
             path="/expenses"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="expenses_access">
                 <Expenses />
               </ProtectedRoute>
             }
@@ -110,7 +132,7 @@ function App() {
           <Route
             path="/staff"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="staff_manage">
                 <Staff />
               </ProtectedRoute>
             }
@@ -118,7 +140,7 @@ function App() {
           <Route
             path="/returns"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="returns_access">
                 <Returns />
               </ProtectedRoute>
             }
@@ -126,7 +148,7 @@ function App() {
           <Route
             path="/reports"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="reports_access">
                 <Reports />
               </ProtectedRoute>
             }
@@ -134,7 +156,7 @@ function App() {
           <Route
             path="/audit-logs"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="audit_logs_access">
                 <AuditLogs />
               </ProtectedRoute>
             }
@@ -142,7 +164,7 @@ function App() {
           <Route
             path="/backup-export"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="backup_export_access">
                 <BackupExport />
               </ProtectedRoute>
             }
@@ -150,7 +172,7 @@ function App() {
           <Route
             path="/settings"
             element={
-              <ProtectedRoute roles={['owner']}>
+              <ProtectedRoute permission="settings_access">
                 <Settings />
               </ProtectedRoute>
             }

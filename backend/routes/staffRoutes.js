@@ -8,10 +8,11 @@ const {
 } = require("../controllers/staffController");
 const authMiddleware = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
+const { requirePermission } = require("../middleware/permissionMiddleware");
 
 const router = express.Router();
 
-router.use(authMiddleware, allowRoles("owner"));
+router.use(authMiddleware, allowRoles("owner", "staff"), requirePermission("staff_manage"));
 
 router.post("/", addStaff);
 router.get("/", getStaff);

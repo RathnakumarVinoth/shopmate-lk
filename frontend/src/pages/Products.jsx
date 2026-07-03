@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../services/api'
 import { formatMoney, getApiMessage, getShopSettings } from '../utils/formatters'
+import { hasPermission } from '../utils/permissions'
 
 const initialForm = {
   product_name: '',
@@ -36,7 +37,7 @@ const optionalText = (value) => {
 
 function Products() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
-  const isOwner = user.role === 'owner'
+  const canManageProducts = hasPermission(user, 'products_manage')
   const shopSettings = getShopSettings()
   const defaultLowStockLimit = Number(shopSettings.default_low_stock_limit ?? 5)
   const [products, setProducts] = useState([])
@@ -139,8 +140,8 @@ function Products() {
   }
 
   return (
-    <section className={isOwner ? 'page-grid' : 'page-stack'}>
-      {isOwner && (
+    <section className={canManageProducts ? 'page-grid' : 'page-stack'}>
+      {canManageProducts && (
         <section className="panel">
           <div className="section-heading">
             <h2>{editingId ? 'Edit Product' : 'Add Product'}</h2>
@@ -232,8 +233,8 @@ function Products() {
           <div className="loading-panel">Loading products...</div>
         ) : (
           <div className="table-wrap">
-            {!isOwner && error && <div className="alert">{error}</div>}
-            {!isOwner && message && <div className="success">{message}</div>}
+            {!canManageProducts && error && <div className="alert">{error}</div>}
+            {!canManageProducts && message && <div className="success">{message}</div>}
             <table>
               <thead>
                 <tr>
@@ -245,7 +246,7 @@ function Products() {
                   <th>Sell</th>
                   <th>Stock</th>
                   <th>Low Limit</th>
-                  {isOwner && <th>Action</th>}
+                  {canManageProducts && <th>Action</th>}
                 </tr>
               </thead>
               <tbody>
@@ -266,7 +267,7 @@ function Products() {
                       <td>{formatMoney(product.selling_price)}</td>
                       <td>{product.stock_quantity}</td>
                       <td>{product.low_stock_limit}</td>
-                      {isOwner && (
+                      {canManageProducts && (
                         <td>
                           <div className="table-actions">
                             <button type="button" className="ghost-button" onClick={() => startEdit(product)}>
@@ -288,7 +289,7 @@ function Products() {
                 })}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan={isOwner ? 9 : 8} className="empty-cell">
+                    <td colSpan={canManageProducts ? 9 : 8} className="empty-cell">
                       No products found.
                     </td>
                   </tr>

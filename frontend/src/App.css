@@ -354,6 +354,26 @@
   grid-column: 1 / -1;
 }
 
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #405168;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.checkbox-row input {
+  width: 16px;
+  min-height: 16px;
+}
+
 label {
   display: grid;
   gap: 6px;
@@ -1200,6 +1220,7 @@ th {
 
   .sidebar-nav,
   .form-grid,
+  .permission-grid,
   .report-filter,
   .metric-grid,
   .alert-summary-grid {

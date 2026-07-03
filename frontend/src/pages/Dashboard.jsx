@@ -81,7 +81,7 @@ function Dashboard() {
     return map
   }, {})
   const visibleAlertCards =
-    user.role === 'staff'
+    user.role !== 'owner'
       ? alertCards.filter((card) => ['low_stock', 'pending_payments'].includes(card.type))
       : alertCards
 

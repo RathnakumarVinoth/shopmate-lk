@@ -3,6 +3,11 @@ const jwt = require("jsonwebtoken");
 
 const db = require("../config/db");
 const { createAuditLog } = require("../utils/auditLog");
+const {
+  ensureUserPermissionColumns,
+  getEffectivePermissions,
+  serializePermissions,
+} = require("../utils/permissions");
 
 const signToken = (user) => {
   if (!process.env.JWT_SECRET) {
@@ -15,6 +20,7 @@ const signToken = (user) => {
       email: user.email,
       role: user.role,
       shop_id: user.shop_id,
+      permissions: user.permissions || [],
     },
     process.env.JWT_SECRET,
     { expiresIn: "1d" }
@@ -34,6 +40,8 @@ exports.register = async (req, res) => {
   const connection = db.promise();
 
   try {
+    await ensureUserPermissionColumns();
+
     const [existingUsers] = await connection.query(
       "SELECT id FROM users WHERE email = ? LIMIT 1",
       [email]
@@ -48,8 +56,8 @@ exports.register = async (req, res) => {
     await connection.beginTransaction();
 
     const [userResult] = await connection.query(
-      "INSERT INTO users (name, email, password, role, is_active) VALUES (?, ?, ?, ?, 1)",
-      [name, email, hashedPassword, "owner"]
+      "INSERT INTO users (name, email, password, role, permissions, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+      [name, email, hashedPassword, "owner", serializePermissions([])]
     );
 
     const ownerId = userResult.insertId;
@@ -73,6 +81,7 @@ exports.register = async (req, res) => {
       role: "owner",
       shop_id: shopResult.insertId,
     };
+    user.permissions = getEffectivePermissions(user);
 
     const token = signToken(user);
 
@@ -106,8 +115,11 @@ exports.login = async (req, res) => {
   }
 
   try {
+    await ensureUserPermissionColumns();
+
     const [users] = await db.promise().query(
       `SELECT users.id, users.name, users.email, users.password, users.role,
+              users.permissions,
               users.is_active, COALESCE(users.shop_id, shops.id) AS shop_id,
               shops.is_enabled, shops.subscription_status,
               shops.subscription_expiry_date
@@ -174,6 +186,7 @@ exports.login = async (req, res) => {
       email: user.email,
       role: user.role,
       shop_id: user.role === "admin" ? null : user.shop_id,
+      permissions: getEffectivePermissions(user),
     };
 
     const token = signToken(tokenUser);

@@ -9,10 +9,11 @@ const {
 } = require("../controllers/reportController");
 const authMiddleware = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
+const { requirePermission } = require("../middleware/permissionMiddleware");
 
 const router = express.Router();
 
-router.use(authMiddleware, allowRoles("owner"));
+router.use(authMiddleware, allowRoles("owner", "staff"), requirePermission("reports_access"));
 
 router.get("/summary", getSummary);
 router.get("/daily-sales", getDailySales);

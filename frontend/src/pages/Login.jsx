@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
+import { getHomePath } from '../utils/permissions'
 
 function Login() {
   const navigate = useNavigate()
@@ -20,9 +21,10 @@ function Login() {
 
     try {
       const response = await api.post('/auth/login', form)
+      const user = response.data.user || {}
       localStorage.setItem('token', response.data.token)
-      localStorage.setItem('user', JSON.stringify(response.data.user || {}))
-      navigate('/dashboard')
+      localStorage.setItem('user', JSON.stringify(user))
+      navigate(getHomePath(user))
     } catch (err) {
       setError(getApiMessage(err, 'Login failed'))
     } finally {

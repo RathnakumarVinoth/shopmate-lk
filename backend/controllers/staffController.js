@@ -2,6 +2,13 @@ const bcrypt = require("bcryptjs");
 
 const db = require("../config/db");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
+const {
+  ensureUserPermissionColumns,
+  getRolePermissions,
+  normalizePermissions,
+  serializePermissions,
+  staffRoles,
+} = require("../utils/permissions");
 
 const isMissing = (value) => value === undefined || value === null || value === "";
 
@@ -13,6 +20,7 @@ const formatStaff = (staff) => ({
   name: staff.name,
   email: staff.email,
   role: staff.role,
+  permissions: normalizePermissions(staff.permissions),
   shop_id: staff.shop_id,
   is_active: Boolean(staff.is_active),
   created_at: staff.created_at,
@@ -20,6 +28,11 @@ const formatStaff = (staff) => ({
 
 exports.addStaff = async (req, res) => {
   const { name, email, password } = req.body;
+  const role = staffRoles.includes(req.body.role) ? req.body.role : "staff";
+  const permissions =
+    req.body.permissions === undefined
+      ? getRolePermissions(role)
+      : normalizePermissions(req.body.permissions);
 
   if (!name || !email || !password) {
     return res
@@ -28,6 +41,8 @@ exports.addStaff = async (req, res) => {
   }
 
   try {
+    await ensureUserPermissionColumns();
+
     const [existingUsers] = await db.promise().query(
       "SELECT id FROM users WHERE email = ? LIMIT 1",
       [email]
@@ -40,24 +55,24 @@ exports.addStaff = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const [result] = await db.promise().query(
-      `INSERT INTO users (name, email, password, role, shop_id, is_active)
-       VALUES (?, ?, ?, 'staff', ?, 1)`,
-      [name, email, hashedPassword, req.user.shop_id]
+      `INSERT INTO users (name, email, password, role, permissions, shop_id, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      [name, email, hashedPassword, role, serializePermissions(permissions), req.user.shop_id]
     );
 
     const [staffRows] = await db.promise().query(
-      `SELECT id, name, email, role, shop_id, is_active, created_at
+      `SELECT id, name, email, role, permissions, shop_id, is_active, created_at
        FROM users
-       WHERE id = ? AND shop_id = ? AND role = 'staff'
+       WHERE id = ? AND shop_id = ? AND role IN (?)
        LIMIT 1`,
-      [result.insertId, req.user.shop_id]
+      [result.insertId, req.user.shop_id, staffRoles]
     );
 
     await createAuditLogFromRequest(req, {
       action: "staff_add",
       entity_type: "user",
       entity_id: result.insertId,
-      description: `Added staff account ${name}`,
+      description: `Added ${role} account ${name}`,
     });
 
     return res.status(201).json({
@@ -77,12 +92,14 @@ exports.addStaff = async (req, res) => {
 
 exports.getStaff = async (req, res) => {
   try {
+    await ensureUserPermissionColumns();
+
     const [staffRows] = await db.promise().query(
-      `SELECT id, name, email, role, shop_id, is_active, created_at
+      `SELECT id, name, email, role, permissions, shop_id, is_active, created_at
        FROM users
-       WHERE shop_id = ? AND role = 'staff'
+       WHERE shop_id = ? AND role IN (?)
        ORDER BY id DESC`,
-      [req.user.shop_id]
+      [req.user.shop_id, staffRoles]
     );
 
     return res.json({
@@ -98,6 +115,11 @@ exports.getStaff = async (req, res) => {
 exports.updateStaff = async (req, res) => {
   const { id } = req.params;
   const { name, email, is_active } = req.body;
+  const role = staffRoles.includes(req.body.role) ? req.body.role : "staff";
+  const permissions =
+    req.body.permissions === undefined
+      ? getRolePermissions(role)
+      : normalizePermissions(req.body.permissions);
 
   if (!isPositiveInteger(id)) {
     return res.status(400).json({ message: "Valid staff id is required" });
@@ -110,11 +132,22 @@ exports.updateStaff = async (req, res) => {
   const activeValue = is_active === undefined ? 1 : is_active ? 1 : 0;
 
   try {
+    await ensureUserPermissionColumns();
+
     const [result] = await db.promise().query(
       `UPDATE users
-       SET name = ?, email = ?, is_active = ?
-       WHERE id = ? AND shop_id = ? AND role = 'staff'`,
-      [name, email, activeValue, id, req.user.shop_id]
+       SET name = ?, email = ?, role = ?, permissions = ?, is_active = ?
+       WHERE id = ? AND shop_id = ? AND role IN (?)`,
+      [
+        name,
+        email,
+        role,
+        serializePermissions(permissions),
+        activeValue,
+        id,
+        req.user.shop_id,
+        staffRoles,
+      ]
     );
 
     if (result.affectedRows === 0) {
@@ -128,7 +161,7 @@ exports.updateStaff = async (req, res) => {
       description:
         activeValue === 0
           ? `Disabled staff account ${name}`
-          : `Updated staff account ${name}`,
+          : `Updated ${role} account ${name}`,
     });
 
     return res.json({ message: "Staff account updated successfully" });
@@ -151,14 +184,16 @@ exports.deleteStaff = async (req, res) => {
   }
 
   try {
+    await ensureUserPermissionColumns();
+
     const [staffRows] = await db.promise().query(
-      "SELECT name FROM users WHERE id = ? AND shop_id = ? AND role = 'staff' LIMIT 1",
-      [id, req.user.shop_id]
+      "SELECT name FROM users WHERE id = ? AND shop_id = ? AND role IN (?) LIMIT 1",
+      [id, req.user.shop_id, staffRoles]
     );
 
     const [result] = await db.promise().query(
-      "DELETE FROM users WHERE id = ? AND shop_id = ? AND role = 'staff'",
-      [id, req.user.shop_id]
+      "DELETE FROM users WHERE id = ? AND shop_id = ? AND role IN (?)",
+      [id, req.user.shop_id, staffRoles]
     );
 
     if (result.affectedRows === 0) {

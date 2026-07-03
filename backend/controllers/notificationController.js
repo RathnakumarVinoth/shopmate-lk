@@ -117,7 +117,7 @@ exports.getNotifications = async (req, res) => {
       );
     }
 
-    if (userRole === "staff") {
+    if (userRole !== "owner") {
       return res.json({ message: "Notifications fetched successfully", notifications });
     }
 
