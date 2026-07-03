@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import LanguageSelector from '../components/LanguageSelector.jsx'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
@@ -19,6 +20,8 @@ function Register() {
   const [form, setForm] = useState(initialForm)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [, setLanguageVersion] = useState(0)
 
   const updateField = (event) => {
     setForm({ ...form, [event.target.name]: event.target.value })
@@ -50,6 +53,9 @@ function Register() {
   return (
     <main className="auth-page">
       <section className="auth-panel wide-auth">
+        <div className="auth-language">
+          <LanguageSelector onLanguageChange={() => setLanguageVersion((version) => version + 1)} />
+        </div>
         <p className="eyebrow">ShopMate LK</p>
         <h1>{t('Register')}</h1>
         <form onSubmit={submit} className="form-grid">
@@ -64,13 +70,23 @@ function Register() {
           </label>
           <label>
             {t('Password')}
-            <input
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={updateField}
-              required
-            />
+            <span className="password-field">
+              <input
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={updateField}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={t(showPassword ? 'Hide password' : 'Show password')}
+              >
+                {t(showPassword ? 'Hide' : 'Show')}
+              </button>
+            </span>
           </label>
           <label>
             {t('Shop Name')}

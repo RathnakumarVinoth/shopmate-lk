@@ -142,7 +142,7 @@ function Staff() {
     setError('')
     setMessage('')
     setSaving(true)
-    const { password, ...payload } = staffToForm(staffMember)
+    const { password: _password, ...payload } = staffToForm(staffMember)
 
     try {
       await api.put(`/staff/${staffMember.id}`, {

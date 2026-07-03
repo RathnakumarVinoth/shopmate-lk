@@ -1,5 +1,0 @@
-2026/07/03-21:30:36.066 cbf8 Creating DB C:\Users\pubud\shopmate-lk\.qa-edge-profile\Default\EdgeCoupons/coupons_data.db since it was missing.
-2026/07/03-21:30:36.108 cbf8 Reusing MANIFEST C:\Users\pubud\shopmate-lk\.qa-edge-profile\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
-2026/07/03-21:30:36.334 11714 Level-0 table #5: started
-2026/07/03-21:30:36.340 11714 Level-0 table #5: 682901 bytes OK
-2026/07/03-21:30:36.344 11714 Delete type=0 #3

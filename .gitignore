@@ -9,3 +9,11 @@ backend/node_modules/
 frontend/node_modules/
 backend/dist/
 frontend/dist/
+
+# Local visual QA artifacts
+.qa-edge-profile/
+dashboard-desktop.png
+login-desktop.png
+login-mobile.png
+pos-desktop.png
+pos-mobile.png

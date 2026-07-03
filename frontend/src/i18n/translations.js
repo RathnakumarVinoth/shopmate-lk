@@ -755,6 +755,9 @@ const legacyKeys = Object.entries(en).reduce((aliases, [key, value]) => {
 }, {})
 
 const extraEn = {
+  'Administration overview': 'Administration overview',
+  'Monitor active shops, subscription health, and monthly revenue.': 'Monitor active shops, subscription health, and monthly revenue.',
+  'Subscription portfolio': 'Subscription portfolio',
   'Add your first product to start selling.': 'Add your first product to start selling.',
   'All payments are clear.': 'All payments are clear.',
   'Business activity will appear here.': 'Business activity will appear here.',
@@ -951,6 +954,9 @@ const extraEn = {
 }
 
 const extraSi = {
+  'Administration overview': 'පරිපාලන දළ විශ්ලේෂණය',
+  'Monitor active shops, subscription health, and monthly revenue.': 'සක්‍රිය වෙළඳසැල්, දායකත්ව තත්ත්වය සහ මාසික ආදායම නිරීක්ෂණය කරන්න.',
+  'Subscription portfolio': 'දායකත්ව එකතුව',
   'Add your first product to start selling.': 'විකිණීම ආරම්භ කිරීමට ඔබේ පළමු නිෂ්පාදනය එක් කරන්න.',
   'All payments are clear.': 'සියලු ගෙවීම් පැහැදිලියි.',
   'Business activity will appear here.': 'ව්‍යාපාර ක්‍රියාකාරකම් මෙහි දිස්වනු ඇත.',
@@ -1063,6 +1069,9 @@ const extraSi = {
 }
 
 const extraTa = {
+  'Administration overview': 'நிர்வாக கண்ணோட்டம்',
+  'Monitor active shops, subscription health, and monthly revenue.': 'செயலில் உள்ள கடைகள், சந்தா நிலை மற்றும் மாத வருவாயைக் கண்காணிக்கவும்.',
+  'Subscription portfolio': 'சந்தா தொகுப்பு',
   'Add your first product to start selling.': 'விற்பனையைத் தொடங்க உங்கள் முதல் பொருளைச் சேர்க்கவும்.',
   'All payments are clear.': 'அனைத்து கட்டணங்களும் சரியாக உள்ளன.',
   'Business activity will appear here.': 'வணிக நடவடிக்கைகள் இங்கே தோன்றும்.',
