@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 import { permissions, rolePermissions, staffRoleOptions } from '../utils/permissions'
@@ -180,7 +181,7 @@ function Staff() {
     <section className="page-grid">
       <section className="panel">
         <div className="section-heading">
-          <h2>{editing ? 'Edit Staff' : 'Add Staff'}</h2>
+          <h2>{editing ? `${t('edit')} ${t('staff')}` : `${t('add')} ${t('staff')}`}</h2>
         </div>
         <form onSubmit={saveStaff} className="form-stack">
           {error && <div className="alert">{error}</div>}
@@ -252,7 +253,7 @@ function Staff() {
           </div>
           <div className="settings-actions">
             <button type="submit" disabled={saving}>
-              {saving ? 'Saving...' : editing ? 'Save Staff' : 'Add Staff'}
+              {saving ? t('saving') : editing ? `${t('save')} ${t('staff')}` : `${t('add')} ${t('staff')}`}
             </button>
             {editing && (
               <button type="button" className="ghost-button" onClick={resetForm} disabled={saving}>
@@ -265,9 +266,9 @@ function Staff() {
 
       <section className="panel wide-panel">
         <div className="section-heading">
-          <h2>Staff Accounts</h2>
+          <h2>{t('staff')} Accounts</h2>
           <button type="button" className="ghost-button" onClick={loadStaff} disabled={loading}>
-            {loading ? 'Refreshing...' : 'Refresh'}
+            {loading ? t('refreshing') : t('refresh')}
           </button>
         </div>
         {loading ? (
@@ -300,7 +301,7 @@ function Staff() {
                     <td>
                       <div className="table-actions">
                         <button type="button" className="ghost-button" onClick={() => editStaff(staffMember)}>
-                          Edit
+                          {t('edit')}
                         </button>
                         <button
                           type="button"
@@ -316,7 +317,7 @@ function Staff() {
                           onClick={() => deleteStaff(staffMember)}
                           disabled={deletingId === staffMember.id}
                         >
-                          {deletingId === staffMember.id ? 'Deleting...' : 'Delete'}
+                          {deletingId === staffMember.id ? t('deleting') : t('delete')}
                         </button>
                       </div>
                     </td>

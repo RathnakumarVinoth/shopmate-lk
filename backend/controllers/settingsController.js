@@ -25,12 +25,17 @@ const receiptSizes = ["58mm", "80mm"];
 const normalizeReceiptSize = (value) =>
   receiptSizes.includes(value) ? value : "80mm";
 
+const languages = ["en", "si", "ta"];
+
+const normalizeLanguage = (value) => (languages.includes(value) ? value : "en");
+
 const getShopSettings = async (shopId) => {
   await ensureShopSettingsColumns();
 
   const [shops] = await db.promise().query(
     `SELECT shop_name, phone, email, address, receipt_footer, currency,
-            default_low_stock_limit, tax_percentage, logo_url, default_receipt_size
+            default_low_stock_limit, tax_percentage, logo_url, default_receipt_size,
+            language
      FROM shops
      WHERE id = ?
      LIMIT 1`,
@@ -54,6 +59,7 @@ exports.getSettings = async (req, res) => {
       default_low_stock_limit: Number(settings.default_low_stock_limit || 0),
       tax_percentage: Number(settings.tax_percentage || 0),
       default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
+      language: normalizeLanguage(settings.language),
     });
   } catch (error) {
     console.error("Get settings error:", error.message);
@@ -73,6 +79,7 @@ exports.updateSettings = async (req, res) => {
     tax_percentage,
     logo_url,
     default_receipt_size,
+    language,
   } = req.body;
 
   if (isMissing(shop_name)) {
@@ -98,8 +105,13 @@ exports.updateSettings = async (req, res) => {
       .json({ message: "default_receipt_size must be 58mm or 80mm" });
   }
 
+  if (language !== undefined && !languages.includes(language)) {
+    return res.status(400).json({ message: "language must be en, si, or ta" });
+  }
+
   const nextReceiptSize =
     default_receipt_size === undefined ? null : normalizeReceiptSize(default_receipt_size);
+  const nextLanguage = language === undefined ? null : normalizeLanguage(language);
 
   try {
     await ensureShopSettingsColumns();
@@ -108,7 +120,8 @@ exports.updateSettings = async (req, res) => {
       `UPDATE shops
        SET shop_name = ?, phone = ?, email = ?, address = ?, receipt_footer = ?,
            currency = ?, default_low_stock_limit = ?, tax_percentage = ?, logo_url = ?,
-           default_receipt_size = COALESCE(?, default_receipt_size)
+           default_receipt_size = COALESCE(?, default_receipt_size),
+           language = COALESCE(?, language)
        WHERE id = ?`,
       [
         String(shop_name).trim(),
@@ -121,6 +134,7 @@ exports.updateSettings = async (req, res) => {
         Number(tax_percentage || 0),
         optionalText(logo_url),
         nextReceiptSize,
+        nextLanguage,
         req.user.shop_id,
       ]
     );
@@ -146,6 +160,7 @@ exports.updateSettings = async (req, res) => {
         default_low_stock_limit: Number(settings.default_low_stock_limit || 0),
         tax_percentage: Number(settings.tax_percentage || 0),
         default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
+        language: normalizeLanguage(settings.language),
       },
     });
   } catch (error) {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, getShopSettings, notifyDashboardChanged } from '../utils/formatters'
 
@@ -77,7 +78,7 @@ const getReceiptDetails = (receipt) => {
     receipt?.default_receipt_size || settings.default_receipt_size,
   )
   const balanceLabel =
-    paymentType === 'credit' ? 'Credit Balance' : balanceAmount < 0 ? 'Balance Due' : 'Change'
+    paymentType === 'credit' ? t('creditBalance') : balanceAmount < 0 ? t('balanceDue') : t('change')
 
   return {
     invoiceNo,
@@ -149,9 +150,9 @@ const generateInvoicePDF = (receipt) => {
   metaY += 8
   doc.text(`Date: ${formatDateTime(details.createdAt)}`, 14, metaY)
   metaY += 8
-  doc.text(`Payment Type: ${details.paymentType}`, 14, metaY)
+  doc.text(`${t('paymentMethod')}: ${details.paymentType}`, 14, metaY)
   metaY += 8
-  doc.text(`Payment Status: ${details.paymentStatus}`, 14, metaY)
+  doc.text(`${t('paymentStatus')}: ${details.paymentStatus}`, 14, metaY)
   if (details.paymentReference) {
     metaY += 8
     doc.text(`Reference: ${details.paymentReference}`, 14, metaY)
@@ -172,10 +173,10 @@ const generateInvoicePDF = (receipt) => {
 
   const finalY = doc.lastAutoTable?.finalY || 70
   const totals = [
-    ['Subtotal', formatCurrency(details.totalBeforeDiscount, details.currency)],
-    ['Discount', formatCurrency(details.discountAmount, details.currency)],
-    ['Total', formatCurrency(details.finalTotal, details.currency)],
-    ['Paid', formatCurrency(details.paidAmount, details.currency)],
+    [t('subtotal'), formatCurrency(details.totalBeforeDiscount, details.currency)],
+    [t('discount'), formatCurrency(details.discountAmount, details.currency)],
+    [t('total'), formatCurrency(details.finalTotal, details.currency)],
+    [t('paid'), formatCurrency(details.paidAmount, details.currency)],
     [details.balanceLabel, formatCurrency(Math.abs(details.balanceAmount), details.currency)],
   ]
 
@@ -289,21 +290,21 @@ const printReceipt = (receipt) => {
           ${details.customerAddress ? `<div class="meta">Customer Address: ${details.customerAddress}</div>` : ''}
           <div class="meta">Invoice: ${details.invoiceNo}</div>
           <div class="meta">Date: ${formatDateTime(details.createdAt)}</div>
-          <div class="meta">Payment: ${details.paymentType}</div>
-          <div class="meta">Payment Status: ${details.paymentStatus}</div>
+          <div class="meta">${t('paymentMethod')}: ${details.paymentType}</div>
+          <div class="meta">${t('paymentStatus')}: ${details.paymentStatus}</div>
           ${details.paymentReference ? `<div class="meta">Reference: ${details.paymentReference}</div>` : ''}
         </div>
         <table>
           <thead>
-            <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+            <tr><th>Item</th><th>Qty</th><th>Price</th><th>${t('total')}</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
         <div class="totals">
-          <div><span>Subtotal</span><strong>${formatCurrency(details.totalBeforeDiscount, details.currency)}</strong></div>
-          <div><span>Discount</span><strong>${formatCurrency(details.discountAmount, details.currency)}</strong></div>
-          <div class="total"><span>Total</span><strong>${formatCurrency(details.finalTotal, details.currency)}</strong></div>
-          <div><span>Paid</span><strong>${formatCurrency(details.paidAmount, details.currency)}</strong></div>
+          <div><span>${t('subtotal')}</span><strong>${formatCurrency(details.totalBeforeDiscount, details.currency)}</strong></div>
+          <div><span>${t('discount')}</span><strong>${formatCurrency(details.discountAmount, details.currency)}</strong></div>
+          <div class="total"><span>${t('total')}</span><strong>${formatCurrency(details.finalTotal, details.currency)}</strong></div>
+          <div><span>${t('paid')}</span><strong>${formatCurrency(details.paidAmount, details.currency)}</strong></div>
           <div><span>${details.balanceLabel}</span><strong>${formatCurrency(
             Math.abs(details.balanceAmount),
             details.currency,
@@ -409,7 +410,7 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
                 <th>Item</th>
                 <th class="num">Qty</th>
                 <th class="num">Price</th>
-                <th class="num">Total</th>
+                <th class="num">${escapeHtml(t('total'))}</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -417,16 +418,16 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
 
           <div class="line"></div>
           <section class="totals">
-            <div class="row"><span>Subtotal</span><span>${escapeHtml(
+            <div class="row"><span>${escapeHtml(t('subtotal'))}</span><span>${escapeHtml(
               formatCurrency(details.totalBeforeDiscount, details.currency),
             )}</span></div>
-            <div class="row"><span>Discount</span><span>${escapeHtml(
+            <div class="row"><span>${escapeHtml(t('discount'))}</span><span>${escapeHtml(
               formatCurrency(details.discountAmount, details.currency),
             )}</span></div>
-            <div class="row grand-total"><span>Total</span><span>${escapeHtml(
+            <div class="row grand-total"><span>${escapeHtml(t('total'))}</span><span>${escapeHtml(
               formatCurrency(details.finalTotal, details.currency),
             )}</span></div>
-            <div class="row"><span>Paid</span><span>${escapeHtml(
+            <div class="row"><span>${escapeHtml(t('paid'))}</span><span>${escapeHtml(
               formatCurrency(details.paidAmount, details.currency),
             )}</span></div>
             <div class="row"><span>${escapeHtml(details.balanceLabel)}</span><span>${escapeHtml(
@@ -436,8 +437,8 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
 
           <div class="line"></div>
           <section>
-            <div>Payment: ${escapeHtml(details.paymentType)}</div>
-            <div>Status: ${escapeHtml(details.paymentStatus)}</div>
+            <div>${escapeHtml(t('paymentMethod'))}: ${escapeHtml(details.paymentType)}</div>
+            <div>${escapeHtml(t('paymentStatus'))}: ${escapeHtml(details.paymentStatus)}</div>
             ${details.paymentReference ? `<div>Reference: ${escapeHtml(details.paymentReference)}</div>` : ''}
           </section>
 
@@ -833,9 +834,9 @@ function POS() {
     <section className="pos-layout pro-pos">
       <section className="panel">
         <div className="section-heading">
-          <h2>Products</h2>
+          <h2>{t('products')}</h2>
           <button type="button" className="ghost-button" onClick={loadProducts} disabled={loadingProducts}>
-            {loadingProducts ? 'Refreshing...' : 'Refresh'}
+            {loadingProducts ? t('refreshing') : t('refresh')}
           </button>
         </div>
 
@@ -1032,7 +1033,7 @@ function POS() {
           <h3>Payment</h3>
           <div className="form-grid compact-form">
             <label>
-              Payment Type
+              {t('paymentMethod')}
               <select value={paymentType} onChange={(event) => setPaymentType(event.target.value)}>
                 {paymentTypes.map((type) => (
                   <option key={type.value} value={type.value}>
@@ -1053,7 +1054,7 @@ function POS() {
               />
             </label>
             <label className="full-width">
-              Paid Amount
+              {t('paidAmount')}
               <input
                 type="number"
                 min="0"
@@ -1112,28 +1113,28 @@ function POS() {
 
         <section className="summary-box">
           <div>
-            <span>Subtotal</span>
+            <span>{t('subtotal')}</span>
             <strong>{formatMoney(subtotal)}</strong>
           </div>
           <div>
-            <span>Discount</span>
+            <span>{t('discount')}</span>
             <strong>- {formatMoney(discount)}</strong>
           </div>
           <div className="summary-total">
-            <span>Total</span>
+            <span>{t('total')}</span>
             <strong>{formatMoney(total)}</strong>
           </div>
           <div>
-            <span>Paid</span>
+            <span>{t('paid')}</span>
             <strong>{formatMoney(paid)}</strong>
           </div>
           <div className={balance < 0 ? 'balance-due' : 'balance-change'}>
             <span>
               {paymentType === 'credit'
-                ? 'Credit Balance'
+                ? t('creditBalance')
                 : balance < 0
-                  ? 'Balance Due'
-                  : 'Change'}
+                  ? t('balanceDue')
+                  : t('change')}
             </span>
             <strong>{formatMoney(Math.abs(saleBalance))}</strong>
           </div>
@@ -1149,18 +1150,18 @@ function POS() {
           <section className="receipt-modal">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Receipt</p>
+                <p className="eyebrow">{t('receipt')}</p>
                 <h2>{receiptDetails.invoiceNo}</h2>
               </div>
               <div className="receipt-actions no-print">
                 <button type="button" onClick={() => generateInvoicePDF(receipt)}>
-                  Download PDF
+                  {t('downloadPdf')}
                 </button>
                 <button type="button" className="ghost-button" onClick={() => shareInvoiceWhatsApp(receipt)}>
                   Share WhatsApp
                 </button>
                 <button type="button" className="ghost-button" onClick={() => printReceipt(receipt)}>
-                  Print
+                  {t('print')}
                 </button>
                 <select
                   value={thermalReceiptSize}
@@ -1194,8 +1195,8 @@ function POS() {
                 {receiptDetails.shopEmail && <span>Email: {receiptDetails.shopEmail}</span>}
                 <span>{formatDateTime(receiptDetails.createdAt)}</span>
                 <span>Invoice: {receiptDetails.invoiceNo}</span>
-                <span>Payment: {receiptDetails.paymentType}</span>
-                <span>Payment Status: {receiptDetails.paymentStatus}</span>
+                <span>{t('paymentMethod')}: {receiptDetails.paymentType}</span>
+                <span>{t('paymentStatus')}: {receiptDetails.paymentStatus}</span>
                 {receiptDetails.paymentReference && (
                   <span>Reference: {receiptDetails.paymentReference}</span>
                 )}
@@ -1218,7 +1219,7 @@ function POS() {
                     <th>Item</th>
                     <th>Qty</th>
                     <th>Price</th>
-                    <th>Total</th>
+                    <th>{t('total')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1235,19 +1236,19 @@ function POS() {
 
               <div className="receipt-totals">
                 <div>
-                  <span>Subtotal</span>
+                  <span>{t('subtotal')}</span>
                   <strong>{formatCurrency(receiptDetails.totalBeforeDiscount, receiptDetails.currency)}</strong>
                 </div>
                 <div>
-                  <span>Discount</span>
+                  <span>{t('discount')}</span>
                   <strong>{formatCurrency(receiptDetails.discountAmount, receiptDetails.currency)}</strong>
                 </div>
                 <div>
-                  <span>Total</span>
+                  <span>{t('total')}</span>
                   <strong>{formatCurrency(receiptDetails.finalTotal, receiptDetails.currency)}</strong>
                 </div>
                 <div>
-                  <span>Paid</span>
+                  <span>{t('paid')}</span>
                   <strong>{formatCurrency(receiptDetails.paidAmount, receiptDetails.currency)}</strong>
                 </div>
                 <div>
@@ -1255,11 +1256,11 @@ function POS() {
                   <strong>{formatCurrency(Math.abs(receiptDetails.balanceAmount), receiptDetails.currency)}</strong>
                 </div>
                 <div>
-                  <span>Payment</span>
+                  <span>{t('paymentMethod')}</span>
                   <strong>{receiptDetails.paymentType}</strong>
                 </div>
                 <div>
-                  <span>Payment Status</span>
+                  <span>{t('paymentStatus')}</span>
                   <strong className={`status ${receiptDetails.paymentStatus}`}>
                     {receiptDetails.paymentStatus}
                   </strong>

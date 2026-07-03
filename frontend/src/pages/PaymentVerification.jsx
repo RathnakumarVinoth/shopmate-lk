@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 
@@ -115,9 +116,9 @@ function PaymentVerification() {
     <section className="page-stack">
       <section className="panel">
         <div className="section-heading">
-          <h2>Payment Verification</h2>
+          <h2>{t('paymentVerification')}</h2>
           <button type="button" className="ghost-button" onClick={() => loadPayments(false)}>
-            Refresh
+            {t('refresh')}
           </button>
         </div>
       </section>

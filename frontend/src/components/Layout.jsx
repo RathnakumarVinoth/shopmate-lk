@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import api from '../services/api'
+import { setLanguage } from '../i18n/translations'
 import { scheduleSessionExpiry } from '../utils/session'
 import Notifications from './Notifications.jsx'
 import Sidebar from './Sidebar.jsx'
@@ -19,7 +20,11 @@ function Layout() {
 
       try {
         const response = await api.get('/settings')
-        localStorage.setItem('shopSettings', JSON.stringify(response.data || {}))
+        const settings = response.data || {}
+        localStorage.setItem('shopSettings', JSON.stringify(settings))
+        if (settings.language) {
+          setLanguage(settings.language)
+        }
         setSettingsVersion((version) => version + 1)
       } catch {
         localStorage.removeItem('shopSettings')
@@ -35,7 +40,12 @@ function Layout() {
     }
 
     window.addEventListener('shopmate:settings-changed', handleSettingsChanged)
-    return () => window.removeEventListener('shopmate:settings-changed', handleSettingsChanged)
+    window.addEventListener('shopmate:language-changed', handleSettingsChanged)
+
+    return () => {
+      window.removeEventListener('shopmate:settings-changed', handleSettingsChanged)
+      window.removeEventListener('shopmate:language-changed', handleSettingsChanged)
+    }
   }, [])
 
   return (

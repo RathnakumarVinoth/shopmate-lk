@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, notifyDashboardChanged } from '../utils/formatters'
 
@@ -149,11 +150,11 @@ function CreditBook() {
               <strong>{formatMoney(summary.total_credit_amount)}</strong>
             </article>
             <article className="metric-card">
-              <span>Total Paid</span>
+              <span>{t('total')} {t('paid')}</span>
               <strong>{formatMoney(summary.total_paid_amount)}</strong>
             </article>
             <article className="metric-card">
-              <span>Total Balance</span>
+              <span>{t('total')} {t('balance')}</span>
               <strong>{formatMoney(summary.total_balance_amount)}</strong>
             </article>
             <article className="metric-card">
@@ -251,7 +252,7 @@ function CreditBook() {
             <div className="section-heading">
               <h2>Customers</h2>
               <button type="button" className="ghost-button" onClick={() => loadCreditData()}>
-                Refresh
+                {t('refresh')}
               </button>
             </div>
             <div className="table-wrap">
@@ -420,8 +421,8 @@ function CreditBook() {
                         <tr>
                           <th>Invoice</th>
                           <th>Total</th>
-                          <th>Paid</th>
-                          <th>Balance</th>
+                          <th>{t('paid')}</th>
+                          <th>{t('balance')}</th>
                           <th>Payment</th>
                           <th>Date</th>
                         </tr>

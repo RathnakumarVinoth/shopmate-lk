@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 
@@ -92,7 +93,7 @@ function Dashboard() {
         <div className="section-heading">
           <h2>Alerts</h2>
           <button type="button" className="ghost-button" onClick={() => loadDashboard(true)} disabled={refreshing}>
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+            {refreshing ? t('refreshing') : t('refresh')}
           </button>
         </div>
         <div className="metric-grid alert-summary-grid">
@@ -133,7 +134,7 @@ function Dashboard() {
             <thead>
               <tr>
                 <th>Sale ID</th>
-                <th>Total</th>
+                <th>{t('total')}</th>
                 <th>Profit</th>
                 <th>Payment</th>
                 <th>Date</th>

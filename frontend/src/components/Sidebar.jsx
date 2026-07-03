@@ -1,22 +1,23 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import { hasPermission } from '../utils/permissions'
 
 const ownerLinks = [
-  { to: '/dashboard', label: 'Dashboard', permission: 'dashboard_view' },
-  { to: '/products', label: 'Products', permission: 'products_view' },
-  { to: '/pos', label: 'POS Billing', permission: 'pos_access' },
-  { to: '/payment-verification', label: 'Payment Verification', permission: 'payment_verification_access' },
-  { to: '/credits', label: 'Credit Book', permission: 'credit_book_access' },
-  { to: '/suppliers', label: 'Suppliers', permission: 'suppliers_access' },
-  { to: '/stock', label: 'Stock', permission: 'stock_access' },
+  { to: '/dashboard', labelKey: 'dashboard', permission: 'dashboard_view' },
+  { to: '/products', labelKey: 'products', permission: 'products_view' },
+  { to: '/pos', labelKey: 'posBilling', permission: 'pos_access' },
+  { to: '/payment-verification', labelKey: 'paymentVerification', permission: 'payment_verification_access' },
+  { to: '/credits', labelKey: 'creditBook', permission: 'credit_book_access' },
+  { to: '/suppliers', labelKey: 'suppliers', permission: 'suppliers_access' },
+  { to: '/stock', labelKey: 'stock', permission: 'stock_access' },
   { to: '/purchase-suggestions', label: 'Purchase Suggestions', permission: 'purchase_suggestions_access' },
   { to: '/returns', label: 'Returns', permission: 'returns_access' },
   { to: '/expenses', label: 'Expenses', permission: 'expenses_access' },
-  { to: '/reports', label: 'Reports', permission: 'reports_access' },
-  { to: '/audit-logs', label: 'Audit Logs', permission: 'audit_logs_access' },
-  { to: '/backup-export', label: 'Backup / Export', permission: 'backup_export_access' },
-  { to: '/settings', label: 'Settings', permission: 'settings_access' },
-  { to: '/staff', label: 'Staff', permission: 'staff_manage' },
+  { to: '/reports', labelKey: 'reports', permission: 'reports_access' },
+  { to: '/audit-logs', labelKey: 'auditLogs', permission: 'audit_logs_access' },
+  { to: '/backup-export', labelKey: 'backupExport', permission: 'backup_export_access' },
+  { to: '/settings', labelKey: 'settings', permission: 'settings_access' },
+  { to: '/staff', labelKey: 'staff', permission: 'staff_manage' },
 ]
 
 function Sidebar() {
@@ -48,13 +49,13 @@ function Sidebar() {
             end
             className={({ isActive }) => (isActive ? 'active' : '')}
           >
-            {link.label}
+            {link.labelKey ? t(link.labelKey) : link.label}
           </NavLink>
         ))}
       </nav>
 
       <button type="button" className="ghost-button sidebar-logout" onClick={logout}>
-        Logout
+        {t('logout')}
       </button>
     </aside>
   )

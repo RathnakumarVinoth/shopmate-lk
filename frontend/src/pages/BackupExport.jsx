@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import * as XLSX from 'xlsx'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 
@@ -162,7 +163,7 @@ function BackupExport() {
     <section className="page-stack">
       <section className="panel">
         <div className="section-heading">
-          <h2>Backup / Export</h2>
+          <h2>{t('backupExport')}</h2>
         </div>
         <form className="form-grid report-filter" onSubmit={applyDates}>
           <label>

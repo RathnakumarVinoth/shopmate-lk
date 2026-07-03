@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 import { getHomePath } from '../utils/permissions'
@@ -47,7 +48,7 @@ function Login() {
     <main className="auth-page">
       <section className="auth-panel">
         <p className="eyebrow">ShopMate LK</p>
-        <h1>Login</h1>
+        <h1>{t('login')}</h1>
         <form onSubmit={submit} className="form-stack">
           {message && <div className="info-banner">{message}</div>}
           {error && <div className="alert">{error}</div>}
@@ -66,7 +67,7 @@ function Login() {
             />
           </label>
           <button type="submit" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Logging in...' : t('login')}
           </button>
         </form>
         <p className="auth-link">

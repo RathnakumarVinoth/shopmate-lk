@@ -14,6 +14,12 @@ const ensureShopSettingsColumns = async () => {
       .query("ALTER TABLE shops ADD COLUMN default_receipt_size VARCHAR(10) DEFAULT '80mm'");
   }
 
+  if (!existingColumns.has("language")) {
+    await db
+      .promise()
+      .query("ALTER TABLE shops ADD COLUMN language VARCHAR(10) DEFAULT 'en'");
+  }
+
   ensuredShopSettingsColumns = true;
 };
 

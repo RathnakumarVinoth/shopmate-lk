@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, getShopSettings } from '../utils/formatters'
 import { hasPermission } from '../utils/permissions'
@@ -144,7 +145,7 @@ function Products() {
       {canManageProducts && (
         <section className="panel">
           <div className="section-heading">
-            <h2>{editingId ? 'Edit Product' : 'Add Product'}</h2>
+            <h2>{editingId ? t('editProduct') : t('addProduct')}</h2>
             {editingId && (
               <button type="button" className="ghost-button" onClick={resetForm}>
                 Cancel
@@ -216,7 +217,7 @@ function Products() {
               />
             </label>
             <button type="submit" className="full-width" disabled={saving}>
-              {saving ? 'Saving...' : editingId ? 'Update Product' : 'Add Product'}
+              {saving ? t('saving') : editingId ? t('updateProduct') : t('addProduct')}
             </button>
           </form>
         </section>
@@ -224,9 +225,9 @@ function Products() {
 
       <section className="panel wide-panel">
         <div className="section-heading">
-          <h2>Products</h2>
+          <h2>{t('products')}</h2>
           <button type="button" className="ghost-button" onClick={loadProducts} disabled={loading}>
-            {loading ? 'Refreshing...' : 'Refresh'}
+            {loading ? t('refreshing') : t('refresh')}
           </button>
         </div>
         {loading ? (
@@ -271,7 +272,7 @@ function Products() {
                         <td>
                           <div className="table-actions">
                             <button type="button" className="ghost-button" onClick={() => startEdit(product)}>
-                              Edit
+                              {t('edit')}
                             </button>
                             <button
                               type="button"
@@ -279,7 +280,7 @@ function Products() {
                               onClick={() => deleteProduct(product)}
                               disabled={deletingId === product.id}
                             >
-                              {deletingId === product.id ? 'Deleting...' : 'Delete'}
+                              {deletingId === product.id ? t('deleting') : t('delete')}
                             </button>
                           </div>
                         </td>

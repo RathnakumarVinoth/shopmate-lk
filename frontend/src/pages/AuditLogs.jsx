@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 
@@ -99,9 +100,9 @@ function AuditLogs() {
     <section className="page-stack">
       <section className="panel">
         <div className="section-heading">
-          <h2>Audit Logs</h2>
+          <h2>{t('auditLogs')}</h2>
           <button type="button" className="ghost-button" onClick={() => loadLogs(false)}>
-            Refresh
+            {t('refresh')}
           </button>
         </div>
         <div className="form-grid compact-form">

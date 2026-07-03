@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { getLanguage, languageOptions, setLanguage, t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 
@@ -17,6 +18,7 @@ const initialForm = {
   tax_percentage: '0',
   logo_url: '',
   default_receipt_size: '80mm',
+  language: 'en',
 }
 
 const settingsToForm = (settings) => ({
@@ -32,6 +34,9 @@ const settingsToForm = (settings) => ({
   default_receipt_size: receiptSizes.includes(settings.default_receipt_size)
     ? settings.default_receipt_size
     : '80mm',
+  language: languageOptions.some((language) => language.value === settings.language)
+    ? settings.language
+    : getLanguage(),
 })
 
 function Settings() {
@@ -57,6 +62,9 @@ function Settings() {
       setSavedSettings(settings)
       setForm(settingsToForm(settings))
       localStorage.setItem('shopSettings', JSON.stringify(settings))
+      if (settings.language) {
+        setLanguage(settings.language)
+      }
     } catch (err) {
       setError(getApiMessage(err, 'Failed to load settings'))
     } finally {
@@ -70,6 +78,11 @@ function Settings() {
 
   const updateField = (event) => {
     const { name, value } = event.target
+
+    if (name === 'language') {
+      setLanguage(value)
+    }
+
     setForm((current) => ({ ...current, [name]: value }))
   }
 
@@ -98,12 +111,16 @@ function Settings() {
         default_receipt_size: receiptSizes.includes(form.default_receipt_size)
           ? form.default_receipt_size
           : '80mm',
+        language: form.language,
       })
       const settings = response.data.settings || response.data
 
       setSavedSettings(settings)
       setForm(settingsToForm(settings))
       localStorage.setItem('shopSettings', JSON.stringify(settings))
+      if (settings.language) {
+        setLanguage(settings.language)
+      }
       window.dispatchEvent(new Event('shopmate:settings-changed'))
       setMessage('Settings saved successfully')
     } catch (err) {
@@ -205,6 +222,16 @@ function Settings() {
           </div>
           <div className="form-grid">
             <label>
+              {t('language')}
+              <select name="language" value={form.language} onChange={updateField}>
+                {languageOptions.map((language) => (
+                  <option key={language.value} value={language.value}>
+                    {t(language.value === 'en' ? 'english' : language.value === 'si' ? 'sinhala' : 'tamil')}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
               Currency
               <select name="currency" value={form.currency} onChange={updateField}>
                 {currencies.map((currency) => (
@@ -240,7 +267,7 @@ function Settings() {
 
         <div className="settings-actions">
           <button type="submit" disabled={saving}>
-            {saving ? 'Saving...' : 'Save Settings'}
+            {saving ? t('saving') : t('saveSettings')}
           </button>
           <button type="button" className="ghost-button" onClick={resetForm} disabled={saving}>
             Reset Form
