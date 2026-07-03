@@ -5,6 +5,7 @@ import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 import { getHomePath } from '../utils/permissions'
 import { getSessionMessage, saveSession } from '../utils/session'
+import LanguageSelector from '../components/LanguageSelector.jsx'
 
 function Login() {
   const navigate = useNavigate()
@@ -12,6 +13,8 @@ function Login() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [, setLanguageVersion] = useState(0)
 
   useEffect(() => {
     const sessionMessage = getSessionMessage()
@@ -46,6 +49,9 @@ function Login() {
   return (
     <main className="auth-page">
       <section className="auth-panel">
+        <div className="auth-language">
+          <LanguageSelector onLanguageChange={() => setLanguageVersion((version) => version + 1)} />
+        </div>
         <p className="eyebrow">ShopMate LK</p>
         <h1>{t('login')}</h1>
         <form onSubmit={submit} className="form-stack">
@@ -57,13 +63,23 @@ function Login() {
           </label>
           <label>
             {t('Password')}
-            <input
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={updateField}
-              required
-            />
+            <span className="password-field">
+              <input
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={form.password}
+                onChange={updateField}
+                required
+              />
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={t(showPassword ? 'Hide password' : 'Show password')}
+              >
+                {t(showPassword ? 'Hide' : 'Show')}
+              </button>
+            </span>
           </label>
           <button type="submit" disabled={loading}>
             {loading ? 'Logging in...' : t('login')}

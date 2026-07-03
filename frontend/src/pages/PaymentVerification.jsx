@@ -218,7 +218,10 @@ function PaymentVerification() {
               {payments.length === 0 && (
                 <tr>
                   <td colSpan="10" className="empty-cell">
-                    {t('No pending payments found.')}
+                    <div className="empty-copy">
+                      <strong>{t('No pending payments found.')}</strong>
+                      <span>{t('All payments are clear.')}</span>
+                    </div>
                   </td>
                 </tr>
               )}

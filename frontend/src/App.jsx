@@ -1,5 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import './App.css'
+import './styles/theme.css'
+import './styles/components.css'
+import './styles/responsive.css'
 
 import AdminLayout from './components/AdminLayout.jsx'
 import Layout from './components/Layout.jsx'

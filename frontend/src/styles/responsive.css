@@ -1,0 +1,217 @@
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    width: 100%;
+  }
+
+  .app-main {
+    max-width: none;
+  }
+
+  .pos-layout,
+  .pro-pos {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-app-header {
+    min-height: 66px;
+    border-bottom-color: var(--color-border);
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .mobile-menu-button {
+    border-color: var(--color-border);
+    border-radius: var(--radius-md);
+  }
+
+  .mobile-menu-button span {
+    background: var(--color-secondary-900);
+  }
+
+  .mobile-brand .brand-mark {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+
+  .mobile-brand strong {
+    max-width: 150px;
+  }
+
+  .mobile-header-actions {
+    gap: 6px;
+  }
+
+  .mobile-header-actions .language-selector.compact {
+    display: block;
+    border-radius: var(--radius-md);
+    padding: 3px;
+  }
+
+  .mobile-header-actions .language-selector.compact > span {
+    display: none;
+  }
+
+  .mobile-header-actions .language-selector.compact select {
+    width: 54px;
+    min-width: 54px;
+    min-height: 34px;
+    padding: 4px;
+    font-size: 11px;
+  }
+
+  .mobile-header-actions .user-pill {
+    display: none;
+  }
+
+  .sidebar {
+    width: min(86vw, 310px);
+    padding: 18px 15px;
+  }
+
+  .app-main {
+    padding: 15px 12px 100px;
+  }
+
+  .page-stack {
+    gap: 14px;
+  }
+
+  .panel {
+    padding: 15px;
+  }
+
+  .dashboard-welcome {
+    align-items: stretch;
+    flex-direction: column;
+    min-height: 0;
+    padding: 17px;
+  }
+
+  .dashboard-welcome h2 {
+    font-size: 19px;
+  }
+
+  .dashboard-welcome button {
+    width: 100%;
+  }
+
+  .metric-card {
+    min-height: 112px;
+    padding: 16px;
+  }
+
+  .metric-card:hover {
+    transform: none;
+  }
+
+  .section-heading {
+    gap: 9px;
+    margin-bottom: 13px;
+  }
+
+  .section-heading > button,
+  .section-heading > .ghost-button {
+    min-height: 40px;
+  }
+
+  .table-wrap {
+    border-radius: var(--radius-md);
+  }
+
+  th,
+  td {
+    padding: 12px;
+  }
+
+  .pos-layout,
+  .pro-pos {
+    gap: 13px;
+  }
+
+  .product-tile:hover {
+    transform: none;
+  }
+
+  .cart-panel {
+    top: auto;
+    border-top: 3px solid var(--color-primary-500);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+  }
+
+  body:has(.cart-panel) .pwa-install-banner {
+    bottom: 142px;
+  }
+
+  .receipt-modal {
+    border-radius: var(--radius-md);
+  }
+
+  .receipt-print-area {
+    padding: 14px;
+  }
+
+  .auth-page {
+    align-items: center;
+    padding: 16px;
+  }
+
+  .auth-page::before {
+    display: none;
+  }
+
+  .auth-panel {
+    padding: 25px 20px 22px;
+  }
+
+  .auth-language {
+    top: 16px;
+    right: 16px;
+  }
+
+  .auth-language .language-selector > span {
+    display: none;
+  }
+
+  .auth-language .language-selector {
+    display: block;
+    padding: 3px;
+  }
+
+  .auth-language .language-selector select {
+    min-width: 78px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-brand strong {
+    max-width: 105px;
+  }
+
+  .mobile-header-actions .notification-trigger {
+    width: 40px;
+    min-width: 40px;
+  }
+
+  .mobile-header-actions .language-selector.compact select {
+    width: 46px;
+    min-width: 46px;
+  }
+
+  .metric-card strong {
+    font-size: 21px;
+  }
+
+  .auth-panel::before {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 15px;
+  }
+}

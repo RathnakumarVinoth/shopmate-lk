@@ -55,6 +55,12 @@ function LoginActivity() {
     setFilters((current) => ({ ...current, [name]: value }))
   }
 
+  const getStatusClass = (status) => {
+    if (status === 'success') return 'paid'
+    if (status === 'auto_logout') return 'pending'
+    return 'unpaid'
+  }
+
   if (loading) {
     return <div className="panel loading-panel">{t('Loading login activity...')}</div>
   }
@@ -112,7 +118,7 @@ function LoginActivity() {
                   <td>{item.email || '-'}</td>
                   <td>{item.role || '-'}</td>
                   <td>
-                    <span className={`status ${item.status === 'success' ? 'paid' : 'unpaid'}`}>
+                    <span className={`status ${getStatusClass(item.status)}`}>
                       {item.status}
                     </span>
                   </td>
@@ -124,7 +130,10 @@ function LoginActivity() {
               {activity.length === 0 && (
                 <tr>
                   <td colSpan="7" className="empty-cell">
-                    {t('No login activity found.')}
+                    <div className="empty-copy">
+                      <strong>{t('No login activity found.')}</strong>
+                      <span>{t('Login and session events will appear here.')}</span>
+                    </div>
                   </td>
                 </tr>
               )}

@@ -513,7 +513,14 @@ function Products() {
                 {products.length === 0 && (
                   <tr>
                     <td colSpan={canManageProducts ? 11 : 10} className="empty-cell">
-                      {t('No products found.')}
+                      <div className="empty-copy">
+                        <strong>{t('No products found.')}</strong>
+                        <span>
+                          {canManageProducts
+                            ? t('Add your first product to start selling.')
+                            : t('Products will appear here when available.')}
+                        </span>
+                      </div>
                     </td>
                   </tr>
                 )}

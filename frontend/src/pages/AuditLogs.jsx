@@ -172,7 +172,11 @@ function AuditLogs() {
                 <tr key={log.id}>
                   <td>{formatDateTime(log.created_at)}</td>
                   <td>{log.user_name || '-'}</td>
-                  <td>{log.user_role || '-'}</td>
+                  <td>
+                    {log.user_role ? (
+                      <span className={`status role-${log.user_role}`}>{log.user_role}</span>
+                    ) : '-'}
+                  </td>
                   <td>{formatLabel(log.action)}</td>
                   <td>{formatLabel(log.entity_type)}</td>
                   <td>{log.description || '-'}</td>
@@ -181,7 +185,10 @@ function AuditLogs() {
               {logs.length === 0 && (
                 <tr>
                   <td colSpan="6" className="empty-cell">
-                    {t('No audit logs found.')}
+                    <div className="empty-copy">
+                      <strong>{t('No audit logs found.')}</strong>
+                      <span>{t('Business activity will appear here.')}</span>
+                    </div>
                   </td>
                 </tr>
               )}

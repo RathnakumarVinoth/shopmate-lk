@@ -55,7 +55,7 @@ function Notifications() {
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
       >
-        <span aria-hidden="true">🔔</span>
+        <span className="notification-icon" aria-hidden="true">!</span>
         <strong>{totalCount}</strong>
       </button>
 

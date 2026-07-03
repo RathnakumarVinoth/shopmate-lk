@@ -755,6 +755,19 @@ const legacyKeys = Object.entries(en).reduce((aliases, [key, value]) => {
 }, {})
 
 const extraEn = {
+  'Add your first product to start selling.': 'Add your first product to start selling.',
+  'All payments are clear.': 'All payments are clear.',
+  'Business activity will appear here.': 'Business activity will appear here.',
+  'Login and session events will appear here.': 'Login and session events will appear here.',
+  'Products will appear here when available.': 'Products will appear here when available.',
+  'Business overview': 'Business overview',
+  'Hide': 'Hide',
+  'Hide password': 'Hide password',
+  'Open POS': 'Open POS',
+  'Show': 'Show',
+  'Show password': 'Show password',
+  "Track today's sales, stock, payments, and business activity.": "Track today's sales, stock, payments, and business activity.",
+  'Your shop at a glance': 'Your shop at a glance',
   'Active': 'Active',
   'Activate': 'Activate',
   'Add by Code': 'Add by Code',
@@ -938,6 +951,19 @@ const extraEn = {
 }
 
 const extraSi = {
+  'Add your first product to start selling.': 'විකිණීම ආරම්භ කිරීමට ඔබේ පළමු නිෂ්පාදනය එක් කරන්න.',
+  'All payments are clear.': 'සියලු ගෙවීම් පැහැදිලියි.',
+  'Business activity will appear here.': 'ව්‍යාපාර ක්‍රියාකාරකම් මෙහි දිස්වනු ඇත.',
+  'Login and session events will appear here.': 'පිවිසුම් සහ සැසි සිදුවීම් මෙහි දිස්වනු ඇත.',
+  'Products will appear here when available.': 'ලබා ගත හැකි විට නිෂ්පාදන මෙහි දිස්වනු ඇත.',
+  'Business overview': 'ව්‍යාපාර දළ විශ්ලේෂණය',
+  'Hide': 'සඟවන්න',
+  'Hide password': 'මුරපදය සඟවන්න',
+  'Open POS': 'POS විවෘත කරන්න',
+  'Show': 'පෙන්වන්න',
+  'Show password': 'මුරපදය පෙන්වන්න',
+  "Track today's sales, stock, payments, and business activity.": 'අද විකුණුම්, තොග, ගෙවීම් සහ ව්‍යාපාර ක්‍රියාකාරකම් නිරීක්ෂණය කරන්න.',
+  'Your shop at a glance': 'ඔබේ වෙළඳසැල එක බැල්මකින්',
   'Active': 'සක්‍රීය',
   'Activate': 'සක්‍රීය කරන්න',
   'Add by Code': 'කේතයෙන් එක් කරන්න',
@@ -1037,6 +1063,19 @@ const extraSi = {
 }
 
 const extraTa = {
+  'Add your first product to start selling.': 'விற்பனையைத் தொடங்க உங்கள் முதல் பொருளைச் சேர்க்கவும்.',
+  'All payments are clear.': 'அனைத்து கட்டணங்களும் சரியாக உள்ளன.',
+  'Business activity will appear here.': 'வணிக நடவடிக்கைகள் இங்கே தோன்றும்.',
+  'Login and session events will appear here.': 'உள்நுழைவு மற்றும் அமர்வு நிகழ்வுகள் இங்கே தோன்றும்.',
+  'Products will appear here when available.': 'கிடைக்கும் போது பொருட்கள் இங்கே தோன்றும்.',
+  'Business overview': 'வணிக கண்ணோட்டம்',
+  'Hide': 'மறை',
+  'Hide password': 'கடவுச்சொல்லை மறை',
+  'Open POS': 'POS திறக்கவும்',
+  'Show': 'காட்டு',
+  'Show password': 'கடவுச்சொல்லைக் காட்டு',
+  "Track today's sales, stock, payments, and business activity.": 'இன்றைய விற்பனை, இருப்பு, கட்டணங்கள் மற்றும் வணிக நடவடிக்கைகளைக் கண்காணிக்கவும்.',
+  'Your shop at a glance': 'உங்கள் கடை ஒரு பார்வையில்',
   'Active': 'செயலில்',
   'Activate': 'செயல்படுத்து',
   'Add by Code': 'குறியீட்டால் சேர்',

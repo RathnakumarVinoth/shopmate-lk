@@ -8,6 +8,7 @@ import {
   getSessionUser,
   saveStoredSettings,
 } from '../utils/session'
+import LanguageSelector from './LanguageSelector.jsx'
 import Notifications from './Notifications.jsx'
 import Sidebar from './Sidebar.jsx'
 
@@ -15,6 +16,8 @@ function Layout() {
   const user = getSessionUser()
   const [, setSettingsVersion] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const settings = getStoredSettings()
+  const shopName = settings.shop_name || 'ShopMate LK'
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -78,9 +81,10 @@ function Layout() {
         </button>
         <div className="mobile-brand">
           <div className="brand-mark">SM</div>
-          <strong>ShopMate LK</strong>
+          <strong>{shopName}</strong>
         </div>
         <div className="mobile-header-actions">
+          <LanguageSelector compact />
           <Notifications />
           <div className="user-pill">
             <span>{user?.role || 'owner'}</span>
@@ -94,16 +98,18 @@ function Layout() {
         aria-label={t('Close')}
       />
       <Sidebar
+        shopName={shopName}
         onNavigate={() => setMobileMenuOpen(false)}
         onClose={() => setMobileMenuOpen(false)}
       />
       <main className="app-main">
         <header className="topbar">
           <div>
-            <p className="eyebrow">ShopMate LK</p>
+            <p className="eyebrow">{shopName}</p>
             <h1>{user?.name ? `${t('Welcome')}, ${user.name}` : t('POS Billing')}</h1>
           </div>
           <div className="topbar-actions">
+            <LanguageSelector />
             <Notifications />
             <div className="user-pill">
               <span>{user?.role || 'owner'}</span>

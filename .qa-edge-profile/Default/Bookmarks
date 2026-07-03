@@ -1,0 +1,192 @@
+{
+   "checksum": "a6d36613eee5b07273692f0c139cac37",
+   "roots": {
+      "bookmark_bar": {
+         "children": [ {
+            "date_added": "13374767642213985",
+            "date_last_used": "0",
+            "guid": "50522bf0-fae0-4d00-af09-dc7ec5c1550d",
+            "id": "7",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Llama Coder – AI Code Generator",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://llamacoder.together.ai/",
+            "visit_count": 0
+         }, {
+            "date_added": "13374767663113681",
+            "date_last_used": "0",
+            "guid": "678b1128-914f-4f22-a748-bb54aba3cd06",
+            "id": "8",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "SaveWeb2ZIP - Website Copier Online Tool",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://saveweb2zip.com/en",
+            "visit_count": 0
+         }, {
+            "date_added": "13385969795229963",
+            "date_last_used": "13423767891927442",
+            "guid": "0a08a9ce-853d-4bb2-874a-daa544932d64",
+            "id": "9",
+            "meta_info": {
+               "power_bookmark_meta": ""
+            },
+            "name": "Your paragraph text - 91.44 × 121.92cm - Canva",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.canva.com/design/DAGhNK9sp30/qpBFF62drXaGlocX2WMA6w/edit",
+            "visit_count": 5
+         }, {
+            "date_added": "13387695122700924",
+            "date_last_used": "13399764382263120",
+            "guid": "f2b71dd5-a6dd-40bc-b8e8-dcdc7da99f56",
+            "id": "10",
+            "name": "QRCode Monkey - The free QR Code Generator to create custom QR Codes with Logo",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.qrcode-monkey.com/?utm_source=chatgpt.com#text",
+            "visit_count": 2
+         }, {
+            "date_added": "13389450957336749",
+            "date_last_used": "13398099805100404",
+            "guid": "b438633f-085f-449f-a593-642ca6f2fbdf",
+            "id": "11",
+            "name": "Flyer Caption Creation",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://chatgpt.com/c/68023d89-da78-8000-8f7d-21b0f63dc00c",
+            "visit_count": 2
+         }, {
+            "date_added": "13390920381033215",
+            "date_last_used": "0",
+            "guid": "41502519-5e6f-4496-8f10-01315c12b6e6",
+            "id": "12",
+            "name": "Resume Builder",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://resumegenius.com/resume-builder/app/choose-template",
+            "visit_count": 1
+         }, {
+            "date_added": "13396376959709961",
+            "date_last_used": "0",
+            "guid": "2b60c1b7-b984-40b8-be14-ec4c0c1130a7",
+            "id": "13",
+            "name": "Yeni Nesil Dosya İndirme Servisi | Stok Bayim",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://panel.stokbayim.com/hizmetler/envato-elements",
+            "visit_count": 1
+         }, {
+            "date_added": "13406720755684995",
+            "date_last_used": "13426497479399766",
+            "guid": "95d0779e-c3de-4f5f-9276-9c3e916073ef",
+            "id": "14",
+            "name": "(4688) Visekari ( Lyric Video) - Pasan Liyanage ft. Bachi Susan & Rude Bwoy - YouTube",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://www.youtube.com/watch?v=VQ9zHgDT1To&list=RDVQ9zHgDT1To&start_radio=1",
+            "visit_count": 11
+         }, {
+            "date_added": "13411812185453909",
+            "date_last_used": "13412137430923604",
+            "guid": "f5f36506-5872-4ade-9117-9c6d96375386",
+            "id": "15",
+            "name": "Mail - os.rgo.erp4@mobitel.lk",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://webmail.mobitel.lk/owa/#path=/mail",
+            "visit_count": 5
+         }, {
+            "date_added": "13411812188897974",
+            "date_last_used": "13412139015938544",
+            "guid": "52112e97-f3da-4402-b24f-9254d8f21fc1",
+            "id": "16",
+            "name": "MOBITEL INFRAMS",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://inframs.mobitel.lk/main.php",
+            "visit_count": 5
+         }, {
+            "date_added": "13411814124254524",
+            "date_last_used": "13412138104915964",
+            "guid": "54427be7-65e2-4a65-af86-ceaa13e7b428",
+            "id": "17",
+            "name": "ERP",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://wework.mobitel.lk/software/html5.html",
+            "visit_count": 4
+         }, {
+            "date_added": "13423676710945056",
+            "date_last_used": "0",
+            "guid": "554eab62-8397-43a3-80ee-9ae3d856f8e7",
+            "id": "18",
+            "name": "Canada social media targeting",
+            "show_icon": false,
+            "source": "sync",
+            "type": "url",
+            "url": "https://chatgpt.com/c/6a0b0d5a-f530-8320-8a53-424e45f653f2",
+            "visit_count": 1
+         } ],
+         "date_added": "13427568032388979",
+         "date_last_used": "0",
+         "date_modified": "13423676710945056",
+         "guid": "0bc5d13f-2cba-5d74-951f-3f233fe6c908",
+         "id": "1",
+         "name": "Favorites bar",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "other": {
+         "children": [  ],
+         "date_added": "13427568032388979",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "82b081ec-3dd3-529c-8475-ab6c344590dd",
+         "id": "2",
+         "name": "Other favorites",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "synced": {
+         "children": [  ],
+         "date_added": "13427568032388979",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "4cf2e351-0e85-532b-bb37-df045d8f8d0f",
+         "id": "3",
+         "name": "Mobile favorites",
+         "source": "unknown",
+         "type": "folder"
+      },
+      "workspaces_v2": {
+         "children": [  ],
+         "date_added": "13427568032388979",
+         "date_last_used": "0",
+         "date_modified": "0",
+         "guid": "75aa6670-344f-549d-b742-660f029506ab",
+         "id": "5",
+         "name": "Workspaces",
+         "source": "unknown",
+         "type": "folder"
+      }
+   },
+   "sync_metadata": "CjEKDgiIgQISCJ2I5uieAQAAEgAqGE5wVk9Hd1RBdkdOQlBSUTFpemM5bGc9PUgDoAYHEo4BCAUSiQEKHHdSQnJaTCs2UEE5YXZLZ2pOUDdKWERMY2Z2cz0SJDJhMTU1MzFlLTFkNWEtNTFmMy04N2FkLTVmNmUzNzI5YzhjZhgAIAAoADC8yM/qpDM4sMnP6qQzQLDJz+qkM0ocbm14NjVzUUR2eEk4VGdFZXYrQStudHRvU240PVoAZQAAAADCPgJgABKOAQgCEokBChxZY1NUb252RVNQd3FDczRMMmNyVmh2NjhMOTg9EiQ2MGQyMDg5Yi01ZDk2LTU0YWMtYjg4ZS1lZDE4YWY2ZDkwNmEYACAAKAAwvtKZ6pwyOOPWmeqcMkDj1pnqnDJKHG9QVmtod0JSYlY2NUtDV1IyK0lPTkhXb091OD1aAGUAAAAAwj4CYAASrQEIERKoAQocYzJ3aE1xbGQ5VGg4ZEovODl6ODA1M241c1FFPRIkNTQ0MjdiZTctNjVlMi00YTY1LWFmODYtY2VhYTEzZTdiNDI4GAAgACgAMOK6j4i5Mzjao9HttzNA2qPR7bczShxrb2lBaDg4QmhXbnErK0xiUVFTb3AwMkVVSGs9Wh8iHf1aa0EvRXVQd05EVXRQUWlmL0xja2dDY09yQWM9ZYKIay/CPgJgBRKtAQgQEqgBChw5d1lZZGRLMHJUb2xmSFhuQko5QU9xU2VNN2c9EiQ1MjExMmU5Ny1mM2RhLTQ0MDItYjI0Zi05MjU0ZDhmMjFmYzEYACAAKAAw1bvHiLkzOOGO2+y3M0DhjtvstzNKHGdMMVg1Wit1S1VQQk5UN2I1NElZdlV3WjlVZz1aHyId+2NKaDFTdURLT3dUMVVGbTlkZ25abzVkVEVnND1lHYPNEMI+AmAFEqwBCAcSpwEKHDJWOXpKd2NmNXlrTjd5aytDTzlobVRsQXNtaz0SJDUwNTIyYmYwLWZhZTAtNGQwMC1hZjA5LWRjN2VjNWMxNTUwZBgAIAAoADCA882CzDI4ovPC7K0yQKLzwuytMkocaW53bkJPaE5tY1hXT01CT0V2SVRKZ1J2NWNBPVoeIhw3V2dzdUpBU2svUXVyZFBLWnZNM1BzNkhFODA9ZYizQc3CPgJgBRKtAQgPEqgBChxwZnpUS2FOSzh4TWdKcXZvYXhVc0U3TndRWUU9EiRmNWYzNjUwNi01ODcyLTRhZGUtOTExNy05YzZkOTYzNzUzODYYACAAKAAw2Knmh7kzOPD42uy3M0Dw+NrstzNKHHRNSWJtaUtaQVdlU0ZwQUpycFlQcWcrZC85OD1aHyId9nFyTzc1QmQ0Mkp1RURZMFhWZ25SSjhMWEVsND1lxIXjscI+AmAFEq0BCA0SqAEKHG1LZGtPUmNRTlIxUG1qYVFGdCtwL1AxYU5tND0SJDJiNjBjMWI3LWI5ODQtNDBiOC1iZTE0LWVjNGMwYzExMzBhNxgAIAAoADDd89as/jI4svXWrP4yQLL11qz+MkocMjNWcW92bVZsOVl2WDR1SCtyZXBSd21YaHlzPVofIh3ZNDc3TFZ6VkhNNWhnYUZnYzZ1VmlxdHM5NHVFPWUSnWfYwj4CYAUSrQEIDhKoAQoceldrS3JmbUo1R3VEZlFuOXlBeEdQSk83YlFFPRIkOTVkMDc3OWUtYzNkZS00ZjVmLTkyNzYtOWMzZTkxNjA3M2VmGAAgACgAMJyRmsfuMzjI2fbwpDNAyNn28KQzShxWVWdEWXFWc1VaYTgvL1ltM0FnaHluU1B1U1U9Wh8iHew2WFRQdDV2eEsxb1ErSHJPYXYxSUJMU1JCZ289ZVBCw9LCPgJgBRKsAQgIEqcBChw2RW1FSGN1cTN2OEozT2lMWmFZSlQ5Vzg2UjQ9EiQ2NzhiMTEyOC05MTRmLTRmMjItYTc0OC1iYjU0YWJhM2NkMDYYACAAKAAwgfPNgswyOLqVxOytMkC6lcTsrTJKHDNkVWFkdUdEbXc4V3YvMVN0aVZNT2lqY3RQaz1aHiIcRjhnTDlXRy9iVGtrRjlUczI0ZktYalpvalFRPWW2ip4Awj4CYAUSrAEICxKnAQocL2RNcUJTTmh2US9WcVRITVQxVVN1V3FYYzY4PRIkYjQzODYzM2YtMDg1Zi00NDlmLWE1OTMtNjQyY2E2ZjJmYmRmGAAgACgAMNqgk5ONMzii44XG5DJAouOFxuQyShxnYmN6OE5ZNkxYcnZzMkFxV2ZSMHNIZ1NicUE9Wh4iHGVjaG5mZ0FsRnhwa0lHRkczeEtObnRDOURtQT1l+JID1cI+AmAFEqwBCAoSpwEKHE5VZitRVU9XNVM0eFhnU1RtQi9BWThlaGFPZz0SJGYyYjcxZGQ1LWE2ZGQtNDBiYy1iOGU4LWRjZGM3ZGE5OWY1NhgAIAAoADCWrO/7ijM4iZnmgN4yQImZ5oDeMkocMktjM3l3R25HaGVHWXVMUW9oODVOTXpzTDJnPVoeIhxic3lJdGVaVGZydThBY3pIZUV2N3MxUmIrMkE9ZSluQRDCPgJgBRKtAQgSEqgBChxOKytuUlJ5S2pPdmx0MWtIQVQ3endhWVdyN2c9EiQ1NTRlYWI2Mi04Mzk3LTQzYTMtODBlZS05YWUzZDg1NmY4ZTcYACAAKAAwvv2ThuQzOOb9k4bkM0Dm/ZOG5DNKHGttZjExdXQva0pSSWR2T0ZqMm50R3VJaDlxRT1aHyId/lFHeFlkbG9BTzVxQW02alNGU2N4QlRSSFB1ST1lhqXYyMI+AmAFEqwBCAkSpwEKHHBWdVVjd2dWT0E3VzQ1WjFsVzFqZXdpZEIwRT0SJDBhMDhhOWNlLTg1M2QtNGJiMi04NzRhLWRhYTU0NDkzMmQ2NBgAIAAoADDowdKx5DM4vseMytcyQL7HjMrXMkocMVNYUC9xMGZsRVAxNUE2QmFLNW4zaWxBVDcwPVoeIhxWZTc3a3BteEZoRFpVWm45ZVBrOW1Pd201SXc9ZXYfjuHCPgJgBRKtAQgMEqgBChwzNUdIdVhYZC9FSjVnVUpaWGpwcDhMVStDblU9EiQ0MTUwMjUxOS01ZTZmLTQ0OTYtOGYxMC0wMTMxNWMxMmI2ZTYYACAAKAAwz+H8iOsyOOH1/IjrMkDh9fyI6zJKHDY3WVg0MWhpOXdSQjRQYVhlK1hSNU5ocFhtZz1aHyIdsllQZjdFMDdmU2l4ZnBtK2s1MDRnVldKbTJoND1lTvsjXcI+AmAFEo4BCAESiQEKHHl4Si82ZnZrZWNyN2twNUVRekI0dFdMcGRiRT0SJGI2ZTU0MmQ4LTIyM2ItNWQ5Zi05NTIyLTVkNjU4MzZjZjBlZBgAIAAoADC90pnqnDI4ydaZ6pwyQMnWmeqcMkocYVJDV0xnaEY5YjVJbnFLSUR2dUovanZRa0ZjPVoAZQAAAADCPgJgABKOAQgDEokBChxuamdEdTg4ZUNydlhwODZwRDdmSEdjcUZwODg9EiRkZTkwZjAwNy1hMzYxLTVjZjEtYmUzYi1iNDNmNzI2NTc3NmYYACAAKAAww9KZ6pwyOJnXmeqcMkCZ15nqnDJKHHl6TkIwMWNuNTRBN2NSVTB1VCsvUGdtVHRVbz1aAGUAAAAAwj4CYAAwADgA",
+   "version": 1
+}

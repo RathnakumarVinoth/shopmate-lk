@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
+import { hasPermission } from '../utils/permissions'
 import { getSessionUser } from '../utils/session'
 
 const alertCards = [
@@ -66,17 +67,17 @@ function Dashboard() {
   }
 
   const cards = [
-    { label: t('Today Sales'), value: formatMoney(dashboard.today_sales_total) },
-    { label: t('Today Profit'), value: formatMoney(dashboard.today_profit_total) },
-    { label: t('Bill Count'), value: dashboard.today_bill_count },
-    { label: t('Total Products'), value: dashboard.total_products },
-    { label: t('Low Stock Count'), value: dashboard.low_stock_count },
-    { label: t('Credit Balance'), value: formatMoney(dashboard.total_credit_balance) },
-    { label: t('Total Customers'), value: dashboard.total_customers },
-    { label: t('Today Expenses'), value: formatMoney(dashboard.today_expenses) },
-    { label: t('Month Expenses'), value: formatMoney(dashboard.month_expenses) },
-    { label: t('Supplier Balance'), value: formatMoney(dashboard.supplier_balance) },
-    { label: t('Net Profit Today'), value: formatMoney(dashboard.net_profit_today) },
+    { label: t('Today Sales'), value: formatMoney(dashboard.today_sales_total), icon: 'Rs' },
+    { label: t('Today Profit'), value: formatMoney(dashboard.today_profit_total), icon: '+' },
+    { label: t('Bill Count'), value: dashboard.today_bill_count, icon: '#' },
+    { label: t('Total Products'), value: dashboard.total_products, icon: 'P' },
+    { label: t('Low Stock Count'), value: dashboard.low_stock_count, icon: '!' },
+    { label: t('Credit Balance'), value: formatMoney(dashboard.total_credit_balance), icon: 'Cr' },
+    { label: t('Total Customers'), value: dashboard.total_customers, icon: 'C' },
+    { label: t('Today Expenses'), value: formatMoney(dashboard.today_expenses), icon: '-' },
+    { label: t('Month Expenses'), value: formatMoney(dashboard.month_expenses), icon: 'M' },
+    { label: t('Supplier Balance'), value: formatMoney(dashboard.supplier_balance), icon: 'S' },
+    { label: t('Net Profit Today'), value: formatMoney(dashboard.net_profit_today), icon: 'N' },
   ]
   const notificationByType = notifications.reduce((map, notification) => {
     map[notification.type] = notification
@@ -89,6 +90,18 @@ function Dashboard() {
 
   return (
     <section className="page-stack">
+      <section className="dashboard-welcome">
+        <div>
+          <p className="eyebrow">{t('Business overview')}</p>
+          <h2>{t('Your shop at a glance')}</h2>
+          <p>{t("Track today's sales, stock, payments, and business activity.")}</p>
+        </div>
+        {hasPermission(user, 'pos_access') && (
+          <button type="button" onClick={() => navigate('/pos')}>
+            {t('Open POS')}
+          </button>
+        )}
+      </section>
       {refreshing && <div className="info-banner">{t('Refreshing dashboard data...')}</div>}
       <section className="panel">
         <div className="section-heading">
@@ -120,7 +133,10 @@ function Dashboard() {
       <div className="metric-grid">
         {cards.map((card) => (
           <article className="metric-card" key={card.label}>
-            <span>{card.label}</span>
+            <div className="metric-card-heading">
+              <span>{card.label}</span>
+              <i aria-hidden="true">{card.icon}</i>
+            </div>
             <strong>{card.value}</strong>
           </article>
         ))}

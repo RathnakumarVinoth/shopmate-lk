@@ -21,7 +21,7 @@ const ownerLinks = [
   { to: '/staff', labelKey: 'staff', permission: 'staff_manage' },
 ]
 
-function Sidebar({ onNavigate, onClose }) {
+function Sidebar({ shopName = 'ShopMate LK', onNavigate, onClose }) {
   const navigate = useNavigate()
   const user = getSessionUser()
   const visibleLinks = ownerLinks.filter((link) => hasPermission(user, link.permission))
@@ -37,7 +37,7 @@ function Sidebar({ onNavigate, onClose }) {
       <div className="brand">
         <div className="brand-mark">SM</div>
         <div>
-          <strong>ShopMate LK</strong>
+          <strong>{shopName}</strong>
           <span>{t('POS and Stock')}</span>
         </div>
         <button type="button" className="mobile-drawer-close" onClick={onClose} aria-label={t('Close')}>

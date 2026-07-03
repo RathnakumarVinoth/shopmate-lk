@@ -291,7 +291,11 @@ function Staff() {
                   <tr key={staffMember.id}>
                     <td>{staffMember.name}</td>
                     <td>{staffMember.email}</td>
-                    <td>{getRoleLabel(staffMember.role)}</td>
+                    <td>
+                      <span className={`status role-${staffMember.role}`}>
+                        {getRoleLabel(staffMember.role)}
+                      </span>
+                    </td>
                     <td>{(staffMember.permissions || []).length}</td>
                     <td>
                       <span className={`status ${staffMember.is_active ? 'paid' : 'unpaid'}`}>
