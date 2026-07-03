@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 
@@ -26,7 +27,7 @@ function AdminDashboard() {
   }, [])
 
   if (loading) {
-    return <div className="panel loading-panel">Loading admin dashboard...</div>
+    return <div className="panel loading-panel">{t('Loading admin dashboard...')}</div>
   }
 
   if (error) {
@@ -34,13 +35,13 @@ function AdminDashboard() {
   }
 
   const cards = [
-    { label: 'Total Shops', value: summary.total_shops || 0 },
-    { label: 'Active Shops', value: summary.active_shops || 0 },
-    { label: 'Trial Shops', value: summary.trial_shops || 0 },
-    { label: 'Expired Shops', value: summary.expired_shops || 0 },
-    { label: 'Suspended Shops', value: summary.suspended_shops || 0 },
+    { label: t('Total Shops'), value: summary.total_shops || 0 },
+    { label: t('Active Shops'), value: summary.active_shops || 0 },
+    { label: t('Trial Shops'), value: summary.trial_shops || 0 },
+    { label: t('Expired Shops'), value: summary.expired_shops || 0 },
+    { label: t('Suspended Shops'), value: summary.suspended_shops || 0 },
     {
-      label: 'Estimated Monthly Revenue',
+      label: t('Estimated Monthly Revenue'),
       value: formatMoney(summary.estimated_monthly_revenue),
     },
   ]
@@ -58,9 +59,9 @@ function AdminDashboard() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Subscription Control</h2>
+          <h2>{t('Subscription Control')}</h2>
           <button type="button" className="ghost-button" onClick={loadSummary}>
-            Refresh
+            {t('Refresh')}
           </button>
         </div>
       </section>

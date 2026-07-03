@@ -110,7 +110,7 @@ function BackupExport() {
   const applyDates = (event) => {
     event.preventDefault()
     setAppliedFilters(filters)
-    setMessage('Date filter applied for sales, sale items, and expenses exports')
+    setMessage(t('Date filter applied for sales, sale items, and expenses exports'))
     setError('')
   }
 
@@ -150,10 +150,10 @@ function BackupExport() {
       })
 
       XLSX.writeFile(workbook, 'shopmate_full_backup.xlsx')
-      setMessage('Full business backup exported successfully')
+      setMessage(t('Full business backup exported successfully'))
     } catch (err) {
       console.error(err)
-      setError('Failed to export full backup. Check console for details.')
+      setError(t('Failed to export full backup. Check console for details.'))
     } finally {
       setExportingKey('')
     }
@@ -167,7 +167,7 @@ function BackupExport() {
         </div>
         <form className="form-grid report-filter" onSubmit={applyDates}>
           <label>
-            Start Date
+            {t('Start Date')}
             <input
               type="date"
               value={filters.start_date}
@@ -175,7 +175,7 @@ function BackupExport() {
             />
           </label>
           <label>
-            End Date
+            {t('End Date')}
             <input
               type="date"
               value={filters.end_date}
@@ -183,11 +183,11 @@ function BackupExport() {
             />
           </label>
           <button type="submit" disabled={Boolean(exportingKey)}>
-            Apply Dates
+            {t('Apply Filters')}
           </button>
         </form>
         <p className="muted">
-          Date filters apply only to sales, sale items, and expenses. Leave dates empty to export all records.
+          {t('Date filters apply only to sales, sale items, and expenses. Leave dates empty to export all records.')}
         </p>
       </section>
 
@@ -196,7 +196,7 @@ function BackupExport() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Excel Exports</h2>
+          <h2>{t('Excel Exports')}</h2>
         </div>
         <div className="export-grid">
           {exportDefinitions.map((definition) => (
@@ -207,7 +207,7 @@ function BackupExport() {
               onClick={() => exportSingle(definition)}
               disabled={Boolean(exportingKey)}
             >
-              {exportingKey === definition.key ? 'Exporting...' : definition.label}
+              {exportingKey === definition.key ? t('Exporting...') : t(definition.label)}
             </button>
           ))}
           <button
@@ -216,22 +216,22 @@ function BackupExport() {
             onClick={exportFullBackup}
             disabled={Boolean(exportingKey)}
           >
-            {exportingKey === 'full' ? 'Exporting...' : 'Export Full Business Backup'}
+            {exportingKey === 'full' ? t('Exporting...') : t('Export Full Business Backup')}
           </button>
         </div>
       </section>
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Database Backup Guide</h2>
+          <h2>{t('Database Backup Guide')}</h2>
         </div>
         <div className="backup-guide">
           <div>
-            <span>Backup command</span>
+            <span>{t('Backup command')}</span>
             <code>mysqldump -u root -p shopmate_lk &gt; shopmate_lk_backup.sql</code>
           </div>
           <div>
-            <span>Restore command</span>
+            <span>{t('Restore command')}</span>
             <code>mysql -u root -p shopmate_lk &lt; shopmate_lk_backup.sql</code>
           </div>
         </div>

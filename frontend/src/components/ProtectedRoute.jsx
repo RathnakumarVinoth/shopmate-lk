@@ -1,4 +1,5 @@
 import { Navigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import { hasPermission, roleAllowed } from '../utils/permissions'
 
 function ProtectedRoute({ children, roles, permission }) {
@@ -17,7 +18,7 @@ function ProtectedRoute({ children, roles, permission }) {
   if (permission && !hasPermission(user, permission)) {
     return (
       <div className="panel">
-        <div className="alert">You do not have permission to access this page.</div>
+        <div className="alert">{t('You do not have permission to access this page.')}</div>
       </div>
     )
   }

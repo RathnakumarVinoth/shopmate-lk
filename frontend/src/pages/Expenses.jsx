@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, notifyDashboardChanged } from '../utils/formatters'
 
@@ -122,22 +123,22 @@ function Expenses() {
   }
 
   if (loading) {
-    return <div className="panel loading-panel">Loading expenses...</div>
+    return <div className="panel loading-panel">{t('Loading expenses...')}</div>
   }
 
   return (
     <section className="page-stack">
       <div className="metric-grid compact-metrics">
         <article className="metric-card">
-          <span>Today Expenses</span>
+          <span>{t('Today Expenses')}</span>
           <strong>{formatMoney(summary.today_expenses)}</strong>
         </article>
         <article className="metric-card">
-          <span>Month Expenses</span>
+          <span>{t('Month Expenses')}</span>
           <strong>{formatMoney(summary.month_expenses)}</strong>
         </article>
         <article className="metric-card">
-          <span>Total Expenses</span>
+          <span>{t('Total Expenses')}</span>
           <strong>{formatMoney(summary.total_expenses)}</strong>
         </article>
       </div>
@@ -148,24 +149,24 @@ function Expenses() {
       <section className="page-grid">
         <section className="panel">
           <div className="section-heading">
-            <h2>{editingId ? 'Edit Expense' : 'Add Expense'}</h2>
+            <h2>{editingId ? t('Edit Expense') : t('Add Expense')}</h2>
             {editingId && (
               <button type="button" className="ghost-button" onClick={resetForm}>
-                Cancel
+                {t('Cancel')}
               </button>
             )}
           </div>
           <form onSubmit={submit} className="form-grid">
             <label>
-              Expense Name
+              {t('Expense Name')}
               <input name="expense_name" value={form.expense_name} onChange={updateField} required />
             </label>
             <label>
-              Category
+              {t('Category')}
               <input name="category" value={form.category} onChange={updateField} />
             </label>
             <label>
-              Amount
+              {t('Amount')}
               <input
                 name="amount"
                 type="number"
@@ -177,7 +178,7 @@ function Expenses() {
               />
             </label>
             <label>
-              Date
+              {t('Date')}
               <input
                 name="expense_date"
                 type="date"
@@ -186,18 +187,18 @@ function Expenses() {
               />
             </label>
             <label className="full-width">
-              Note
+              {t('Note')}
               <input name="note" value={form.note} onChange={updateField} />
             </label>
             <button type="submit" className="full-width" disabled={saving}>
-              {saving ? 'Saving...' : editingId ? 'Update Expense' : 'Add Expense'}
+              {saving ? t('Saving...') : editingId ? t('Update Expense') : t('Add Expense')}
             </button>
           </form>
         </section>
 
         <section className="panel">
           <div className="section-heading">
-            <h2>Expenses by Category</h2>
+            <h2>{t('Expenses by Category')}</h2>
           </div>
           <div className="category-list">
             {(summary.expenses_by_category || []).map((item) => (
@@ -207,7 +208,7 @@ function Expenses() {
               </div>
             ))}
             {(summary.expenses_by_category || []).length === 0 && (
-              <p className="muted">No category totals yet.</p>
+              <p className="muted">{t('No category totals yet.')}</p>
             )}
           </div>
         </section>
@@ -215,21 +216,21 @@ function Expenses() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Expense List</h2>
+          <h2>{t('Expense List')}</h2>
           <button type="button" className="ghost-button" onClick={() => loadExpenseData()}>
-            Refresh
+            {t('Refresh')}
           </button>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Date</th>
-                <th>Note</th>
-                <th>Actions</th>
+                <th>{t('Name')}</th>
+                <th>{t('Category')}</th>
+                <th>{t('Amount')}</th>
+                <th>{t('Date')}</th>
+                <th>{t('Note')}</th>
+                <th>{t('Action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -243,7 +244,7 @@ function Expenses() {
                   <td>
                     <div className="table-actions">
                       <button type="button" className="ghost-button" onClick={() => startEdit(expense)}>
-                        Edit
+                        {t('Edit')}
                       </button>
                       <button
                         type="button"
@@ -251,7 +252,7 @@ function Expenses() {
                         onClick={() => deleteExpense(expense)}
                         disabled={deletingId === expense.id}
                       >
-                        {deletingId === expense.id ? 'Deleting...' : 'Delete'}
+                        {deletingId === expense.id ? t('Deleting...') : t('Delete')}
                       </button>
                     </div>
                   </td>
@@ -260,7 +261,7 @@ function Expenses() {
               {expenses.length === 0 && (
                 <tr>
                   <td colSpan="6" className="empty-cell">
-                    No expenses found.
+                    {t('No expenses found.')}
                   </td>
                 </tr>
               )}

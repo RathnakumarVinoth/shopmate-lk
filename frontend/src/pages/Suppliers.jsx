@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, notifyDashboardChanged } from '../utils/formatters'
 
@@ -184,30 +185,30 @@ function Suppliers() {
   }
 
   if (loading) {
-    return <div className="panel loading-panel">Loading suppliers...</div>
+    return <div className="panel loading-panel">{t('Loading suppliers...')}</div>
   }
 
   return (
     <section className="page-stack">
       <div className="metric-grid compact-metrics">
         <article className="metric-card">
-          <span>Total Purchases</span>
+          <span>{t('Total Purchases')}</span>
           <strong>{formatMoney(summary.total_supplier_purchase_amount)}</strong>
         </article>
         <article className="metric-card">
-          <span>Total Paid</span>
+          <span>{t('Total Paid')}</span>
           <strong>{formatMoney(summary.total_supplier_paid_amount)}</strong>
         </article>
         <article className="metric-card">
-          <span>Supplier Balance</span>
+          <span>{t('Supplier Balance')}</span>
           <strong>{formatMoney(summary.total_supplier_balance_amount)}</strong>
         </article>
         <article className="metric-card">
-          <span>Suppliers</span>
+          <span>{t('Suppliers')}</span>
           <strong>{summary.total_suppliers || 0}</strong>
         </article>
         <article className="metric-card">
-          <span>Open Transactions</span>
+          <span>{t('Open Transactions')}</span>
           <strong>{summary.unpaid_or_partial_count || 0}</strong>
         </article>
       </div>
@@ -218,16 +219,16 @@ function Suppliers() {
       <section className="page-grid">
         <section className="panel">
           <div className="section-heading">
-            <h2>{editingSupplierId ? 'Edit Supplier' : 'Add Supplier'}</h2>
+            <h2>{editingSupplierId ? t('Edit Supplier') : t('Add Supplier')}</h2>
             {editingSupplierId && (
               <button type="button" className="ghost-button" onClick={resetSupplierForm}>
-                Cancel
+                {t('Cancel')}
               </button>
             )}
           </div>
           <form onSubmit={saveSupplier} className="form-stack">
             <label>
-              Supplier Name
+              {t('Supplier Name')}
               <input
                 value={supplierForm.supplier_name}
                 onChange={(event) =>
@@ -237,7 +238,7 @@ function Suppliers() {
               />
             </label>
             <label>
-              Phone
+              {t('Phone')}
               <input
                 value={supplierForm.phone}
                 onChange={(event) =>
@@ -246,7 +247,7 @@ function Suppliers() {
               />
             </label>
             <label>
-              Address
+              {t('Address')}
               <input
                 value={supplierForm.address}
                 onChange={(event) =>
@@ -255,18 +256,18 @@ function Suppliers() {
               />
             </label>
             <button type="submit" disabled={savingSupplier}>
-              {savingSupplier ? 'Saving...' : editingSupplierId ? 'Update Supplier' : 'Add Supplier'}
+              {savingSupplier ? t('Saving...') : editingSupplierId ? t('Update Supplier') : t('Add Supplier')}
             </button>
           </form>
         </section>
 
         <section className="panel">
           <div className="section-heading">
-            <h2>Add Supplier Transaction</h2>
+            <h2>{t('Add Supplier Transaction')}</h2>
           </div>
           <form onSubmit={addTransaction} className="form-grid">
             <label className="full-width">
-              Supplier
+              {t('Supplier')}
               <select
                 value={transactionForm.supplier_id}
                 onChange={(event) =>
@@ -274,7 +275,7 @@ function Suppliers() {
                 }
                 required
               >
-                <option value="">Select supplier</option>
+                <option value="">{t('Select supplier')}</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.supplier_name}
@@ -283,7 +284,7 @@ function Suppliers() {
               </select>
             </label>
             <label className="full-width">
-              Description
+              {t('Description')}
               <input
                 value={transactionForm.description}
                 onChange={(event) =>
@@ -292,7 +293,7 @@ function Suppliers() {
               />
             </label>
             <label>
-              Total Amount
+              {t('Total Amount')}
               <input
                 type="number"
                 min="0"
@@ -305,7 +306,7 @@ function Suppliers() {
               />
             </label>
             <label>
-              Paid Amount
+              {t('Paid Amount')}
               <input
                 type="number"
                 min="0"
@@ -321,7 +322,7 @@ function Suppliers() {
               className="full-width"
               disabled={savingTransaction || suppliers.length === 0}
             >
-              {savingTransaction ? 'Saving...' : 'Add Transaction'}
+              {savingTransaction ? t('Saving...') : t('Add Transaction')}
             </button>
           </form>
         </section>
@@ -329,19 +330,19 @@ function Suppliers() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Supplier List</h2>
+          <h2>{t('Supplier List')}</h2>
           <button type="button" className="ghost-button" onClick={() => loadSupplierData()}>
-            Refresh
+            {t('Refresh')}
           </button>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>Address</th>
-                <th>Actions</th>
+                <th>{t('Name')}</th>
+                <th>{t('Phone')}</th>
+                <th>{t('Address')}</th>
+                <th>{t('Action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -353,7 +354,7 @@ function Suppliers() {
                   <td>
                     <div className="table-actions">
                       <button type="button" className="ghost-button" onClick={() => startEditSupplier(supplier)}>
-                        Edit
+                        {t('Edit')}
                       </button>
                       <button
                         type="button"
@@ -361,7 +362,7 @@ function Suppliers() {
                         onClick={() => deleteSupplier(supplier)}
                         disabled={deletingSupplierId === supplier.id}
                       >
-                        {deletingSupplierId === supplier.id ? 'Deleting...' : 'Delete'}
+                        {deletingSupplierId === supplier.id ? t('Deleting...') : t('Delete')}
                       </button>
                     </div>
                   </td>
@@ -370,7 +371,7 @@ function Suppliers() {
               {suppliers.length === 0 && (
                 <tr>
                   <td colSpan="4" className="empty-cell">
-                    No suppliers found.
+                    {t('No suppliers found.')}
                   </td>
                 </tr>
               )}
@@ -381,19 +382,19 @@ function Suppliers() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Supplier Transactions</h2>
+          <h2>{t('Supplier Transactions')}</h2>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Supplier</th>
-                <th>Description</th>
-                <th>Total</th>
-                <th>Paid</th>
-                <th>Balance</th>
-                <th>Status</th>
-                <th>Payment</th>
+                <th>{t('Supplier')}</th>
+                <th>{t('Description')}</th>
+                <th>{t('Total')}</th>
+                <th>{t('Paid')}</th>
+                <th>{t('Balance')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('Payment')}</th>
               </tr>
             </thead>
             <tbody>
@@ -417,7 +418,7 @@ function Suppliers() {
                     </td>
                     <td>
                       {transaction.status === 'paid' ? (
-                        <span className="muted">Paid</span>
+                        <span className="muted">{t('Paid')}</span>
                       ) : (
                         <div className="inline-action">
                           <input
@@ -436,7 +437,7 @@ function Suppliers() {
                             onClick={() => payTransaction(transaction)}
                             disabled={invalidPayment || payingId === transaction.id}
                           >
-                            {payingId === transaction.id ? 'Paying...' : 'Pay'}
+                            {payingId === transaction.id ? t('Paying...') : t('Pay')}
                           </button>
                         </div>
                       )}
@@ -447,7 +448,7 @@ function Suppliers() {
               {transactions.length === 0 && (
                 <tr>
                   <td colSpan="7" className="empty-cell">
-                    No supplier transactions found.
+                    {t('No supplier transactions found.')}
                   </td>
                 </tr>
               )}

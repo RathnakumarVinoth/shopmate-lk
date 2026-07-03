@@ -109,7 +109,7 @@ function PaymentVerification() {
   }
 
   if (loading) {
-    return <div className="panel loading-panel">Loading pending payments...</div>
+    return <div className="panel loading-panel">{t('Loading pending payments...')}</div>
   }
 
   return (
@@ -131,16 +131,16 @@ function PaymentVerification() {
           <table className="payment-verification-table">
             <thead>
               <tr>
-                <th>Invoice No</th>
-                <th>Amount</th>
-                <th>Payment Type</th>
-                <th>Customer</th>
-                <th>Status</th>
-                <th>Reference</th>
-                <th>Approval Code</th>
-                <th>Card Last 4</th>
-                <th>Date</th>
-                <th>Action</th>
+                <th>{t('Invoice No')}</th>
+                <th>{t('Amount')}</th>
+                <th>{t('Payment Type')}</th>
+                <th>{t('Customer')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('Reference')}</th>
+                <th>{t('Approval Code')}</th>
+                <th>{t('Card Last 4')}</th>
+                <th>{t('Date')}</th>
+                <th>{t('Action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -197,7 +197,7 @@ function PaymentVerification() {
                           onClick={() => verifyPayment(payment)}
                           disabled={saving}
                         >
-                          {saving ? 'Saving...' : 'Verify'}
+                          {saving ? t('Saving...') : t('Verify')}
                         </button>
                         {user.role === 'owner' && (
                           <button
@@ -206,7 +206,7 @@ function PaymentVerification() {
                             onClick={() => failPayment(payment)}
                             disabled={saving}
                           >
-                            Failed
+                            {t('Failed')}
                           </button>
                         )}
                       </div>
@@ -217,7 +217,7 @@ function PaymentVerification() {
               {payments.length === 0 && (
                 <tr>
                   <td colSpan="10" className="empty-cell">
-                    No pending payments found.
+                    {t('No pending payments found.')}
                   </td>
                 </tr>
               )}

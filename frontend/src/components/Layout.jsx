@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import api from '../services/api'
-import { setLanguage } from '../i18n/translations'
+import { setLanguage, t } from '../i18n/translations'
 import { scheduleSessionExpiry } from '../utils/session'
 import Notifications from './Notifications.jsx'
 import Sidebar from './Sidebar.jsx'
@@ -55,7 +55,7 @@ function Layout() {
         <header className="topbar">
           <div>
             <p className="eyebrow">ShopMate LK</p>
-            <h1>{user?.name ? `Welcome, ${user.name}` : 'Point of Sale'}</h1>
+            <h1>{user?.name ? `${t('Welcome')}, ${user.name}` : t('POS Billing')}</h1>
           </div>
           <div className="topbar-actions">
             <Notifications />

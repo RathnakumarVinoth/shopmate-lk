@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 
@@ -53,16 +54,16 @@ function AdminLogin() {
     <main className="auth-page">
       <section className="auth-panel">
         <p className="eyebrow">ShopMate LK</p>
-        <h1>Admin Login</h1>
+        <h1>{t('Admin Login')}</h1>
         <form onSubmit={submit} className="form-stack">
           {message && <div className="info-banner">{message}</div>}
           {error && <div className="alert">{error}</div>}
           <label>
-            Email
+            {t('Email')}
             <input name="email" type="email" value={form.email} onChange={updateField} required />
           </label>
           <label>
-            Password
+            {t('Password')}
             <input
               name="password"
               type="password"
@@ -72,11 +73,11 @@ function AdminLogin() {
             />
           </label>
           <button type="submit" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login as Admin'}
+            {loading ? t('Logging in...') : t('Login as Admin')}
           </button>
         </form>
         <p className="auth-link">
-          Shop user? <Link to="/login">Go to shop login</Link>
+          {t('Shop user?')} <Link to="/login">{t('Go to shop login')}</Link>
         </p>
       </section>
     </main>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 
@@ -84,31 +85,31 @@ function Reports() {
   )
 
   const summaryCards = [
-    { label: 'Total Sales', value: formatMoney(summary.total_sales) },
-    { label: 'Total Refunds', value: formatMoney(summary.total_refunds) },
-    { label: 'Net Sales', value: formatMoney(summary.net_sales) },
-    { label: 'Total Returns', value: summary.total_returns || 0 },
-    { label: 'Total Profit', value: formatMoney(summary.total_profit) },
-    { label: 'Total Expenses', value: formatMoney(summary.total_expenses) },
-    { label: 'Net Profit', value: formatMoney(summary.net_profit) },
-    { label: 'Total Bills', value: summary.total_bills || 0 },
-    { label: 'Average Bill Value', value: formatMoney(summary.average_bill_value) },
-    { label: 'Pending Payments', value: formatMoney(summary.pending_payment_total) },
-    { label: 'Verified Payments', value: formatMoney(summary.verified_payment_total) },
-    { label: 'Credit Balance', value: formatMoney(summary.total_credit_balance) },
-    { label: 'Supplier Balance', value: formatMoney(summary.total_supplier_balance) },
-    { label: 'Low Stock Count', value: summary.low_stock_count || 0 },
+    { label: t('Total Sales'), value: formatMoney(summary.total_sales) },
+    { label: t('Total Refunds'), value: formatMoney(summary.total_refunds) },
+    { label: t('Net Sales'), value: formatMoney(summary.net_sales) },
+    { label: t('Total Returns'), value: summary.total_returns || 0 },
+    { label: t('Total Profit'), value: formatMoney(summary.total_profit) },
+    { label: t('Total Expenses'), value: formatMoney(summary.total_expenses) },
+    { label: t('Net Profit'), value: formatMoney(summary.net_profit) },
+    { label: t('Total Bills'), value: summary.total_bills || 0 },
+    { label: t('Average Bill Value'), value: formatMoney(summary.average_bill_value) },
+    { label: t('Pending Payments'), value: formatMoney(summary.pending_payment_total) },
+    { label: t('Verified Payments'), value: formatMoney(summary.verified_payment_total) },
+    { label: t('Credit Balance'), value: formatMoney(summary.total_credit_balance) },
+    { label: t('Supplier Balance'), value: formatMoney(summary.total_supplier_balance) },
+    { label: t('Low Stock Count'), value: summary.low_stock_count || 0 },
   ]
 
   return (
     <section className="page-stack">
       <section className="panel">
         <div className="section-heading">
-          <h2>Reports</h2>
+          <h2>{t('Reports')}</h2>
         </div>
         <form className="form-grid report-filter" onSubmit={applyFilters}>
           <label>
-            Start Date
+            {t('Start Date')}
             <input
               type="date"
               value={filters.start_date}
@@ -117,7 +118,7 @@ function Reports() {
             />
           </label>
           <label>
-            End Date
+            {t('End Date')}
             <input
               type="date"
               value={filters.end_date}
@@ -126,7 +127,7 @@ function Reports() {
             />
           </label>
           <button type="submit" disabled={loading}>
-            {loading ? 'Loading...' : 'Apply'}
+            {loading ? t('Loading...') : t('Apply Filters')}
           </button>
         </form>
       </section>
@@ -134,7 +135,7 @@ function Reports() {
       {error && <div className="alert">{error}</div>}
 
       {loading ? (
-        <div className="panel loading-panel">Loading reports...</div>
+        <div className="panel loading-panel">{t('Loading reports...')}</div>
       ) : (
         <>
           <div className="metric-grid report-metrics">
@@ -148,16 +149,16 @@ function Reports() {
 
           <section className="panel">
             <div className="section-heading">
-              <h2>Daily Sales</h2>
+              <h2>{t('Daily Sales')}</h2>
             </div>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Total Sales</th>
-                    <th>Total Profit</th>
-                    <th>Bills</th>
+                    <th>{t('Date')}</th>
+                    <th>{t('Total Sales')}</th>
+                    <th>{t('Total Profit')}</th>
+                    <th>{t('Bills')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -172,7 +173,7 @@ function Reports() {
                   {dailySales.length === 0 && (
                     <tr>
                       <td colSpan="4" className="empty-cell">
-                        No sales found for this period.
+                        {t('No sales found for this period.')}
                       </td>
                     </tr>
                   )}
@@ -184,16 +185,16 @@ function Reports() {
           <section className="report-grid">
             <section className="panel">
               <div className="section-heading">
-                <h2>Top Products</h2>
+                <h2>{t('Top Products')}</h2>
               </div>
               <div className="table-wrap">
                 <table className="report-table">
                   <thead>
                     <tr>
-                      <th>Product</th>
-                      <th>Qty</th>
-                      <th>Sales</th>
-                      <th>Profit</th>
+                      <th>{t('Product')}</th>
+                      <th>{t('Quantity')}</th>
+                      <th>{t('Total Sales')}</th>
+                      <th>{t('Profit')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -220,7 +221,7 @@ function Reports() {
                     {topProducts.length === 0 && (
                       <tr>
                         <td colSpan="4" className="empty-cell">
-                          No product sales found.
+                          {t('No product sales found.')}
                         </td>
                       </tr>
                     )}
@@ -231,15 +232,15 @@ function Reports() {
 
             <section className="panel">
               <div className="section-heading">
-                <h2>Payment Methods</h2>
+                <h2>{t('Payment Methods')}</h2>
               </div>
               <div className="table-wrap">
                 <table className="report-table">
                   <thead>
                     <tr>
-                      <th>Payment</th>
-                      <th>Total</th>
-                      <th>Bills</th>
+                      <th>{t('Payment')}</th>
+                      <th>{t('Total')}</th>
+                      <th>{t('Bills')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -265,7 +266,7 @@ function Reports() {
                     {paymentMethods.length === 0 && (
                       <tr>
                         <td colSpan="3" className="empty-cell">
-                          No payment data found.
+                          {t('No payment data found.')}
                         </td>
                       </tr>
                     )}
@@ -277,7 +278,7 @@ function Reports() {
 
           <section className="panel">
             <div className="section-heading">
-              <h2>Expenses By Category</h2>
+              <h2>{t('Expenses By Category')}</h2>
             </div>
             <div className="category-list">
               {expensesByCategory.map((item) => (
@@ -299,7 +300,7 @@ function Reports() {
                 </div>
               ))}
               {expensesByCategory.length === 0 && (
-                <p className="muted">No expense categories found for this period.</p>
+                <p className="muted">{t('No expense categories found for this period.')}</p>
               )}
             </div>
           </section>

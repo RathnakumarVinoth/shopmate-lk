@@ -148,7 +148,7 @@ function Products() {
             <h2>{editingId ? t('editProduct') : t('addProduct')}</h2>
             {editingId && (
               <button type="button" className="ghost-button" onClick={resetForm}>
-                Cancel
+                {t('Cancel')}
               </button>
             )}
           </div>
@@ -156,23 +156,23 @@ function Products() {
             {error && <div className="alert full-width">{error}</div>}
             {message && <div className="success full-width">{message}</div>}
             <label>
-              Product Name
+              {t('Product Name')}
               <input name="product_name" value={form.product_name} onChange={updateField} required />
             </label>
             <label>
-              Product Code / SKU
+              {t('Product Code / SKU')}
               <input name="product_code" value={form.product_code} onChange={updateField} />
             </label>
             <label>
-              Barcode
+              {t('Barcode')}
               <input name="barcode" value={form.barcode} onChange={updateField} />
             </label>
             <label>
-              Category
+              {t('Category')}
               <input name="category" value={form.category} onChange={updateField} />
             </label>
             <label>
-              Buying Price
+              {t('Buying Price')}
               <input
                 name="buying_price"
                 type="number"
@@ -184,7 +184,7 @@ function Products() {
               />
             </label>
             <label>
-              Selling Price
+              {t('Price')}
               <input
                 name="selling_price"
                 type="number"
@@ -196,7 +196,7 @@ function Products() {
               />
             </label>
             <label>
-              Stock Quantity
+              {t('Stock Quantity')}
               <input
                 name="stock_quantity"
                 type="number"
@@ -206,7 +206,7 @@ function Products() {
               />
             </label>
             <label>
-              Low Stock Limit
+              {t('Default Low Stock Limit')}
               <input
                 name="low_stock_limit"
                 type="number"
@@ -231,7 +231,7 @@ function Products() {
           </button>
         </div>
         {loading ? (
-          <div className="loading-panel">Loading products...</div>
+          <div className="loading-panel">{t('Loading products...')}</div>
         ) : (
           <div className="table-wrap">
             {!canManageProducts && error && <div className="alert">{error}</div>}
@@ -239,15 +239,15 @@ function Products() {
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Code / SKU</th>
-                  <th>Barcode</th>
-                  <th>Category</th>
-                  <th>Buy</th>
-                  <th>Sell</th>
-                  <th>Stock</th>
-                  <th>Low Limit</th>
-                  {canManageProducts && <th>Action</th>}
+                  <th>{t('Name')}</th>
+                  <th>{t('Code / SKU')}</th>
+                  <th>{t('Barcode')}</th>
+                  <th>{t('Category')}</th>
+                  <th>{t('Buy')}</th>
+                  <th>{t('Price')}</th>
+                  <th>{t('Stock')}</th>
+                  <th>{t('Low Limit')}</th>
+                  {canManageProducts && <th>{t('Action')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -259,7 +259,7 @@ function Products() {
                     <tr key={product.id} className={isLowStock ? 'low-stock-row' : ''}>
                       <td>
                         <strong>{product.product_name}</strong>
-                        {isLowStock && <span className="warning-badge">Low stock</span>}
+                        {isLowStock && <span className="warning-badge">{t('Low stock')}</span>}
                       </td>
                       <td>{product.product_code || '-'}</td>
                       <td>{product.barcode || '-'}</td>
@@ -291,7 +291,7 @@ function Products() {
                 {products.length === 0 && (
                   <tr>
                     <td colSpan={canManageProducts ? 9 : 8} className="empty-cell">
-                      No products found.
+                      {t('No products found.')}
                     </td>
                   </tr>
                 )}

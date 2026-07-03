@@ -93,7 +93,7 @@ function AuditLogs() {
   }
 
   if (loading) {
-    return <div className="panel loading-panel">Loading audit logs...</div>
+    return <div className="panel loading-panel">{t('Loading audit logs...')}</div>
   }
 
   return (
@@ -107,7 +107,7 @@ function AuditLogs() {
         </div>
         <div className="form-grid compact-form">
           <label>
-            From Date
+            {t('From Date')}
             <input
               type="date"
               name="date_from"
@@ -116,13 +116,13 @@ function AuditLogs() {
             />
           </label>
           <label>
-            To Date
+            {t('To Date')}
             <input type="date" name="date_to" value={filters.date_to} onChange={updateFilter} />
           </label>
           <label>
-            Action
+            {t('Action')}
             <select name="action" value={filters.action} onChange={updateFilter}>
-              <option value="">All actions</option>
+              <option value="">{t('All actions')}</option>
               {actionOptions.map((action) => (
                 <option key={action} value={action}>
                   {formatLabel(action)}
@@ -131,9 +131,9 @@ function AuditLogs() {
             </select>
           </label>
           <label>
-            Entity Type
+            {t('Entity Type')}
             <select name="entity_type" value={filters.entity_type} onChange={updateFilter}>
-              <option value="">All entities</option>
+              <option value="">{t('All entity types')}</option>
               {entityTypeOptions.map((entityType) => (
                 <option key={entityType} value={entityType}>
                   {formatLabel(entityType)}
@@ -144,10 +144,10 @@ function AuditLogs() {
         </div>
         <div className="settings-actions">
           <button type="button" onClick={() => loadLogs(false)}>
-            Apply Filters
+            {t('Apply Filters')}
           </button>
           <button type="button" className="ghost-button" onClick={resetFilters}>
-            Clear Filters
+            {t('Clear Filters')}
           </button>
         </div>
       </section>
@@ -159,12 +159,12 @@ function AuditLogs() {
           <table>
             <thead>
               <tr>
-                <th>Date / Time</th>
-                <th>User</th>
-                <th>Role</th>
-                <th>Action</th>
-                <th>Entity Type</th>
-                <th>Description</th>
+                <th>{t('Date/Time')}</th>
+                <th>{t('User')}</th>
+                <th>{t('Role')}</th>
+                <th>{t('Action')}</th>
+                <th>{t('Entity Type')}</th>
+                <th>{t('Description')}</th>
               </tr>
             </thead>
             <tbody>
@@ -181,7 +181,7 @@ function AuditLogs() {
               {logs.length === 0 && (
                 <tr>
                   <td colSpan="6" className="empty-cell">
-                    No audit logs found.
+                    {t('No audit logs found.')}
                   </td>
                 </tr>
               )}

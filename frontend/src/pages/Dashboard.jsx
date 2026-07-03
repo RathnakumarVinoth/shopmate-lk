@@ -5,10 +5,10 @@ import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 
 const alertCards = [
-  { type: 'low_stock', label: 'Low stock', link: '/products' },
-  { type: 'pending_payments', label: 'Pending payments', link: '/payment-verification' },
-  { type: 'unpaid_credits', label: 'Unpaid credits', link: '/credit-book' },
-  { type: 'supplier_due', label: 'Supplier due', link: '/suppliers' },
+  { type: 'low_stock', labelKey: 'Low stock', link: '/products' },
+  { type: 'pending_payments', labelKey: 'Pending payments', link: '/payment-verification' },
+  { type: 'unpaid_credits', labelKey: 'Unpaid credits', link: '/credit-book' },
+  { type: 'supplier_due', labelKey: 'Supplier due', link: '/suppliers' },
 ]
 
 function Dashboard() {
@@ -57,7 +57,7 @@ function Dashboard() {
   }, [])
 
   if (loading) {
-    return <div className="panel loading-panel">Loading dashboard...</div>
+    return <div className="panel loading-panel">{t('Loading dashboard...')}</div>
   }
 
   if (error) {
@@ -65,17 +65,17 @@ function Dashboard() {
   }
 
   const cards = [
-    { label: 'Today Sales', value: formatMoney(dashboard.today_sales_total) },
-    { label: 'Today Profit', value: formatMoney(dashboard.today_profit_total) },
-    { label: 'Bill Count', value: dashboard.today_bill_count },
-    { label: 'Total Products', value: dashboard.total_products },
-    { label: 'Low Stock Count', value: dashboard.low_stock_count },
-    { label: 'Credit Balance', value: formatMoney(dashboard.total_credit_balance) },
-    { label: 'Total Customers', value: dashboard.total_customers },
-    { label: 'Today Expenses', value: formatMoney(dashboard.today_expenses) },
-    { label: 'Month Expenses', value: formatMoney(dashboard.month_expenses) },
-    { label: 'Supplier Balance', value: formatMoney(dashboard.supplier_balance) },
-    { label: 'Net Profit Today', value: formatMoney(dashboard.net_profit_today) },
+    { label: t('Today Sales'), value: formatMoney(dashboard.today_sales_total) },
+    { label: t('Today Profit'), value: formatMoney(dashboard.today_profit_total) },
+    { label: t('Bill Count'), value: dashboard.today_bill_count },
+    { label: t('Total Products'), value: dashboard.total_products },
+    { label: t('Low Stock Count'), value: dashboard.low_stock_count },
+    { label: t('Credit Balance'), value: formatMoney(dashboard.total_credit_balance) },
+    { label: t('Total Customers'), value: dashboard.total_customers },
+    { label: t('Today Expenses'), value: formatMoney(dashboard.today_expenses) },
+    { label: t('Month Expenses'), value: formatMoney(dashboard.month_expenses) },
+    { label: t('Supplier Balance'), value: formatMoney(dashboard.supplier_balance) },
+    { label: t('Net Profit Today'), value: formatMoney(dashboard.net_profit_today) },
   ]
   const notificationByType = notifications.reduce((map, notification) => {
     map[notification.type] = notification
@@ -88,10 +88,10 @@ function Dashboard() {
 
   return (
     <section className="page-stack">
-      {refreshing && <div className="info-banner">Refreshing dashboard data...</div>}
+      {refreshing && <div className="info-banner">{t('Refreshing dashboard data...')}</div>}
       <section className="panel">
         <div className="section-heading">
-          <h2>Alerts</h2>
+          <h2>{t('Alerts')}</h2>
           <button type="button" className="ghost-button" onClick={() => loadDashboard(true)} disabled={refreshing}>
             {refreshing ? t('refreshing') : t('refresh')}
           </button>
@@ -108,7 +108,7 @@ function Dashboard() {
                 key={card.type}
                 onClick={() => navigate(notification?.link || card.link)}
               >
-                <span>{card.label}</span>
+                <span>{t(card.labelKey)}</span>
                 <strong>{count}</strong>
               </button>
             )
@@ -127,17 +127,17 @@ function Dashboard() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Recent Sales</h2>
+          <h2>{t('Recent Sales')}</h2>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Sale ID</th>
+                <th>{t('Sale ID')}</th>
                 <th>{t('total')}</th>
-                <th>Profit</th>
-                <th>Payment</th>
-                <th>Date</th>
+                <th>{t('Profit')}</th>
+                <th>{t('Payment')}</th>
+                <th>{t('Date')}</th>
               </tr>
             </thead>
             <tbody>
@@ -153,7 +153,7 @@ function Dashboard() {
               {(dashboard.recent_sales || []).length === 0 && (
                 <tr>
                   <td colSpan="5" className="empty-cell">
-                    No recent sales yet.
+                    {t('No recent sales yet.')}
                   </td>
                 </tr>
               )}

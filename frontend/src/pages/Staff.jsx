@@ -187,16 +187,16 @@ function Staff() {
           {error && <div className="alert">{error}</div>}
           {message && <div className="success">{message}</div>}
           <label>
-            Name
+            {t('Name')}
             <input name="name" value={form.name} onChange={updateField} required />
           </label>
           <label>
-            Email
+            {t('Email')}
             <input name="email" type="email" value={form.email} onChange={updateField} required />
           </label>
           {!editing && (
             <label>
-              Password
+              {t('Password')}
               <input
                 name="password"
                 type="password"
@@ -208,7 +208,7 @@ function Staff() {
           )}
           {editing && (
             <label>
-              New Password
+              {t('New Password')}
               <input
                 name="password"
                 type="password"
@@ -219,7 +219,7 @@ function Staff() {
             </label>
           )}
           <label>
-            Role
+            {t('Role')}
             <select name="role" value={form.role} onChange={updateField}>
               {staffRoleOptions.map((role) => (
                 <option key={role.value} value={role.value}>
@@ -236,7 +236,7 @@ function Staff() {
                 checked={form.is_active}
                 onChange={updateField}
               />
-              Active account
+              {t('Active account')}
             </label>
           )}
           <div className="permission-grid">
@@ -257,7 +257,7 @@ function Staff() {
             </button>
             {editing && (
               <button type="button" className="ghost-button" onClick={resetForm} disabled={saving}>
-                Cancel Edit
+                {t('Cancel Edit')}
               </button>
             )}
           </div>
@@ -266,24 +266,24 @@ function Staff() {
 
       <section className="panel wide-panel">
         <div className="section-heading">
-          <h2>{t('staff')} Accounts</h2>
+          <h2>{t('Staff Accounts')}</h2>
           <button type="button" className="ghost-button" onClick={loadStaff} disabled={loading}>
             {loading ? t('refreshing') : t('refresh')}
           </button>
         </div>
         {loading ? (
-          <div className="loading-panel">Loading staff accounts...</div>
+          <div className="loading-panel">{t('Loading staff accounts...')}</div>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Permissions</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>{t('Name')}</th>
+                  <th>{t('Email')}</th>
+                  <th>{t('Role')}</th>
+                  <th>{t('Permissions')}</th>
+                  <th>{t('Status')}</th>
+                  <th>{t('Action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -295,7 +295,7 @@ function Staff() {
                     <td>{(staffMember.permissions || []).length}</td>
                     <td>
                       <span className={`status ${staffMember.is_active ? 'paid' : 'unpaid'}`}>
-                        {staffMember.is_active ? 'Active' : 'Inactive'}
+                        {staffMember.is_active ? t('Active') : t('Inactive')}
                       </span>
                     </td>
                     <td>
@@ -309,7 +309,7 @@ function Staff() {
                           onClick={() => toggleStatus(staffMember)}
                           disabled={saving}
                         >
-                          {staffMember.is_active ? 'Deactivate' : 'Activate'}
+                          {staffMember.is_active ? t('Deactivate') : t('Activate')}
                         </button>
                         <button
                           type="button"
@@ -326,7 +326,7 @@ function Staff() {
                 {staff.length === 0 && (
                   <tr>
                     <td colSpan="6" className="empty-cell">
-                      No staff accounts found.
+                      {t('No staff accounts found.')}
                     </td>
                   </tr>
                 )}

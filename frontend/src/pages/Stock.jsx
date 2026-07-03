@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, notifyDashboardChanged } from '../utils/formatters'
 
@@ -211,30 +212,30 @@ function Stock() {
   }
 
   if (loading) {
-    return <div className="panel loading-panel">Loading stock...</div>
+    return <div className="panel loading-panel">{t('Loading stock...')}</div>
   }
 
   return (
     <section className="page-stack">
       <div className="metric-grid compact-metrics">
         <article className="metric-card">
-          <span>Total Products</span>
+          <span>{t('Total Products')}</span>
           <strong>{summary.total_products || 0}</strong>
         </article>
         <article className="metric-card">
-          <span>Low Stock Count</span>
+          <span>{t('Low Stock Count')}</span>
           <strong>{summary.low_stock_count || 0}</strong>
         </article>
         <article className="metric-card">
-          <span>Total Stock Value</span>
+          <span>{t('Total Stock Value')}</span>
           <strong>{formatMoney(summary.total_stock_value)}</strong>
         </article>
         <article className="metric-card">
-          <span>Restock Cost This Month</span>
+          <span>{t('Restock Cost This Month')}</span>
           <strong>{formatMoney(summary.total_restock_cost_this_month)}</strong>
         </article>
         <article className="metric-card">
-          <span>Restock Items This Month</span>
+          <span>{t('Restock Items This Month')}</span>
           <strong>{summary.total_restock_items_this_month || 0}</strong>
         </article>
       </div>
@@ -245,24 +246,24 @@ function Stock() {
       <section className="page-grid">
         <section className="panel">
           <div className="section-heading">
-            <h2>Restock Product</h2>
+            <h2>{t('Restock Product')}</h2>
           </div>
           <form onSubmit={restockProduct} className="form-grid">
             <label className="full-width">
-              Product
+              {t('Product')}
               <select value={form.product_id} onChange={chooseProduct} required>
-                <option value="">Select product</option>
+                <option value="">{t('Select product')}</option>
                 {products.map((product) => (
                   <option key={product.id} value={product.id}>
-                    {product.product_name} - Stock {product.stock_quantity}
+                    {product.product_name} - {t('Stock')} {product.stock_quantity}
                   </option>
                 ))}
               </select>
             </label>
             <label className="full-width">
-              Supplier Optional
+              {t('Supplier')} {t('Optional')}
               <select name="supplier_id" value={form.supplier_id} onChange={updateField}>
-                <option value="">No supplier</option>
+                <option value="">{t('No supplier')}</option>
                 {suppliers.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.supplier_name}
@@ -271,7 +272,7 @@ function Stock() {
               </select>
             </label>
             <label>
-              Quantity
+              {t('Quantity')}
               <input
                 name="quantity"
                 type="number"
@@ -282,7 +283,7 @@ function Stock() {
               />
             </label>
             <label>
-              Buying Price
+              {t('Buying Price')}
               <input
                 name="buying_price"
                 type="number"
@@ -294,7 +295,7 @@ function Stock() {
               />
             </label>
             <label>
-              Paid Amount
+              {t('Paid Amount')}
               <input
                 name="paid_amount"
                 type="number"
@@ -307,74 +308,74 @@ function Stock() {
               />
             </label>
             <label>
-              Total Cost
+              {t('Total Cost')}
               <input value={formatMoney(totalCost)} readOnly />
             </label>
             <label className="full-width">
-              Note
+              {t('Note')}
               <input name="note" value={form.note} onChange={updateField} />
             </label>
             {selectedProduct && (
               <p className="muted full-width">
-                Current stock {selectedProduct.stock_quantity}. New stock will be{' '}
+                {t('Current stock')} {selectedProduct.stock_quantity}. {t('New stock will be')}{' '}
                 {Number(selectedProduct.stock_quantity) + quantity}.
               </p>
             )}
             <button type="submit" className="full-width" disabled={saving || overpaid}>
-              {saving ? 'Restocking...' : 'Restock Product'}
+              {saving ? t('Restocking...') : t('Restock Product')}
             </button>
           </form>
         </section>
 
         <section className="panel">
           <div className="section-heading">
-            <h2>{preview?.title || 'Restock Preview'}</h2>
+            <h2>{preview?.title ? t(preview.title) : t('Restock Preview')}</h2>
             <button type="button" className="ghost-button" onClick={() => loadStockData()}>
-              Refresh
+              {t('Refresh')}
             </button>
           </div>
           {preview ? (
             <div className="summary-box">
               <div>
-                <span>Selected Product</span>
+                <span>{t('Selected Product')}</span>
                 <strong>{preview.productName}</strong>
               </div>
               <div>
-                <span>Supplier</span>
+                <span>{t('Supplier')}</span>
                 <strong>{preview.supplierName}</strong>
               </div>
               <div>
-                <span>Current Stock</span>
+                <span>{t('Current Stock')}</span>
                 <strong>{preview.currentStock}</strong>
               </div>
               <div>
-                <span>Restock Quantity</span>
+                <span>{t('Restock Quantity')}</span>
                 <strong>{preview.quantity || 0}</strong>
               </div>
               <div>
-                <span>New Stock After Restock</span>
+                <span>{t('New Stock After Restock')}</span>
                 <strong>{preview.newStock}</strong>
               </div>
               <div>
-                <span>Buying Price</span>
+                <span>{t('Buying Price')}</span>
                 <strong>{formatMoney(preview.buyingPrice)}</strong>
               </div>
               <div>
-                <span>Total Cost</span>
+                <span>{t('Total Cost')}</span>
                 <strong>{formatMoney(preview.totalCost)}</strong>
               </div>
               <div>
-                <span>Paid Amount</span>
+                <span>{t('Paid Amount')}</span>
                 <strong>{formatMoney(preview.paidAmount)}</strong>
               </div>
               <div>
-                <span>Supplier Balance</span>
+                <span>{t('Supplier Balance')}</span>
                 <strong>{formatMoney(preview.supplierBalance)}</strong>
               </div>
             </div>
           ) : (
             <div className="empty-state">
-              Select a product to preview restock details.
+              {t('Select a product to preview restock details.')}
             </div>
           )}
         </section>
@@ -382,22 +383,22 @@ function Stock() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Stock Movement History</h2>
+          <h2>{t('Stock Movement History')}</h2>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Product</th>
-                <th>Supplier</th>
-                <th>Quantity</th>
-                <th>Previous Stock</th>
-                <th>New Stock</th>
-                <th>Buying Price</th>
-                <th>Total Cost</th>
-                <th>Added By</th>
-                <th>Note</th>
+                <th>{t('Date')}</th>
+                <th>{t('Product')}</th>
+                <th>{t('Supplier')}</th>
+                <th>{t('Quantity')}</th>
+                <th>{t('Previous Stock')}</th>
+                <th>{t('New Stock')}</th>
+                <th>{t('Buying Price')}</th>
+                <th>{t('Total Cost')}</th>
+                <th>{t('Added By')}</th>
+                <th>{t('Note')}</th>
               </tr>
             </thead>
             <tbody>
@@ -418,7 +419,7 @@ function Stock() {
               {movements.length === 0 && (
                 <tr>
                   <td colSpan="10" className="empty-cell">
-                    No stock movements found.
+                    {t('No stock movements found.')}
                   </td>
                 </tr>
               )}

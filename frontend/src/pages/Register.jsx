@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 
@@ -47,19 +48,19 @@ function Register() {
     <main className="auth-page">
       <section className="auth-panel wide-auth">
         <p className="eyebrow">ShopMate LK</p>
-        <h1>Register Shop</h1>
+        <h1>{t('Register')}</h1>
         <form onSubmit={submit} className="form-grid">
           {error && <div className="alert full-width">{error}</div>}
           <label>
-            Owner Name
+            {t('Owner Name')}
             <input name="name" value={form.name} onChange={updateField} required />
           </label>
           <label>
-            Email
+            {t('Email')}
             <input name="email" type="email" value={form.email} onChange={updateField} required />
           </label>
           <label>
-            Password
+            {t('Password')}
             <input
               name="password"
               type="password"
@@ -69,23 +70,23 @@ function Register() {
             />
           </label>
           <label>
-            Shop Name
+            {t('Shop Name')}
             <input name="shop_name" value={form.shop_name} onChange={updateField} required />
           </label>
           <label>
-            Phone
+            {t('Phone')}
             <input name="phone" value={form.phone} onChange={updateField} required />
           </label>
           <label>
-            Address
+            {t('Address')}
             <input name="address" value={form.address} onChange={updateField} required />
           </label>
           <button type="submit" className="full-width" disabled={loading}>
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading ? t('Creating account...') : t('Create Account')}
           </button>
         </form>
         <p className="auth-link">
-          Already registered? <Link to="/login">Login</Link>
+          {t('Already registered?')} <Link to="/login">{t('Login')}</Link>
         </p>
       </section>
     </main>

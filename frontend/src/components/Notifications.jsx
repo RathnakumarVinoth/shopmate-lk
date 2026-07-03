@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 
 const priorityLabel = (priority) => priority || 'low'
@@ -19,7 +20,7 @@ function Notifications() {
       const response = await api.get('/notifications')
       setNotifications(response.data.notifications || [])
     } catch {
-      setError('Unable to load alerts')
+      setError(t('Unable to load alerts'))
     } finally {
       setLoading(false)
     }
@@ -61,9 +62,9 @@ function Notifications() {
       {open && (
         <section className="notification-menu">
           <div className="notification-menu-header">
-            <strong>Alerts</strong>
+            <strong>{t('Alerts')}</strong>
             <button type="button" className="ghost-button" onClick={loadNotifications} disabled={loading}>
-              {loading ? 'Refreshing...' : 'Refresh'}
+              {loading ? t('Refreshing...') : t('Refresh')}
             </button>
           </div>
 
@@ -74,23 +75,23 @@ function Notifications() {
               <article className="notification-item" key={notification.id}>
                 <div>
                   <div className="notification-title-row">
-                    <strong>{notification.title}</strong>
+                    <strong>{t(notification.title)}</strong>
                     <span className={`priority-badge ${priorityLabel(notification.priority)}`}>
                       {priorityLabel(notification.priority)}
                     </span>
                   </div>
-                  <p>{notification.message}</p>
+                  <p>{t(notification.message)}</p>
                 </div>
                 {notification.link && (
                   <button type="button" className="ghost-button" onClick={() => openLink(notification.link)}>
-                    Open
+                    {t('Open')}
                   </button>
                 )}
               </article>
             ))}
 
             {notifications.length === 0 && (
-              <div className="notification-empty">No active alerts.</div>
+              <div className="notification-empty">{t('No active alerts.')}</div>
             )}
           </div>
         </section>

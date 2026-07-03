@@ -296,7 +296,7 @@ const printReceipt = (receipt) => {
         </div>
         <table>
           <thead>
-            <tr><th>Item</th><th>Qty</th><th>Price</th><th>${t('total')}</th></tr>
+            <tr><th>${t('Product')}</th><th>${t('Quantity')}</th><th>${t('Price')}</th><th>${t('total')}</th></tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
@@ -389,8 +389,8 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
 
           <div class="line"></div>
           <section>
-            <div class="row"><span>Invoice</span><strong>${escapeHtml(details.invoiceNo)}</strong></div>
-            <div class="row"><span>Date</span><span>${escapeHtml(formatDateTime(details.createdAt))}</span></div>
+            <div class="row"><span>${escapeHtml(t('Invoice'))}</span><strong>${escapeHtml(details.invoiceNo)}</strong></div>
+            <div class="row"><span>${escapeHtml(t('Date'))}</span><span>${escapeHtml(formatDateTime(details.createdAt))}</span></div>
             ${
               details.customerName
                 ? `<div>Customer: ${escapeHtml(details.customerName)}</div>`
@@ -407,9 +407,9 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
           <table>
             <thead>
               <tr>
-                <th>Item</th>
-                <th class="num">Qty</th>
-                <th class="num">Price</th>
+                <th>${escapeHtml(t('Product'))}</th>
+                <th class="num">${escapeHtml(t('Quantity'))}</th>
+                <th class="num">${escapeHtml(t('Price'))}</th>
                 <th class="num">${escapeHtml(t('total'))}</th>
               </tr>
             </thead>
@@ -842,7 +842,7 @@ function POS() {
 
         <section className="barcode-scanner">
           <label>
-            Barcode / Product Code
+            {t('Barcode')} / {t('Product Code / SKU')}
             <div className="scanner-row">
               <input
                 ref={codeInputRef}
@@ -853,7 +853,7 @@ function POS() {
                 autoFocus
               />
               <button type="button" onClick={addByCode} disabled={scanningCode}>
-                {scanningCode ? 'Adding...' : 'Add by Code'}
+                {scanningCode ? t('Adding...') : t('Add by Code')}
               </button>
             </div>
           </label>
@@ -861,20 +861,20 @@ function POS() {
 
         <section className="customer-picker">
           <div className="section-heading">
-            <h2>Customer</h2>
+            <h2>{t('Customer')}</h2>
             {user.role === 'owner' && (
               <button
                 type="button"
                 className="ghost-button"
                 onClick={() => setShowCustomerForm((current) => !current)}
               >
-                {showCustomerForm ? 'Close' : 'Add New Customer'}
+                {showCustomerForm ? t('Close') : t('Add New Customer')}
               </button>
             )}
           </div>
           <div className="form-grid compact-form">
             <label>
-              Search Customer
+              {t('Search')} {t('Customer')}
               <input
                 value={customerSearch}
                 onChange={(event) => setCustomerSearch(event.target.value)}
@@ -882,13 +882,13 @@ function POS() {
               />
             </label>
             <label>
-              Customer
+              {t('Customer')}
               <select
                 value={selectedCustomerId}
                 onChange={(event) => setSelectedCustomerId(event.target.value)}
                 disabled={loadingCustomers}
               >
-                <option value="">Walk-in customer</option>
+                <option value="">{t('Walk-in customer')}</option>
                 {filteredCustomers.map((customer) => (
                   <option key={customer.id} value={customer.id}>
                     {customer.customer_name} {customer.phone ? `- ${customer.phone}` : ''}
@@ -899,7 +899,7 @@ function POS() {
           </div>
           {selectedCustomer && (
             <p className="muted">
-              Selected: {selectedCustomer.customer_name}
+              {t('Selected')}: {selectedCustomer.customer_name}
               {selectedCustomer.phone ? `, ${selectedCustomer.phone}` : ''}
               {selectedCustomer.address ? `, ${selectedCustomer.address}` : ''}
             </p>
@@ -907,7 +907,7 @@ function POS() {
           {showCustomerForm && (
             <form className="form-grid compact-form quick-customer-form" onSubmit={addCustomer}>
               <label>
-                Customer Name
+                {t('Customer Name')}
                 <input
                   value={customerForm.customer_name}
                   onChange={(event) =>
@@ -917,7 +917,7 @@ function POS() {
                 />
               </label>
               <label>
-                Phone
+                {t('Phone')}
                 <input
                   value={customerForm.phone}
                   onChange={(event) =>
@@ -926,7 +926,7 @@ function POS() {
                 />
               </label>
               <label className="full-width">
-                Address
+                {t('Address')}
                 <input
                   value={customerForm.address}
                   onChange={(event) =>
@@ -935,14 +935,14 @@ function POS() {
                 />
               </label>
               <button type="submit" className="full-width" disabled={savingCustomer}>
-                {savingCustomer ? 'Adding customer...' : 'Save Customer'}
+                {savingCustomer ? t('Adding customer...') : t('Save Customer')}
               </button>
             </form>
           )}
         </section>
 
         <label className="search-field">
-          Search products
+          {t('Search products')}
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
@@ -951,7 +951,7 @@ function POS() {
         </label>
 
         {loadingProducts ? (
-          <div className="loading-panel">Loading products...</div>
+          <div className="loading-panel">{t('Loading products...')}</div>
         ) : (
           <div className="product-list pos-product-list">
             {filteredProducts.map((product) => {
@@ -977,21 +977,21 @@ function POS() {
                     </small>
                   )}
                   <small className={lowStock ? 'stock-warning' : ''}>
-                    Stock {stock}
-                    {lowStock ? ' - Low stock' : ''}
+                    {t('Stock')} {stock}
+                    {lowStock ? ` - ${t('Low stock')}` : ''}
                   </small>
                 </button>
               )
             })}
-            {filteredProducts.length === 0 && <p className="muted">No products match your search.</p>}
+            {filteredProducts.length === 0 && <p className="muted">{t('No products match your search.')}</p>}
           </div>
         )}
       </section>
 
       <aside className="panel cart-panel receipt-surface">
         <div className="section-heading">
-          <h2>Cart</h2>
-          <span className="cart-count">{totalItems} items</span>
+          <h2>{t('Cart')}</h2>
+          <span className="cart-count">{totalItems} {t('items')}</span>
         </div>
         {error && <div className="alert">{error}</div>}
         {message && <div className="success">{message}</div>}
@@ -1004,7 +1004,7 @@ function POS() {
                 <span>
                   {formatMoney(item.selling_price)} x {item.quantity} = {formatMoney(item.subtotal)}
                 </span>
-                <small className="muted">Available stock {item.stock_quantity}</small>
+                <small className="muted">{t('Available')} {t('Stock').toLowerCase()} {item.stock_quantity}</small>
               </div>
               <div className="quantity-control">
                 <button type="button" onClick={() => changeQuantity(item.id, -1)}>
@@ -1022,15 +1022,15 @@ function POS() {
                 </button>
               </div>
               <button type="button" className="danger-button" onClick={() => removeFromCart(item.id)}>
-                Remove
+                {t('Remove')}
               </button>
             </div>
           ))}
-          {cartItems.length === 0 && <p className="muted">Cart is empty.</p>}
+          {cartItems.length === 0 && <p className="muted">{t('Cart is empty.')}</p>}
         </div>
 
         <section className="payment-box">
-          <h3>Payment</h3>
+          <h3>{t('Payment')}</h3>
           <div className="form-grid compact-form">
             <label>
               {t('paymentMethod')}
@@ -1043,7 +1043,7 @@ function POS() {
               </select>
             </label>
             <label>
-              Discount
+              {t('Discount')}
               <input
                 type="number"
                 min="0"
@@ -1066,7 +1066,7 @@ function POS() {
             </label>
             {needsReference && (
               <label className={isCardPayment ? '' : 'full-width'}>
-                Transaction Reference No
+                {t('Transaction Reference No')}
                 <input
                   value={paymentDetails.payment_reference}
                   onChange={(event) =>
@@ -1081,7 +1081,7 @@ function POS() {
             {isCardPayment && (
               <>
                 <label>
-                  Approval Code
+                  {t('Approval Code')}
                   <input
                     value={paymentDetails.approval_code}
                     onChange={(event) =>
@@ -1093,7 +1093,7 @@ function POS() {
                   />
                 </label>
                 <label>
-                  Card Last 4 Digits
+                  {t('Card Last 4 Digits')}
                   <input
                     inputMode="numeric"
                     maxLength="4"
@@ -1141,7 +1141,7 @@ function POS() {
         </section>
 
         <button type="button" onClick={completeSale} disabled={savingSale || cartItems.length === 0}>
-          {savingSale ? 'Saving sale...' : 'Complete Sale'}
+          {savingSale ? t('Saving sale...') : t('Complete Sale')}
         </button>
       </aside>
 
@@ -1158,7 +1158,7 @@ function POS() {
                   {t('downloadPdf')}
                 </button>
                 <button type="button" className="ghost-button" onClick={() => shareInvoiceWhatsApp(receipt)}>
-                  Share WhatsApp
+                  {t('Share WhatsApp')}
                 </button>
                 <button type="button" className="ghost-button" onClick={() => printReceipt(receipt)}>
                   {t('print')}
@@ -1179,10 +1179,10 @@ function POS() {
                   className="ghost-button"
                   onClick={() => thermalPrintReceipt(receipt, thermalReceiptSize)}
                 >
-                  Thermal Print
+                  {t('Thermal Print')}
                 </button>
                 <button type="button" className="ghost-button" onClick={() => setReceipt(null)}>
-                  Close
+                  {t('Close')}
                 </button>
               </div>
             </div>
@@ -1191,24 +1191,24 @@ function POS() {
               <div className="receipt-header">
                 <strong>{receiptDetails.shopName}</strong>
                 {receiptDetails.shopAddress && <span>{receiptDetails.shopAddress}</span>}
-                {receiptDetails.shopPhone && <span>Phone: {receiptDetails.shopPhone}</span>}
-                {receiptDetails.shopEmail && <span>Email: {receiptDetails.shopEmail}</span>}
+                {receiptDetails.shopPhone && <span>{t('Phone')}: {receiptDetails.shopPhone}</span>}
+                {receiptDetails.shopEmail && <span>{t('Email')}: {receiptDetails.shopEmail}</span>}
                 <span>{formatDateTime(receiptDetails.createdAt)}</span>
-                <span>Invoice: {receiptDetails.invoiceNo}</span>
+                <span>{t('Invoice')}: {receiptDetails.invoiceNo}</span>
                 <span>{t('paymentMethod')}: {receiptDetails.paymentType}</span>
                 <span>{t('paymentStatus')}: {receiptDetails.paymentStatus}</span>
                 {receiptDetails.paymentReference && (
-                  <span>Reference: {receiptDetails.paymentReference}</span>
+                  <span>{t('Reference')}: {receiptDetails.paymentReference}</span>
                 )}
               </div>
 
               {receiptDetails.customerName && (
                 <div className="receipt-customer">
-                  <strong>Customer</strong>
-                  <span>Name: {receiptDetails.customerName}</span>
-                  {receiptDetails.customerPhone && <span>Phone: {receiptDetails.customerPhone}</span>}
+                  <strong>{t('Customer')}</strong>
+                  <span>{t('Name')}: {receiptDetails.customerName}</span>
+                  {receiptDetails.customerPhone && <span>{t('Phone')}: {receiptDetails.customerPhone}</span>}
                   {receiptDetails.customerAddress && (
-                    <span>Address: {receiptDetails.customerAddress}</span>
+                    <span>{t('Address')}: {receiptDetails.customerAddress}</span>
                   )}
                 </div>
               )}
@@ -1216,9 +1216,9 @@ function POS() {
               <table className="receipt-table">
                 <thead>
                   <tr>
-                    <th>Item</th>
-                    <th>Qty</th>
-                    <th>Price</th>
+                    <th>{t('Product')}</th>
+                    <th>{t('Quantity')}</th>
+                    <th>{t('Price')}</th>
                     <th>{t('total')}</th>
                   </tr>
                 </thead>
@@ -1267,12 +1267,12 @@ function POS() {
                 </div>
                 {receiptDetails.paymentReference && (
                   <div>
-                    <span>Reference</span>
+                    <span>{t('Reference')}</span>
                     <strong>{receiptDetails.paymentReference}</strong>
                   </div>
                 )}
                 <div>
-                  <span>Footer</span>
+                  <span>{t('Footer')}</span>
                   <strong>{receiptDetails.receiptFooter}</strong>
                 </div>
               </div>

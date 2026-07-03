@@ -1,4 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import { scheduleSessionExpiry } from '../utils/session'
 import Notifications from './Notifications.jsx'
 import { useEffect } from 'react'
@@ -24,14 +25,14 @@ function AdminLayout() {
         <div className="brand">
           <div className="brand-mark">SA</div>
           <div>
-            <strong>Super Admin</strong>
-            <span>ShopMate Control</span>
+            <strong>{t('Super Admin')}</strong>
+            <span>{t('ShopMate Control')}</span>
           </div>
         </div>
 
         <nav className="sidebar-nav">
           <NavLink to="/admin/dashboard" className={({ isActive }) => (isActive ? 'active' : '')}>
-            Admin Dashboard
+            {t('Admin Dashboard')}
           </NavLink>
           <NavLink to="/admin/shops" className={({ isActive }) => (isActive ? 'active' : '')}>
             Shops
@@ -40,18 +41,18 @@ function AdminLayout() {
             to="/admin/audit-logs"
             className={({ isActive }) => (isActive ? 'active' : '')}
           >
-            Audit Logs
+            {t('Audit Logs')}
           </NavLink>
           <NavLink
             to="/admin/login-activity"
             className={({ isActive }) => (isActive ? 'active' : '')}
           >
-            Login Activity
+            {t('Login Activity')}
           </NavLink>
         </nav>
 
         <button type="button" className="ghost-button sidebar-logout" onClick={logout}>
-          Logout
+          {t('Logout')}
         </button>
       </aside>
 
@@ -59,7 +60,7 @@ function AdminLayout() {
         <header className="topbar">
           <div>
             <p className="eyebrow">ShopMate LK</p>
-            <h1>{user?.name ? `Welcome, ${user.name}` : 'Admin Console'}</h1>
+            <h1>{user?.name ? `${t('Welcome')}, ${user.name}` : 'Admin Console'}</h1>
           </div>
           <div className="topbar-actions">
             <Notifications />

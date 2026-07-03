@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 
@@ -62,40 +63,40 @@ function PurchaseSuggestions() {
   }
 
   const summaryCards = [
-    { label: 'Low Stock Products', value: summary.low_stock_count || 0 },
-    { label: 'Out of Stock Products', value: summary.out_of_stock_count || 0 },
+    { label: t('Low Stock Products'), value: summary.low_stock_count || 0 },
+    { label: t('Out of Stock Products'), value: summary.out_of_stock_count || 0 },
     {
-      label: 'Estimated Purchase Cost',
+      label: t('Estimated Purchase Cost'),
       value: formatMoney(summary.total_estimated_purchase_cost),
     },
     {
-      label: 'Fast-Moving Low Stock',
+      label: t('Fast-Moving Low Stock'),
       value: summary.fast_moving_low_stock_count || 0,
     },
   ]
 
   if (loading) {
-    return <div className="panel loading-panel">Loading purchase suggestions...</div>
+    return <div className="panel loading-panel">{t('Loading purchase suggestions...')}</div>
   }
 
   return (
     <section className="page-stack">
       <section className="panel">
         <div className="section-heading">
-          <h2>Purchase Suggestions</h2>
+          <h2>{t('Purchase Suggestions')}</h2>
           <button
             type="button"
             className="ghost-button"
             onClick={() => loadSuggestions(true)}
             disabled={refreshing}
           >
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+            {refreshing ? t('Refreshing...') : t('Refresh')}
           </button>
         </div>
       </section>
 
       {error && <div className="alert">{error}</div>}
-      {refreshing && <div className="info-banner">Refreshing purchase suggestions...</div>}
+      {refreshing && <div className="info-banner">{t('Refreshing purchase suggestions...')}</div>}
 
       <div className="metric-grid compact-metrics">
         {summaryCards.map((card) => (
@@ -108,23 +109,23 @@ function PurchaseSuggestions() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Suggested Purchases</h2>
+          <h2>{t('Suggested Purchases')}</h2>
         </div>
         <div className="table-wrap">
           <table className="purchase-suggestion-table">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Code / Barcode</th>
-                <th>Category</th>
-                <th>Current Stock</th>
-                <th>Low Stock Limit</th>
-                <th>Sales Last 30 Days</th>
-                <th>Average Daily Sales</th>
-                <th>Suggested Quantity</th>
-                <th>Estimated Cost</th>
-                <th>Preferred Supplier</th>
-                <th>Action</th>
+                <th>{t('Product')}</th>
+                <th>{t('Code / SKU')}</th>
+                <th>{t('Category')}</th>
+                <th>{t('Current Stock')}</th>
+                <th>{t('Default Low Stock Limit')}</th>
+                <th>{t('Sales Last 30 Days')}</th>
+                <th>{t('Average Daily Sales')}</th>
+                <th>{t('Suggested Quantity')}</th>
+                <th>{t('Estimated Cost')}</th>
+                <th>{t('Preferred Supplier')}</th>
+                <th>{t('Action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -153,7 +154,7 @@ function PurchaseSuggestions() {
                       className="ghost-button"
                       onClick={() => restockProduct(product)}
                     >
-                      Restock
+                      {t('Restock')}
                     </button>
                   </td>
                 </tr>
@@ -161,7 +162,7 @@ function PurchaseSuggestions() {
               {suggestions.length === 0 && (
                 <tr>
                   <td colSpan="11" className="empty-cell">
-                    No low-stock products need purchase suggestions.
+                    {t('No low-stock products need purchase suggestions.')}
                   </td>
                 </tr>
               )}
@@ -172,18 +173,18 @@ function PurchaseSuggestions() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Fast-Moving Products</h2>
+          <h2>{t('Fast-Moving Products')}</h2>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Category</th>
-                <th>Stock</th>
-                <th>Sold Last 30 Days</th>
-                <th>Average Daily Sales</th>
-                <th>Status</th>
+                <th>{t('Product')}</th>
+                <th>{t('Category')}</th>
+                <th>{t('Stock')}</th>
+                <th>{t('Sold Last 30 Days')}</th>
+                <th>{t('Average Daily Sales')}</th>
+                <th>{t('Status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -198,7 +199,7 @@ function PurchaseSuggestions() {
                   <td>{formatAverage(product.average_daily_sales)}</td>
                   <td>
                     <span className={`status ${product.stock_status}`}>
-                      {product.stock_status === 'low_stock' ? 'Low Stock' : 'Normal'}
+                      {product.stock_status === 'low_stock' ? t('Low Stock') : t('Normal')}
                     </span>
                   </td>
                 </tr>
@@ -206,7 +207,7 @@ function PurchaseSuggestions() {
               {fastMovingProducts.length === 0 && (
                 <tr>
                   <td colSpan="6" className="empty-cell">
-                    No fast-moving products found for the last 30 days.
+                    {t('No fast-moving products found for the last 30 days.')}
                   </td>
                 </tr>
               )}

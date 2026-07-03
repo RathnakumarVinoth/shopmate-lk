@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, notifyDashboardChanged } from '../utils/formatters'
 
@@ -159,11 +160,11 @@ function Returns() {
     <section className="page-stack">
       <section className="panel">
         <div className="section-heading">
-          <h2>Sales Returns</h2>
+          <h2>{t('Sales Returns')}</h2>
         </div>
         <form className="form-grid report-filter" onSubmit={loadSale}>
           <label>
-            Sale ID or Invoice No
+            {t('Sale ID or Invoice No')}
             <input
               value={saleLookup}
               onChange={(event) => setSaleLookup(event.target.value)}
@@ -171,7 +172,7 @@ function Returns() {
             />
           </label>
           <button type="submit" disabled={loadingSale}>
-            {loadingSale ? 'Loading...' : 'Load Sale'}
+            {loadingSale ? t('Loading...') : t('Load Sale')}
           </button>
         </form>
       </section>
@@ -183,23 +184,23 @@ function Returns() {
         <form className="page-stack" onSubmit={processReturn}>
           <section className="panel">
             <div className="section-heading">
-              <h2>Sale Details</h2>
+              <h2>{t('Sale Details')}</h2>
             </div>
             <div className="summary-box return-summary">
               <div>
-                <span>Invoice</span>
+                <span>{t('Invoice')}</span>
                 <strong>{sale.invoice_no || sale.id}</strong>
               </div>
               <div>
-                <span>Date</span>
+                <span>{t('Date')}</span>
                 <strong>{formatDateTime(sale.created_at)}</strong>
               </div>
               <div>
-                <span>Customer</span>
+                <span>{t('Customer')}</span>
                 <strong>{sale.customer_name || 'Walk-in customer'}</strong>
               </div>
               <div>
-                <span>Total Amount</span>
+                <span>{t('Total Amount')}</span>
                 <strong>{formatMoney(sale.total_amount)}</strong>
               </div>
             </div>
@@ -207,20 +208,20 @@ function Returns() {
 
           <section className="panel">
             <div className="section-heading">
-              <h2>Return Items</h2>
+              <h2>{t('Return Items')}</h2>
               <strong>{formatMoney(totalRefund)}</strong>
             </div>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th>Sold</th>
-                    <th>Returned</th>
-                    <th>Available</th>
-                    <th>Return Qty</th>
-                    <th>Refund Price</th>
-                    <th>Refund Subtotal</th>
+                    <th>{t('Product')}</th>
+                    <th>{t('Sold')}</th>
+                    <th>{t('Returned')}</th>
+                    <th>{t('Available')}</th>
+                    <th>{t('Return Qty')}</th>
+                    <th>{t('Refund Price')}</th>
+                    <th>{t('Refund Subtotal')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -254,7 +255,7 @@ function Returns() {
               </table>
             </div>
             <label className="return-reason">
-              Reason
+              {t('Reason')}
               <textarea
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
@@ -263,7 +264,7 @@ function Returns() {
               />
             </label>
             <button type="submit" disabled={savingReturn || selectedItems.length === 0}>
-              {savingReturn ? 'Processing...' : 'Process Return'}
+              {savingReturn ? t('Processing...') : t('Process Return')}
             </button>
           </section>
         </form>
@@ -271,24 +272,24 @@ function Returns() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Return History</h2>
+          <h2>{t('Return History')}</h2>
           <button type="button" className="ghost-button" onClick={() => loadReturns()}>
-            Refresh
+            {t('Refresh')}
           </button>
         </div>
         {loadingReturns ? (
-          <div className="loading-panel">Loading returns...</div>
+          <div className="loading-panel">{t('Loading returns...')}</div>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Invoice No</th>
-                  <th>Refund Amount</th>
-                  <th>Reason</th>
-                  <th>Returned By</th>
-                  <th>Action</th>
+                  <th>{t('Date')}</th>
+                  <th>{t('Invoice No')}</th>
+                  <th>{t('Refund Amount')}</th>
+                  <th>{t('Reason')}</th>
+                  <th>{t('Returned By')}</th>
+                  <th>{t('Action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -306,7 +307,7 @@ function Returns() {
                         onClick={() => viewReturn(returnRow.id)}
                         disabled={loadingDetails}
                       >
-                        View Details
+                        {t('View Details')}
                       </button>
                     </td>
                   </tr>
@@ -314,7 +315,7 @@ function Returns() {
                 {returns.length === 0 && (
                   <tr>
                     <td colSpan="6" className="empty-cell">
-                      No returns found.
+                      {t('No returns found.')}
                     </td>
                   </tr>
                 )}
@@ -329,28 +330,28 @@ function Returns() {
           <section className="receipt-modal history-modal">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Return Details</p>
+                <p className="eyebrow">{t('Return Details')}</p>
                 <h2>{selectedReturn.invoice_no || selectedReturn.sale_id}</h2>
               </div>
               <button type="button" className="ghost-button" onClick={() => setSelectedReturn(null)}>
-                Close
+                {t('Close')}
               </button>
             </div>
             <div className="summary-box return-summary">
               <div>
-                <span>Date</span>
+                <span>{t('Date')}</span>
                 <strong>{formatDateTime(selectedReturn.created_at)}</strong>
               </div>
               <div>
-                <span>Refund Amount</span>
+                <span>{t('Refund Amount')}</span>
                 <strong>{formatMoney(selectedReturn.refund_amount)}</strong>
               </div>
               <div>
-                <span>Returned By</span>
+                <span>{t('Returned By')}</span>
                 <strong>{selectedReturn.user_name || '-'}</strong>
               </div>
               <div>
-                <span>Reason</span>
+                <span>{t('Reason')}</span>
                 <strong>{selectedReturn.reason || '-'}</strong>
               </div>
             </div>
@@ -358,10 +359,10 @@ function Returns() {
               <table>
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th>Qty</th>
-                    <th>Refund Price</th>
-                    <th>Subtotal</th>
+                    <th>{t('Product')}</th>
+                    <th>{t('Quantity')}</th>
+                    <th>{t('Refund Price')}</th>
+                    <th>{t('Subtotal')}</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -10,9 +10,9 @@ const ownerLinks = [
   { to: '/credits', labelKey: 'creditBook', permission: 'credit_book_access' },
   { to: '/suppliers', labelKey: 'suppliers', permission: 'suppliers_access' },
   { to: '/stock', labelKey: 'stock', permission: 'stock_access' },
-  { to: '/purchase-suggestions', label: 'Purchase Suggestions', permission: 'purchase_suggestions_access' },
-  { to: '/returns', label: 'Returns', permission: 'returns_access' },
-  { to: '/expenses', label: 'Expenses', permission: 'expenses_access' },
+  { to: '/purchase-suggestions', labelKey: 'Purchase Suggestions', permission: 'purchase_suggestions_access' },
+  { to: '/returns', labelKey: 'Returns', permission: 'returns_access' },
+  { to: '/expenses', labelKey: 'Expenses', permission: 'expenses_access' },
   { to: '/reports', labelKey: 'reports', permission: 'reports_access' },
   { to: '/audit-logs', labelKey: 'auditLogs', permission: 'audit_logs_access' },
   { to: '/backup-export', labelKey: 'backupExport', permission: 'backup_export_access' },
@@ -37,7 +37,7 @@ function Sidebar() {
         <div className="brand-mark">SM</div>
         <div>
           <strong>ShopMate LK</strong>
-          <span>POS and Stock</span>
+          <span>{t('POS and Stock')}</span>
         </div>
       </div>
 

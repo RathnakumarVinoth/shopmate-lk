@@ -53,11 +53,11 @@ function Login() {
           {message && <div className="info-banner">{message}</div>}
           {error && <div className="alert">{error}</div>}
           <label>
-            Email
+            {t('Email')}
             <input name="email" type="email" value={form.email} onChange={updateField} required />
           </label>
           <label>
-            Password
+            {t('Password')}
             <input
               name="password"
               type="password"
@@ -71,7 +71,7 @@ function Login() {
           </button>
         </form>
         <p className="auth-link">
-          New shop? <Link to="/register">Create an account</Link>
+          {t('New shop?')} <Link to="/register">{t('Create an account')}</Link>
         </p>
       </section>
     </main>

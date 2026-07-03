@@ -122,7 +122,7 @@ function Settings() {
         setLanguage(settings.language)
       }
       window.dispatchEvent(new Event('shopmate:settings-changed'))
-      setMessage('Settings saved successfully')
+      setMessage(t('Settings saved successfully'))
     } catch (err) {
       setError(getApiMessage(err, 'Failed to save settings'))
     } finally {
@@ -139,7 +139,7 @@ function Settings() {
     try {
       await api.put('/auth/change-password', passwordForm)
       setPasswordForm({ current_password: '', new_password: '' })
-      setMessage('Password changed successfully')
+      setMessage(t('Password changed successfully'))
     } catch (err) {
       setError(getApiMessage(err, 'Failed to change password'))
     } finally {
@@ -148,7 +148,7 @@ function Settings() {
   }
 
   if (loading) {
-    return <div className="panel loading-panel">Loading settings...</div>
+    return <div className="panel loading-panel">{t('Loading settings...')}</div>
   }
 
   return (
@@ -159,23 +159,23 @@ function Settings() {
       <form onSubmit={saveSettings} className="page-stack">
         <section className="panel">
           <div className="section-heading">
-            <h2>Shop Profile</h2>
+            <h2>{t('Shop Profile')}</h2>
           </div>
           <div className="form-grid">
             <label>
-              Shop Name
+              {t('Shop Name')}
               <input name="shop_name" value={form.shop_name} onChange={updateField} required />
             </label>
             <label>
-              Phone
+              {t('Phone')}
               <input name="phone" value={form.phone} onChange={updateField} />
             </label>
             <label>
-              Email
+              {t('Email')}
               <input name="email" type="email" value={form.email} onChange={updateField} />
             </label>
             <label>
-              Address
+              {t('Address')}
               <input name="address" value={form.address} onChange={updateField} />
             </label>
           </div>
@@ -183,11 +183,11 @@ function Settings() {
 
         <section className="panel">
           <div className="section-heading">
-            <h2>Receipt Settings</h2>
+            <h2>{t('Receipt Settings')}</h2>
           </div>
           <div className="form-grid">
             <label className="full-width">
-              Receipt Footer Message
+              {t('Receipt Footer Message')}
               <input
                 name="receipt_footer"
                 value={form.receipt_footer}
@@ -196,11 +196,11 @@ function Settings() {
               />
             </label>
             <label className="full-width">
-              Logo URL
+              {t('Logo URL')}
               <input name="logo_url" value={form.logo_url} onChange={updateField} />
             </label>
             <label>
-              Thermal Receipt Size
+              {t('Thermal Receipt Size')}
               <select
                 name="default_receipt_size"
                 value={form.default_receipt_size}
@@ -218,7 +218,7 @@ function Settings() {
 
         <section className="panel">
           <div className="section-heading">
-            <h2>Business Preferences</h2>
+            <h2>{t('Business Preferences')}</h2>
           </div>
           <div className="form-grid">
             <label>
@@ -232,7 +232,7 @@ function Settings() {
               </select>
             </label>
             <label>
-              Currency
+              {t('Currency')}
               <select name="currency" value={form.currency} onChange={updateField}>
                 {currencies.map((currency) => (
                   <option key={currency} value={currency}>
@@ -242,7 +242,7 @@ function Settings() {
               </select>
             </label>
             <label>
-              Default Low Stock Limit
+              {t('Default Low Stock Limit')}
               <input
                 name="default_low_stock_limit"
                 type="number"
@@ -252,7 +252,7 @@ function Settings() {
               />
             </label>
             <label>
-              Tax Percentage
+              {t('Tax Percentage')}
               <input
                 name="tax_percentage"
                 type="number"
@@ -270,25 +270,24 @@ function Settings() {
             {saving ? t('saving') : t('saveSettings')}
           </button>
           <button type="button" className="ghost-button" onClick={resetForm} disabled={saving}>
-            Reset Form
+            {t('Reset Form')}
           </button>
         </div>
       </form>
 
       <section className="panel">
         <div className="section-heading">
-          <h2>Security Settings</h2>
+          <h2>{t('Security Settings')}</h2>
           <button type="button" className="ghost-button" onClick={() => navigate('/login-activity')}>
-            Login Activity
+            {t('Login Activity')}
           </button>
         </div>
         <p className="muted">
-          Sessions expire automatically after the configured JWT lifetime. You will be asked to
-          login again when your session expires.
+          {t('Sessions expire automatically after the configured JWT lifetime. You will be asked to login again when your session expires.')}
         </p>
         <form onSubmit={changePassword} className="form-grid compact-form">
           <label>
-            Current Password
+            {t('Current Password')}
             <input
               name="current_password"
               type="password"
@@ -298,7 +297,7 @@ function Settings() {
             />
           </label>
           <label>
-            New Password
+            {t('New Password')}
             <input
               name="new_password"
               type="password"
@@ -308,7 +307,7 @@ function Settings() {
             />
           </label>
           <button type="submit" className="full-width" disabled={saving}>
-            {saving ? 'Saving...' : 'Change Password'}
+            {saving ? t('Saving...') : t('Change Password')}
           </button>
         </form>
       </section>

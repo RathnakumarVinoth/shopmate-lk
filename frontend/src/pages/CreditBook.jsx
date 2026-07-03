@@ -141,12 +141,12 @@ function CreditBook() {
   return (
     <section className="page-stack">
       {loading ? (
-        <div className="panel loading-panel">Loading credit book...</div>
+        <div className="panel loading-panel">{t('Loading credit book...')}</div>
       ) : (
         <>
           <div className="metric-grid compact-metrics">
             <article className="metric-card">
-              <span>Total Credit</span>
+              <span>{t('Total')} {t('Credit')}</span>
               <strong>{formatMoney(summary.total_credit_amount)}</strong>
             </article>
             <article className="metric-card">
@@ -158,7 +158,7 @@ function CreditBook() {
               <strong>{formatMoney(summary.total_balance_amount)}</strong>
             </article>
             <article className="metric-card">
-              <span>Open Records</span>
+              <span>{t('Open Records')}</span>
               <strong>{summary.unpaid_or_partial_count || 0}</strong>
             </article>
           </div>
@@ -169,11 +169,11 @@ function CreditBook() {
           <section className="page-grid">
             <section className="panel">
               <div className="section-heading">
-                <h2>Add Customer</h2>
+                <h2>{t('Add Customer')}</h2>
               </div>
               <form onSubmit={addCustomer} className="form-stack">
                 <label>
-                  Customer Name
+                  {t('Customer Name')}
                   <input
                     value={customerForm.customer_name}
                     onChange={(event) =>
@@ -183,7 +183,7 @@ function CreditBook() {
                   />
                 </label>
                 <label>
-                  Phone
+                  {t('Phone')}
                   <input
                     value={customerForm.phone}
                     onChange={(event) =>
@@ -192,7 +192,7 @@ function CreditBook() {
                   />
                 </label>
                 <label>
-                  Address
+                  {t('Address')}
                   <input
                     value={customerForm.address}
                     onChange={(event) =>
@@ -201,18 +201,18 @@ function CreditBook() {
                   />
                 </label>
                 <button type="submit" disabled={savingCustomer}>
-                  {savingCustomer ? 'Adding customer...' : 'Add Customer'}
+                  {savingCustomer ? t('Adding customer...') : t('Add Customer')}
                 </button>
               </form>
             </section>
 
             <section className="panel">
               <div className="section-heading">
-                <h2>Add Credit</h2>
+                <h2>{t('Add Credit')}</h2>
               </div>
               <form onSubmit={addCredit} className="form-stack">
                 <label>
-                  Customer
+                  {t('Customer')}
                   <select
                     value={creditForm.customer_id}
                     onChange={(event) =>
@@ -220,7 +220,7 @@ function CreditBook() {
                     }
                     required
                   >
-                    <option value="">Select customer</option>
+                    <option value="">{t('Select customer')}</option>
                     {customers.map((customer) => (
                       <option key={customer.id} value={customer.id}>
                         {customer.customer_name}
@@ -229,7 +229,7 @@ function CreditBook() {
                   </select>
                 </label>
                 <label>
-                  Credit Amount
+                  {t('Credit Amount')}
                   <input
                     type="number"
                     min="0"
@@ -242,7 +242,7 @@ function CreditBook() {
                   />
                 </label>
                 <button type="submit" disabled={savingCredit || customers.length === 0}>
-                  {savingCredit ? 'Adding credit...' : 'Add Credit'}
+                  {savingCredit ? t('Adding credit...') : t('Add Credit')}
                 </button>
               </form>
             </section>
@@ -250,7 +250,7 @@ function CreditBook() {
 
           <section className="panel">
             <div className="section-heading">
-              <h2>Customers</h2>
+              <h2>{t('Customers')}</h2>
               <button type="button" className="ghost-button" onClick={() => loadCreditData()}>
                 {t('refresh')}
               </button>
@@ -259,10 +259,10 @@ function CreditBook() {
               <table>
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Phone</th>
-                    <th>Address</th>
-                    <th>Actions</th>
+                    <th>{t('Name')}</th>
+                    <th>{t('Phone')}</th>
+                    <th>{t('Address')}</th>
+                    <th>{t('Action')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -278,7 +278,7 @@ function CreditBook() {
                           onClick={() => viewCustomerHistory(customer)}
                           disabled={loadingHistoryId === customer.id}
                         >
-                          {loadingHistoryId === customer.id ? 'Loading...' : 'View History'}
+                          {loadingHistoryId === customer.id ? t('Loading...') : t('View History')}
                         </button>
                       </td>
                     </tr>
@@ -286,7 +286,7 @@ function CreditBook() {
                   {customers.length === 0 && (
                     <tr>
                       <td colSpan="4" className="empty-cell">
-                        No customers found.
+                        {t('No customers found.')}
                       </td>
                     </tr>
                   )}
@@ -297,19 +297,19 @@ function CreditBook() {
 
           <section className="panel">
             <div className="section-heading">
-              <h2>Credit Records</h2>
+              <h2>{t('Credit Records')}</h2>
             </div>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Customer</th>
-                    <th>Phone</th>
-                    <th>Credit</th>
-                    <th>Paid</th>
-                    <th>Balance</th>
-                    <th>Status</th>
-                    <th>Payment</th>
+                    <th>{t('Customer')}</th>
+                    <th>{t('Phone')}</th>
+                    <th>{t('Credit')}</th>
+                    <th>{t('Paid')}</th>
+                    <th>{t('Balance')}</th>
+                    <th>{t('Status')}</th>
+                    <th>{t('Payment')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -330,7 +330,7 @@ function CreditBook() {
                         </td>
                         <td>
                           {credit.status === 'paid' ? (
-                            <span className="muted">Paid</span>
+                            <span className="muted">{t('Paid')}</span>
                           ) : (
                             <div className="inline-action">
                               <input
@@ -349,7 +349,7 @@ function CreditBook() {
                                 onClick={() => payCredit(credit)}
                                 disabled={invalidPayment || payingId === credit.id}
                               >
-                                {payingId === credit.id ? 'Paying...' : 'Pay'}
+                                {payingId === credit.id ? t('Paying...') : t('Pay')}
                               </button>
                             </div>
                           )}
@@ -360,7 +360,7 @@ function CreditBook() {
                   {credits.length === 0 && (
                     <tr>
                       <td colSpan="7" className="empty-cell">
-                        No credit records found.
+                        {t('No credit records found.')}
                       </td>
                     </tr>
                   )}
@@ -374,7 +374,7 @@ function CreditBook() {
               <section className="receipt-modal history-modal">
                 <div className="section-heading">
                   <div>
-                    <p className="eyebrow">Customer History</p>
+                    <p className="eyebrow">{t('Customer History')}</p>
                     <h2>{customerHistory.customer?.customer_name}</h2>
                   </div>
                   <button
@@ -382,49 +382,49 @@ function CreditBook() {
                     className="ghost-button"
                     onClick={() => setCustomerHistory(null)}
                   >
-                    Close
+                    {t('Close')}
                   </button>
                 </div>
 
                 <div className="summary-box">
                   <div>
-                    <span>Phone</span>
+                    <span>{t('Phone')}</span>
                     <strong>{customerHistory.customer?.phone || '-'}</strong>
                   </div>
                   <div>
-                    <span>Address</span>
+                    <span>{t('Address')}</span>
                     <strong>{customerHistory.customer?.address || '-'}</strong>
                   </div>
                   <div>
-                    <span>Total Purchases</span>
+                    <span>{t('Total Purchases')}</span>
                     <strong>{formatMoney(customerHistory.summary?.total_purchases)}</strong>
                   </div>
                   <div>
-                    <span>Total Credit</span>
+                    <span>{t('Total')} {t('Credit')}</span>
                     <strong>{formatMoney(customerHistory.summary?.total_credit)}</strong>
                   </div>
                   <div>
-                    <span>Total Paid</span>
+                    <span>{t('Total Paid')}</span>
                     <strong>{formatMoney(customerHistory.summary?.total_paid)}</strong>
                   </div>
                   <div>
-                    <span>Total Balance</span>
+                    <span>{t('Total Balance')}</span>
                     <strong>{formatMoney(customerHistory.summary?.total_balance)}</strong>
                   </div>
                 </div>
 
                 <section className="history-section">
-                  <h3>Sales History</h3>
+                  <h3>{t('Sales History')}</h3>
                   <div className="table-wrap">
                     <table>
                       <thead>
                         <tr>
-                          <th>Invoice</th>
-                          <th>Total</th>
+                          <th>{t('Invoice')}</th>
+                          <th>{t('Total')}</th>
                           <th>{t('paid')}</th>
                           <th>{t('balance')}</th>
-                          <th>Payment</th>
-                          <th>Date</th>
+                          <th>{t('Payment')}</th>
+                          <th>{t('Date')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -441,7 +441,7 @@ function CreditBook() {
                         {(customerHistory.sales || []).length === 0 && (
                           <tr>
                             <td colSpan="6" className="empty-cell">
-                              No sales found.
+                              {t('No sales found.')}
                             </td>
                           </tr>
                         )}
@@ -451,17 +451,17 @@ function CreditBook() {
                 </section>
 
                 <section className="history-section">
-                  <h3>Credit Records</h3>
+                  <h3>{t('Credit Records')}</h3>
                   <div className="table-wrap">
                     <table>
                       <thead>
                         <tr>
-                          <th>Sale</th>
-                          <th>Credit</th>
-                          <th>Paid</th>
-                          <th>Balance</th>
-                          <th>Status</th>
-                          <th>Date</th>
+                          <th>{t('Sale')}</th>
+                          <th>{t('Credit')}</th>
+                          <th>{t('Paid')}</th>
+                          <th>{t('Balance')}</th>
+                          <th>{t('Status')}</th>
+                          <th>{t('Date')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -480,7 +480,7 @@ function CreditBook() {
                         {(customerHistory.credits || []).length === 0 && (
                           <tr>
                             <td colSpan="6" className="empty-cell">
-                              No credit records found.
+                              {t('No credit records found.')}
                             </td>
                           </tr>
                         )}

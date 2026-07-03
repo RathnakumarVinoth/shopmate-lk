@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 
@@ -102,16 +103,16 @@ function AdminShops() {
   }
 
   if (loading) {
-    return <div className="panel loading-panel">Loading shops...</div>
+    return <div className="panel loading-panel">{t('Loading shops...')}</div>
   }
 
   return (
     <section className="page-stack">
       <section className="panel">
         <div className="section-heading">
-          <h2>Shops</h2>
+          <h2>{t('Shops')}</h2>
           <button type="button" className="ghost-button" onClick={() => loadShops(false)}>
-            Refresh
+            {t('Refresh')}
           </button>
         </div>
       </section>
@@ -124,15 +125,15 @@ function AdminShops() {
           <table className="admin-shops-table">
             <thead>
               <tr>
-                <th>Shop Name</th>
-                <th>Owner</th>
-                <th>Email</th>
-                <th>Plan</th>
-                <th>Status</th>
-                <th>Expiry Date</th>
-                <th>Monthly Fee</th>
-                <th>Enabled</th>
-                <th>Actions</th>
+                <th>{t('Shop Name')}</th>
+                <th>{t('Owner')}</th>
+                <th>{t('Email')}</th>
+                <th>{t('Plan')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('Expiry Date')}</th>
+                <th>{t('Monthly Fee')}</th>
+                <th>{t('Enabled')}</th>
+                <th>{t('Action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -151,7 +152,7 @@ function AdminShops() {
                   </td>
                   <td>{formatDate(shop.subscription_expiry_date)}</td>
                   <td>{formatMoney(shop.monthly_fee)}</td>
-                  <td>{shop.is_enabled ? 'Yes' : 'No'}</td>
+                  <td>{shop.is_enabled ? t('Yes') : t('No')}</td>
                   <td>
                     <div className="table-actions">
                       <button
@@ -159,10 +160,10 @@ function AdminShops() {
                         className="ghost-button"
                         onClick={() => navigate(`/admin/shops/${shop.id}`)}
                       >
-                        View
+                        {t('View')}
                       </button>
                       <button type="button" onClick={() => openEditor(shop)}>
-                        Edit Subscription
+                        {t('Edit Subscription')}
                       </button>
                       <button
                         type="button"
@@ -170,7 +171,7 @@ function AdminShops() {
                         onClick={() => toggleEnabled(shop)}
                         disabled={saving}
                       >
-                        {shop.is_enabled ? 'Disable' : 'Enable'}
+                        {shop.is_enabled ? t('Disable') : t('Enable')}
                       </button>
                     </div>
                   </td>
@@ -179,7 +180,7 @@ function AdminShops() {
               {shops.length === 0 && (
                 <tr>
                   <td colSpan="9" className="empty-cell">
-                    No shops found.
+                    {t('No shops found.')}
                   </td>
                 </tr>
               )}
@@ -193,7 +194,7 @@ function AdminShops() {
           <section className="receipt-modal admin-modal">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Subscription</p>
+                <p className="eyebrow">{t('Subscription')}</p>
                 <h2>{editingShop.shop_name}</h2>
               </div>
               <button
@@ -204,13 +205,13 @@ function AdminShops() {
                   setForm(null)
                 }}
               >
-                Close
+                {t('Close')}
               </button>
             </div>
 
             <form className="form-grid" onSubmit={saveSubscription}>
               <label>
-                Plan
+                {t('Plan')}
                 <select
                   name="subscription_plan"
                   value={form.subscription_plan}
@@ -224,7 +225,7 @@ function AdminShops() {
                 </select>
               </label>
               <label>
-                Status
+                {t('Status')}
                 <select
                   name="subscription_status"
                   value={form.subscription_status}
@@ -238,7 +239,7 @@ function AdminShops() {
                 </select>
               </label>
               <label>
-                Start Date
+                {t('Start Date')}
                 <input
                   name="subscription_start_date"
                   type="date"
@@ -247,7 +248,7 @@ function AdminShops() {
                 />
               </label>
               <label>
-                Expiry Date
+                {t('Expiry Date')}
                 <input
                   name="subscription_expiry_date"
                   type="date"
@@ -256,7 +257,7 @@ function AdminShops() {
                 />
               </label>
               <label>
-                Monthly Fee
+                {t('Monthly Fee')}
                 <input
                   name="monthly_fee"
                   type="number"
@@ -273,10 +274,10 @@ function AdminShops() {
                   checked={form.is_enabled}
                   onChange={updateField}
                 />
-                Enabled
+                {t('Enabled')}
               </label>
               <button type="submit" className="full-width" disabled={saving}>
-                {saving ? 'Saving...' : 'Save Subscription'}
+                {saving ? t('Saving...') : t('Save Subscription')}
               </button>
             </form>
           </section>

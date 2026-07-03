@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 
@@ -55,33 +56,33 @@ function LoginActivity() {
   }
 
   if (loading) {
-    return <div className="panel loading-panel">Loading login activity...</div>
+    return <div className="panel loading-panel">{t('Loading login activity...')}</div>
   }
 
   return (
     <section className="page-stack">
       <section className="panel">
         <div className="section-heading">
-          <h2>Login Activity</h2>
+          <h2>{t('Login Activity')}</h2>
           <button type="button" className="ghost-button" onClick={() => loadActivity(false)}>
-            Refresh
+            {t('Refresh')}
           </button>
         </div>
         <div className="form-grid compact-form">
           <label>
-            From Date
+            {t('From Date')}
             <input name="date_from" type="date" value={filters.date_from} onChange={updateFilter} />
           </label>
           <label>
-            To Date
+            {t('To Date')}
             <input name="date_to" type="date" value={filters.date_to} onChange={updateFilter} />
           </label>
           <label>
-            Status
+            {t('Status')}
             <select name="status" value={filters.status} onChange={updateFilter}>
-              <option value="">All</option>
-              <option value="success">Success</option>
-              <option value="failed">Failed</option>
+              <option value="">{t('All')}</option>
+              <option value="success">{t('Success')}</option>
+              <option value="failed">{t('Failed')}</option>
             </select>
           </label>
         </div>
@@ -94,12 +95,12 @@ function LoginActivity() {
           <table>
             <thead>
               <tr>
-                <th>Date / Time</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Status</th>
-                <th>IP Address</th>
-                <th>User Agent</th>
+                <th>{t('Date/Time')}</th>
+                <th>{t('Email')}</th>
+                <th>{t('Role')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('IP Address')}</th>
+                <th>{t('User Agent')}</th>
               </tr>
             </thead>
             <tbody>
@@ -120,7 +121,7 @@ function LoginActivity() {
               {activity.length === 0 && (
                 <tr>
                   <td colSpan="6" className="empty-cell">
-                    No login activity found.
+                    {t('No login activity found.')}
                   </td>
                 </tr>
               )}
