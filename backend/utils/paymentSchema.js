@@ -5,6 +5,21 @@ let ensuredPaymentVerifications = false;
 
 const paymentColumns = [
   {
+    name: "discount_amount",
+    definition:
+      "ALTER TABLE sales ADD COLUMN discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "paid_amount",
+    definition:
+      "ALTER TABLE sales ADD COLUMN paid_amount DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "balance_amount",
+    definition:
+      "ALTER TABLE sales ADD COLUMN balance_amount DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
     name: "subtotal",
     definition:
       "ALTER TABLE sales ADD COLUMN subtotal DECIMAL(10,2) NOT NULL DEFAULT 0",

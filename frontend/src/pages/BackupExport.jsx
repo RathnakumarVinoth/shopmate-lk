@@ -15,6 +15,13 @@ const exportDefinitions = [
     sheetName: 'Products',
   },
   {
+    key: 'categories',
+    label: 'Export Categories',
+    endpoint: '/export/categories',
+    fileName: 'categories_export.xlsx',
+    sheetName: 'Categories',
+  },
+  {
     key: 'sales',
     label: 'Export Sales',
     endpoint: '/export/sales',
@@ -43,6 +50,13 @@ const exportDefinitions = [
     sheetName: 'Credits',
   },
   {
+    key: 'customers',
+    label: 'Export Customers',
+    endpoint: '/export/customers',
+    fileName: 'customers_export.xlsx',
+    sheetName: 'Customers',
+  },
+  {
     key: 'suppliers',
     label: 'Export Suppliers',
     endpoint: '/export/suppliers',
@@ -62,6 +76,27 @@ const exportDefinitions = [
     endpoint: '/export/stock-movements',
     fileName: 'stock_movements_export.xlsx',
     sheetName: 'Stock Movements',
+  },
+  {
+    key: 'payment-verifications',
+    label: 'Export Payment Verifications',
+    endpoint: '/export/payment-verifications',
+    fileName: 'payment_verifications_export.xlsx',
+    sheetName: 'Payment Verifications',
+  },
+  {
+    key: 'audit-logs',
+    label: 'Export Audit Logs',
+    endpoint: '/export/audit-logs',
+    fileName: 'audit_logs_export.xlsx',
+    sheetName: 'Audit Logs',
+  },
+  {
+    key: 'login-activity',
+    label: 'Export Login Activity',
+    endpoint: '/export/login-activity',
+    fileName: 'login_activity_export.xlsx',
+    sheetName: 'Login Activity',
   },
 ]
 
@@ -153,7 +188,7 @@ function BackupExport() {
       setMessage(t('Full business backup exported successfully'))
     } catch (err) {
       console.error(err)
-      setError(t('Failed to export full backup. Check console for details.'))
+      setError(getApiMessage(err, t('Failed to export full backup. Check console for details.')))
     } finally {
       setExportingKey('')
     }
