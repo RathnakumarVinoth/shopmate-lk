@@ -232,6 +232,13 @@
   font-weight: 760;
 }
 
+.section-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .section-heading h2 {
   font-size: 18px;
 }
@@ -1089,6 +1096,227 @@ tbody tr:last-child td {
 .receipt-actions select {
   min-height: 38px;
   font-size: 11px;
+}
+
+/* Product barcode and QR scanner */
+.scanner-backdrop {
+  z-index: 60;
+}
+
+.scanner-modal {
+  width: min(880px, calc(100vw - 32px));
+}
+
+.scanner-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+  gap: 16px;
+}
+
+.scanner-camera-panel,
+.scanner-manual-panel,
+.scanner-preview {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 15px;
+  background: var(--color-surface-soft);
+}
+
+.scanner-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.scanner-panel-heading > strong,
+.scanner-manual-panel > strong {
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.scanner-video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid #bfd0d8;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-secondary-900);
+}
+
+.scanner-video-frame video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scanner-video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #b8c8cf;
+  background: var(--color-secondary-900);
+}
+
+.scanner-video-placeholder span {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.36);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.scanner-target {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(70%, 310px);
+  aspect-ratio: 2 / 1;
+  border: 2px solid #72eadc;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 999px rgba(16, 42, 58, 0.22);
+  transform: translate(-50%, -50%);
+}
+
+.scanner-camera-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.scanner-camera-panel .alert {
+  margin-top: 10px;
+}
+
+.scanner-manual-panel {
+  align-content: start;
+  display: grid;
+  gap: 12px;
+}
+
+.scanner-manual-form {
+  display: grid;
+  gap: 10px;
+}
+
+.scanner-preview {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  background: var(--color-surface);
+}
+
+.scanner-preview .scanner-panel-heading {
+  margin-bottom: 0;
+}
+
+.scanner-raw-value {
+  display: grid;
+  gap: 4px;
+}
+
+.scanner-raw-value span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.scanner-raw-value code {
+  max-height: 92px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  overflow: auto;
+  color: var(--color-secondary-700);
+  background: #f4f7f9;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.scanner-existing-product {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-left: 3px solid var(--color-success);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: #116c4a;
+  background: var(--color-success-soft);
+}
+
+.scanner-existing-product span {
+  color: #3e7160;
+  font-size: 11px;
+}
+
+.scanner-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.scanner-preview-grid div {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  background: var(--color-surface-soft);
+}
+
+.scanner-preview-grid dt {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.scanner-preview-grid dd {
+  margin: 3px 0 0;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.scanner-category-warning {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #efd6aa;
+  border-radius: var(--radius-md);
+  padding: 11px 12px;
+  color: #8b570f;
+  background: var(--color-warning-soft);
+}
+
+.scanner-category-warning > div {
+  display: grid;
+  gap: 2px;
+}
+
+.scanner-category-warning span {
+  font-size: 11px;
+}
+
+.scanner-category-warning .checkbox-row {
+  border-color: #efd6aa;
+  background: #ffffff;
+}
+
+.scanner-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .chart-panel {

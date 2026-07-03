@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import ProductScannerModal from '../components/ProductScannerModal.jsx'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage, getShopSettings } from '../utils/formatters'
@@ -51,6 +52,67 @@ const optionalText = (value) => {
   return trimmed || null
 }
 
+const toFormValue = (value) =>
+  value === undefined || value === null ? '' : String(value)
+
+const parseScannedValue = (rawValue) => {
+  const raw = String(rawValue || '').trim()
+  const looksLikeJson = raw.startsWith('{')
+
+  if (!looksLikeJson) {
+    return {
+      raw,
+      isJson: false,
+      draft: { barcode: raw },
+      categoryName: '',
+      lookupCodes: [raw],
+    }
+  }
+
+  let data
+
+  try {
+    data = JSON.parse(raw)
+  } catch {
+    throw new Error(t('Invalid QR product JSON.'))
+  }
+
+  if (!data || Array.isArray(data) || typeof data !== 'object') {
+    throw new Error(t('Invalid QR product JSON.'))
+  }
+
+  const scannedUnit = toFormValue(data.unit)
+  const matchedUnit = unitOptions.find(
+    (unit) => unit.toLowerCase() === scannedUnit.toLowerCase(),
+  )
+  const draft = {
+    product_name: toFormValue(data.name ?? data.product_name),
+    barcode: toFormValue(data.barcode),
+    product_code: toFormValue(data.product_code ?? data.sku),
+    category_name: toFormValue(data.category ?? data.category_name),
+    unit: matchedUnit || (scannedUnit ? 'pcs' : ''),
+    wholesale_price: toFormValue(
+      data.wholesale_price ?? data.buying_price ?? data.cost_price,
+    ),
+    selling_price: toFormValue(data.retail_price ?? data.selling_price),
+    stock_quantity: toFormValue(data.stock_quantity),
+    low_stock_limit: toFormValue(data.low_stock_limit),
+  }
+  const hasProductData = Object.values(draft).some((value) => value !== '')
+
+  if (!hasProductData) {
+    throw new Error(t('No supported product details were found in the QR code.'))
+  }
+
+  return {
+    raw,
+    isJson: true,
+    draft,
+    categoryName: draft.category_name,
+    lookupCodes: [draft.barcode, draft.product_code].filter(Boolean),
+  }
+}
+
 function Products() {
   const user = getSessionUser()
   const canManageProducts = hasPermission(user, 'products_manage')
@@ -72,6 +134,13 @@ function Products() {
   const [savingCategory, setSavingCategory] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [deletingCategoryId, setDeletingCategoryId] = useState(null)
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scannerProcessing, setScannerProcessing] = useState(false)
+  const [scannerApplying, setScannerApplying] = useState(false)
+  const [scannerError, setScannerError] = useState('')
+  const [scanPreview, setScanPreview] = useState(null)
+  const [createMissingCategory, setCreateMissingCategory] = useState(false)
+  const productFormRef = useRef(null)
 
   const loadProducts = async () => {
     setLoading(true)
@@ -168,6 +237,131 @@ function Products() {
     setForm(productToForm(product))
   }
 
+  const openScanner = () => {
+    setScannerError('')
+    setScanPreview(null)
+    setCreateMissingCategory(false)
+    setScannerOpen(true)
+  }
+
+  const closeScanner = () => {
+    setScannerOpen(false)
+    setScannerError('')
+    setScanPreview(null)
+    setCreateMissingCategory(false)
+  }
+
+  const findProductByCode = async (codes) => {
+    for (const code of [...new Set(codes.filter(Boolean))]) {
+      try {
+        const response = await api.get(
+          `/products/search-code/${encodeURIComponent(code)}`,
+        )
+        return response.data
+      } catch (lookupError) {
+        if (lookupError.response?.status !== 404) throw lookupError
+      }
+    }
+
+    return null
+  }
+
+  const processScannedValue = async (rawValue) => {
+    setScannerProcessing(true)
+    setScannerError('')
+    setScanPreview(null)
+    setCreateMissingCategory(false)
+
+    try {
+      const parsed = parseScannedValue(rawValue)
+      const existingProduct = await findProductByCode(parsed.lookupCodes)
+      const matchingCategory = parsed.categoryName
+        ? categories.find(
+            (category) =>
+              category.name.trim().toLowerCase() ===
+              parsed.categoryName.trim().toLowerCase(),
+          )
+        : null
+
+      setScanPreview({
+        ...parsed,
+        existingProduct,
+        matchingCategory,
+        missingCategory: Boolean(parsed.categoryName && !matchingCategory),
+      })
+    } catch (scanError) {
+      setScannerError(getApiMessage(scanError, scanError.message || t('Failed to check scanned code.')))
+    } finally {
+      setScannerProcessing(false)
+    }
+  }
+
+  const applyScanPreview = async () => {
+    if (!scanPreview) return
+
+    setScannerApplying(true)
+    setScannerError('')
+
+    try {
+      let categoryId = scanPreview.matchingCategory
+        ? String(scanPreview.matchingCategory.id)
+        : ''
+
+      if (
+        scanPreview.missingCategory &&
+        createMissingCategory &&
+        canManageCategories
+      ) {
+        const response = await api.post('/categories', {
+          name: scanPreview.categoryName.trim(),
+          description: null,
+          is_active: true,
+        })
+        categoryId = String(response.data.category_id)
+        setCategories((current) => [
+          ...current,
+          {
+            id: response.data.category_id,
+            name: scanPreview.categoryName.trim(),
+            description: null,
+            is_active: true,
+          },
+        ])
+      }
+
+      const nextForm = scanPreview.existingProduct
+        ? productToForm(scanPreview.existingProduct)
+        : { ...initialForm }
+
+      Object.entries(scanPreview.draft).forEach(([field, value]) => {
+        if (field !== 'category_name' && value !== '') {
+          nextForm[field] = value
+        }
+      })
+
+      if (categoryId) {
+        nextForm.category_id = categoryId
+      }
+
+      setEditingId(scanPreview.existingProduct?.id || null)
+      setForm(nextForm)
+      setMessage(
+        scanPreview.existingProduct
+          ? t('Existing product opened for editing. Review and save the product.')
+          : t('Scanned data added. Review and save the product.'),
+      )
+      setError('')
+      closeScanner()
+      window.requestAnimationFrame(() => {
+        productFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    } catch (applyError) {
+      setScannerError(getApiMessage(applyError, t('Failed to apply scanned data.')))
+    } finally {
+      setScannerApplying(false)
+    }
+  }
+
   const submitCategory = async (event) => {
     event.preventDefault()
     setCategoryMessage('')
@@ -252,16 +446,22 @@ function Products() {
   }
 
   return (
-    <section className={canManageProducts ? 'page-grid' : 'page-stack'}>
+    <>
+      <section className={canManageProducts ? 'page-grid' : 'page-stack'}>
       {canManageProducts && (
-        <section className="panel">
+        <section className="panel" ref={productFormRef}>
           <div className="section-heading">
             <h2>{editingId ? t('editProduct') : t('addProduct')}</h2>
-            {editingId && (
-              <button type="button" className="ghost-button" onClick={resetForm}>
-                {t('Cancel')}
+            <div className="section-heading-actions">
+              <button type="button" className="ghost-button" onClick={openScanner}>
+                {t('Scan Barcode / QR')}
               </button>
-            )}
+              {editingId && (
+                <button type="button" className="ghost-button" onClick={resetForm}>
+                  {t('Cancel')}
+                </button>
+              )}
+            </div>
           </div>
           <form onSubmit={submit} className="form-grid">
             {error && <div className="alert full-width">{error}</div>}
@@ -529,7 +729,23 @@ function Products() {
           </div>
         )}
       </section>
-    </section>
+      </section>
+
+      {scannerOpen && (
+        <ProductScannerModal
+          applying={scannerApplying}
+          canCreateCategory={canManageCategories}
+          createMissingCategory={createMissingCategory}
+          error={scannerError}
+          onApply={applyScanPreview}
+          onClose={closeScanner}
+          onDetected={processScannedValue}
+          preview={scanPreview}
+          processing={scannerProcessing}
+          setCreateMissingCategory={setCreateMissingCategory}
+        />
+      )}
+    </>
   )
 }
 

@@ -122,6 +122,15 @@
     min-height: 40px;
   }
 
+  .section-heading-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .section-heading-actions button {
+    flex: 1 1 150px;
+  }
+
   .table-wrap {
     border-radius: var(--radius-md);
   }
@@ -156,6 +165,26 @@
 
   .receipt-print-area {
     padding: 14px;
+  }
+
+  .scanner-modal {
+    width: min(96vw, 680px);
+  }
+
+  .scanner-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .scanner-preview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scanner-category-warning {
+    grid-template-columns: 1fr;
+  }
+
+  .scanner-category-warning .checkbox-row {
+    width: 100%;
   }
 
   .auth-page {
@@ -207,6 +236,15 @@
 
   .metric-card strong {
     font-size: 21px;
+  }
+
+  .scanner-preview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scanner-preview-actions {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .auth-panel::before {
