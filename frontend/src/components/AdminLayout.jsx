@@ -1,9 +1,15 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { scheduleSessionExpiry } from '../utils/session'
 import Notifications from './Notifications.jsx'
+import { useEffect } from 'react'
 
 function AdminLayout() {
   const navigate = useNavigate()
   const user = JSON.parse(localStorage.getItem('user') || '{}')
+
+  useEffect(() => {
+    return scheduleSessionExpiry()
+  }, [])
 
   const logout = () => {
     localStorage.removeItem('token')
@@ -35,6 +41,12 @@ function AdminLayout() {
             className={({ isActive }) => (isActive ? 'active' : '')}
           >
             Audit Logs
+          </NavLink>
+          <NavLink
+            to="/admin/login-activity"
+            className={({ isActive }) => (isActive ? 'active' : '')}
+          >
+            Login Activity
           </NavLink>
         </nav>
 

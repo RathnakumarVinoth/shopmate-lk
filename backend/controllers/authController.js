@@ -8,6 +8,13 @@ const {
   getEffectivePermissions,
   serializePermissions,
 } = require("../utils/permissions");
+const {
+  createLoginActivity,
+  ensureSecurityTables,
+  generateResetToken,
+  hashToken,
+  validateStrongPassword,
+} = require("../utils/security");
 
 const signToken = (user) => {
   if (!process.env.JWT_SECRET) {
@@ -23,9 +30,14 @@ const signToken = (user) => {
       permissions: user.permissions || [],
     },
     process.env.JWT_SECRET,
-    { expiresIn: "1d" }
+    { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
   );
 };
+
+const getRequestMeta = (req) => ({
+  ip_address: req.ip,
+  user_agent: req.get("user-agent") || null,
+});
 
 exports.register = async (req, res) => {
   const { name, email, password, shop_name, phone, address } = req.body;
@@ -37,10 +49,17 @@ exports.register = async (req, res) => {
     });
   }
 
+  const passwordError = validateStrongPassword(password);
+
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
+  }
+
   const connection = db.promise();
 
   try {
     await ensureUserPermissionColumns();
+    await ensureSecurityTables();
 
     const [existingUsers] = await connection.query(
       "SELECT id FROM users WHERE email = ? LIMIT 1",
@@ -116,6 +135,7 @@ exports.login = async (req, res) => {
 
   try {
     await ensureUserPermissionColumns();
+    await ensureSecurityTables();
 
     const [users] = await db.promise().query(
       `SELECT users.id, users.name, users.email, users.password, users.role,
@@ -132,39 +152,92 @@ exports.login = async (req, res) => {
     );
 
     if (users.length === 0) {
+      await createLoginActivity({
+        email,
+        status: "failed",
+        ...getRequestMeta(req),
+      });
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     const user = users[0];
 
     if (!user.is_active) {
+      await createLoginActivity({
+        user_id: user.id,
+        shop_id: user.shop_id,
+        email: user.email,
+        role: user.role,
+        status: "failed",
+        ...getRequestMeta(req),
+      });
       return res.status(403).json({ message: "Account is inactive" });
     }
 
     const passwordMatches = await bcrypt.compare(password, user.password);
 
     if (!passwordMatches) {
+      await createLoginActivity({
+        user_id: user.id,
+        shop_id: user.shop_id,
+        email: user.email,
+        role: user.role,
+        status: "failed",
+        ...getRequestMeta(req),
+      });
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     if (user.role !== "admin") {
       if (!user.shop_id) {
+        await createLoginActivity({
+          user_id: user.id,
+          shop_id: null,
+          email: user.email,
+          role: user.role,
+          status: "failed",
+          ...getRequestMeta(req),
+        });
         return res.status(403).json({ message: "Shop account not found" });
       }
 
       if (user.is_enabled !== null && Number(user.is_enabled) === 0) {
+        await createLoginActivity({
+          user_id: user.id,
+          shop_id: user.shop_id,
+          email: user.email,
+          role: user.role,
+          status: "failed",
+          ...getRequestMeta(req),
+        });
         return res
           .status(403)
           .json({ message: "Shop account is disabled. Contact support." });
       }
 
       if (user.subscription_status === "suspended") {
+        await createLoginActivity({
+          user_id: user.id,
+          shop_id: user.shop_id,
+          email: user.email,
+          role: user.role,
+          status: "failed",
+          ...getRequestMeta(req),
+        });
         return res
           .status(403)
           .json({ message: "Subscription suspended. Contact support." });
       }
 
       if (user.subscription_status === "expired") {
+        await createLoginActivity({
+          user_id: user.id,
+          shop_id: user.shop_id,
+          email: user.email,
+          role: user.role,
+          status: "failed",
+          ...getRequestMeta(req),
+        });
         return res
           .status(403)
           .json({ message: "Subscription expired. Please renew." });
@@ -174,6 +247,14 @@ exports.login = async (req, res) => {
         user.subscription_expiry_date &&
         new Date(user.subscription_expiry_date) < new Date()
       ) {
+        await createLoginActivity({
+          user_id: user.id,
+          shop_id: user.shop_id,
+          email: user.email,
+          role: user.role,
+          status: "failed",
+          ...getRequestMeta(req),
+        });
         return res
           .status(403)
           .json({ message: "Subscription expired. Please renew." });
@@ -190,6 +271,15 @@ exports.login = async (req, res) => {
     };
 
     const token = signToken(tokenUser);
+
+    await createLoginActivity({
+      user_id: tokenUser.id,
+      shop_id: tokenUser.shop_id,
+      email: tokenUser.email,
+      role: tokenUser.role,
+      status: "success",
+      ...getRequestMeta(req),
+    });
 
     await createAuditLog({
       shop_id: tokenUser.shop_id,
@@ -211,5 +301,151 @@ exports.login = async (req, res) => {
   } catch (error) {
     console.error("Login error:", error.message);
     return res.status(500).json({ message: "Server error during login" });
+  }
+};
+
+exports.changePassword = async (req, res) => {
+  const { current_password, new_password } = req.body;
+
+  if (!current_password || !new_password) {
+    return res
+      .status(400)
+      .json({ message: "current_password and new_password are required" });
+  }
+
+  const passwordError = validateStrongPassword(new_password);
+
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
+  }
+
+  try {
+    await ensureSecurityTables();
+
+    const [users] = await db.promise().query(
+      "SELECT id, password FROM users WHERE id = ? LIMIT 1",
+      [req.user.id]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const passwordMatches = await bcrypt.compare(current_password, users[0].password);
+
+    if (!passwordMatches) {
+      return res.status(400).json({ message: "Current password is incorrect" });
+    }
+
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    await db.promise().query(
+      `UPDATE users
+       SET password = ?, reset_token_hash = NULL, reset_token_expires_at = NULL
+       WHERE id = ?`,
+      [hashedPassword, req.user.id]
+    );
+
+    return res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Change password error:", error.message);
+    return res
+      .status(500)
+      .json({ message: "Server error while changing password" });
+  }
+};
+
+exports.forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "email is required" });
+  }
+
+  try {
+    await ensureSecurityTables();
+
+    const [users] = await db.promise().query(
+      "SELECT id, email FROM users WHERE email = ? LIMIT 1",
+      [email]
+    );
+
+    const response = {
+      message: "If the email exists, a password reset link will be sent.",
+    };
+
+    if (users.length === 0) {
+      return res.json(response);
+    }
+
+    const resetToken = generateResetToken();
+    const resetTokenHash = hashToken(resetToken);
+
+    await db.promise().query(
+      `UPDATE users
+       SET reset_token_hash = ?, reset_token_expires_at = DATE_ADD(NOW(), INTERVAL 30 MINUTE)
+       WHERE id = ?`,
+      [resetTokenHash, users[0].id]
+    );
+
+    if (process.env.NODE_ENV !== "production") {
+      response.reset_token = resetToken;
+    }
+
+    return res.json(response);
+  } catch (error) {
+    console.error("Forgot password error:", error.message);
+    return res
+      .status(500)
+      .json({ message: "Server error while preparing password reset" });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  const { token, new_password } = req.body;
+
+  if (!token || !new_password) {
+    return res.status(400).json({ message: "token and new_password are required" });
+  }
+
+  const passwordError = validateStrongPassword(new_password);
+
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
+  }
+
+  try {
+    await ensureSecurityTables();
+
+    const tokenHash = hashToken(token);
+    const [users] = await db.promise().query(
+      `SELECT id
+       FROM users
+       WHERE reset_token_hash = ?
+         AND reset_token_expires_at IS NOT NULL
+         AND reset_token_expires_at > NOW()
+       LIMIT 1`,
+      [tokenHash]
+    );
+
+    if (users.length === 0) {
+      return res.status(400).json({ message: "Invalid or expired reset token" });
+    }
+
+    const hashedPassword = await bcrypt.hash(new_password, 10);
+
+    await db.promise().query(
+      `UPDATE users
+       SET password = ?, reset_token_hash = NULL, reset_token_expires_at = NULL
+       WHERE id = ?`,
+      [hashedPassword, users[0].id]
+    );
+
+    return res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error("Reset password error:", error.message);
+    return res
+      .status(500)
+      .json({ message: "Server error while resetting password" });
   }
 };

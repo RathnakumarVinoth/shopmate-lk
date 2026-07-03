@@ -9,6 +9,7 @@ const {
   serializePermissions,
   staffRoles,
 } = require("../utils/permissions");
+const { validateStrongPassword } = require("../utils/security");
 
 const isMissing = (value) => value === undefined || value === null || value === "";
 
@@ -38,6 +39,12 @@ exports.addStaff = async (req, res) => {
     return res
       .status(400)
       .json({ message: "name, email, and password are required" });
+  }
+
+  const passwordError = validateStrongPassword(password);
+
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
   }
 
   try {

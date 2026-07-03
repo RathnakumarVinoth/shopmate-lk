@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
@@ -7,7 +7,17 @@ function AdminLogin() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const sessionMessage = localStorage.getItem('sessionMessage')
+
+    if (sessionMessage) {
+      setMessage(sessionMessage)
+      localStorage.removeItem('sessionMessage')
+    }
+  }, [])
 
   const updateField = (event) => {
     setForm({ ...form, [event.target.name]: event.target.value })
@@ -16,6 +26,7 @@ function AdminLogin() {
   const submit = async (event) => {
     event.preventDefault()
     setError('')
+    setMessage('')
     setLoading(true)
 
     try {
@@ -44,6 +55,7 @@ function AdminLogin() {
         <p className="eyebrow">ShopMate LK</p>
         <h1>Admin Login</h1>
         <form onSubmit={submit} className="form-stack">
+          {message && <div className="info-banner">{message}</div>}
           {error && <div className="alert">{error}</div>}
           <label>
             Email

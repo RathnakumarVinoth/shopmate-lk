@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 
@@ -34,7 +35,12 @@ const settingsToForm = (settings) => ({
 })
 
 function Settings() {
+  const navigate = useNavigate()
   const [form, setForm] = useState(initialForm)
+  const [passwordForm, setPasswordForm] = useState({
+    current_password: '',
+    new_password: '',
+  })
   const [savedSettings, setSavedSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -67,6 +73,11 @@ function Settings() {
     setForm((current) => ({ ...current, [name]: value }))
   }
 
+  const updatePasswordField = (event) => {
+    const { name, value } = event.target
+    setPasswordForm((current) => ({ ...current, [name]: value }))
+  }
+
   const resetForm = () => {
     setForm(settingsToForm(savedSettings || initialForm))
     setMessage('')
@@ -97,6 +108,23 @@ function Settings() {
       setMessage('Settings saved successfully')
     } catch (err) {
       setError(getApiMessage(err, 'Failed to save settings'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const changePassword = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setMessage('')
+    setError('')
+
+    try {
+      await api.put('/auth/change-password', passwordForm)
+      setPasswordForm({ current_password: '', new_password: '' })
+      setMessage('Password changed successfully')
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to change password'))
     } finally {
       setSaving(false)
     }
@@ -219,6 +247,44 @@ function Settings() {
           </button>
         </div>
       </form>
+
+      <section className="panel">
+        <div className="section-heading">
+          <h2>Security Settings</h2>
+          <button type="button" className="ghost-button" onClick={() => navigate('/login-activity')}>
+            Login Activity
+          </button>
+        </div>
+        <p className="muted">
+          Sessions expire automatically after the configured JWT lifetime. You will be asked to
+          login again when your session expires.
+        </p>
+        <form onSubmit={changePassword} className="form-grid compact-form">
+          <label>
+            Current Password
+            <input
+              name="current_password"
+              type="password"
+              value={passwordForm.current_password}
+              onChange={updatePasswordField}
+              required
+            />
+          </label>
+          <label>
+            New Password
+            <input
+              name="new_password"
+              type="password"
+              value={passwordForm.new_password}
+              onChange={updatePasswordField}
+              required
+            />
+          </label>
+          <button type="submit" className="full-width" disabled={saving}>
+            {saving ? 'Saving...' : 'Change Password'}
+          </button>
+        </form>
+      </section>
     </section>
   )
 }

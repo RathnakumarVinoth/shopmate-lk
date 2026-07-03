@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import api from '../services/api'
+import { scheduleSessionExpiry } from '../utils/session'
 import Notifications from './Notifications.jsx'
 import Sidebar from './Sidebar.jsx'
 
 function Layout() {
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   const [, setSettingsVersion] = useState(0)
+
+  useEffect(() => {
+    return scheduleSessionExpiry()
+  }, [])
 
   useEffect(() => {
     const loadSettings = async () => {

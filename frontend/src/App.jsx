@@ -14,6 +14,7 @@ import CreditBook from './pages/CreditBook.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Expenses from './pages/Expenses.jsx'
 import Login from './pages/Login.jsx'
+import LoginActivity from './pages/LoginActivity.jsx'
 import PaymentVerification from './pages/PaymentVerification.jsx'
 import POS from './pages/POS.jsx'
 import Products from './pages/Products.jsx'
@@ -177,6 +178,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/login-activity"
+            element={
+              <ProtectedRoute roles={['owner']}>
+                <LoginActivity />
+              </ProtectedRoute>
+            }
+          />
         </Route>
         <Route
           element={
@@ -189,6 +198,7 @@ function App() {
           <Route path="/admin/shops" element={<AdminShops />} />
           <Route path="/admin/shops/:id" element={<AdminShopDetails />} />
           <Route path="/admin/audit-logs" element={<AuditLogs />} />
+          <Route path="/admin/login-activity" element={<LoginActivity />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
