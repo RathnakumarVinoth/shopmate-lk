@@ -1,5 +1,8 @@
 const db = require("../config/db");
-const { ensureSalesPaymentColumns } = require("../utils/paymentSchema");
+const {
+  ensurePaymentVerificationTable,
+  ensureSalesPaymentColumns,
+} = require("../utils/paymentSchema");
 
 const allowedPaymentTypes = ["cash", "card", "bank_transfer", "qr", "credit"];
 const paidRequiredTypes = ["cash", "card", "bank_transfer", "qr"];
@@ -27,19 +30,10 @@ const optionalText = (value) => {
   return String(value).trim();
 };
 
-const hasVerificationData = (body) =>
-  Boolean(
-    optionalText(body.payment_reference) ||
-      optionalText(body.approval_code) ||
-      optionalText(body.card_last_four)
-  );
-
-const getPaymentStatus = (paymentType, body) => {
+const getPaymentStatus = (paymentType) => {
   if (paymentType === "cash") return "verified";
   if (paymentType === "credit") return "credit";
-  if (verifiablePaymentTypes.includes(paymentType) && hasVerificationData(body)) {
-    return "verified";
-  }
+  if (verifiablePaymentTypes.includes(paymentType)) return "pending";
 
   return "pending";
 };
@@ -202,7 +196,8 @@ exports.createSale = async (req, res) => {
   const shopId = req.user.shop_id;
   const userId = req.user.id;
   const paymentType = req.body.payment_type || "cash";
-  const paymentStatus = getPaymentStatus(paymentType, req.body);
+  const requiresVerification = verifiablePaymentTypes.includes(paymentType);
+  const paymentStatus = getPaymentStatus(paymentType);
   const paymentReference = optionalText(req.body.payment_reference);
   const approvalCode = optionalText(req.body.approval_code);
   const cardLastFour = optionalText(req.body.card_last_four);
@@ -230,6 +225,7 @@ exports.createSale = async (req, res) => {
 
   try {
     await ensureSalesPaymentColumns();
+    await ensurePaymentVerificationTable();
     await connection.beginTransaction();
 
     const [shops] = await connection.query(
@@ -379,6 +375,15 @@ exports.createSale = async (req, res) => {
       invoiceNo,
       saleId,
     ]);
+
+    if (requiresVerification) {
+      await connection.query(
+        `INSERT INTO payment_verifications
+         (sale_id, shop_id, payment_method, amount, reference_no, status)
+         VALUES (?, ?, ?, ?, ?, 'pending')`,
+        [saleId, shopId, paymentType, totalAmount, paymentReference]
+      );
+    }
 
     const saleItemRows = saleItems.map((item) => [
       saleId,
