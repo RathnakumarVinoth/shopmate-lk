@@ -1192,14 +1192,44 @@ th {
   align-items: end;
 }
 
+.enhanced-report-filter {
+  grid-template-columns: repeat(3, minmax(150px, 1fr)) auto;
+}
+
+.report-actions,
+.report-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.report-filter-actions {
+  align-items: end;
+}
+
 .report-metrics {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .report-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+  min-width: 0;
+}
+
+.chart-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chart-panel .recharts-responsive-container,
+.chart-panel .recharts-wrapper,
+.chart-panel svg {
+  max-width: 100%;
 }
 
 .report-table {
@@ -1865,9 +1895,32 @@ th {
   }
 
   .section-heading > button,
-  .section-heading > .ghost-button {
+  .section-heading > .ghost-button,
+  .report-actions,
+  .report-filter-actions {
+    width: 100%;
+  }
+
+  .section-heading > button,
+  .section-heading > .ghost-button,
+  .report-actions button,
+  .report-filter-actions button {
     max-width: 100%;
     white-space: normal;
+  }
+
+  .report-actions,
+  .report-filter-actions {
+    justify-content: stretch;
+  }
+
+  .report-actions button,
+  .report-filter-actions button {
+    flex: 1 1 150px;
+  }
+
+  .chart-panel {
+    padding: 12px 8px;
   }
 
   .category-row {
