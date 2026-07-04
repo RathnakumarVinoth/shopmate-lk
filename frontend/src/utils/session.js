@@ -21,6 +21,51 @@ const safeJsonParse = (value, fallback = {}) => {
   }
 }
 
+const getStoredShopSession = () => {
+  const savedSession = safeJsonParse(localStorage.getItem(SHOP_SESSION_KEY), null)
+
+  if (savedSession) return savedSession
+
+  const legacySession = safeJsonParse(sessionStorage.getItem(SHOP_SESSION_KEY), null)
+  if (!legacySession) return null
+
+  const normalizedSession = normalizeShopSession(legacySession)
+  localStorage.setItem(SHOP_SESSION_KEY, JSON.stringify(normalizedSession))
+  sessionStorage.removeItem(SHOP_SESSION_KEY)
+  return normalizedSession
+}
+
+const normalizeShopSession = (session = {}) => {
+  const shop = session.shop || {}
+  const shopId = session.shop_id || shop.shop_id || shop.id || null
+  const shopName = session.shop_name || shop.shop_name || shop.name || ''
+  const shopCode = session.shop_code || shop.shop_code || null
+  const shopLoginEmail =
+    session.shop_login_email || shop.shop_login_email || shop.login_email || null
+
+  return {
+    shopToken: session.shopToken || session.shop_token || null,
+    shop: {
+      ...shop,
+      shop_id: shopId,
+      shop_name: shopName,
+      shop_code: shopCode,
+      shop_login_email: shopLoginEmail,
+    },
+    shop_id: shopId,
+    shop_name: shopName,
+    shop_code: shopCode,
+    shop_login_email: shopLoginEmail,
+    shop_session_created_at:
+      session.shop_session_created_at || new Date().toISOString(),
+  }
+}
+
+export const getShopSessionId = (session = getShopSession()) =>
+  session?.shop_id || session?.shop?.shop_id || session?.shop?.id || null
+
+export const hasShopContext = () => Boolean(getShopSessionId())
+
 export const getSessionMessage = () => {
   const message = sessionStorage.getItem('sessionMessage') || localStorage.getItem('sessionMessage')
   sessionStorage.removeItem('sessionMessage')
@@ -42,19 +87,49 @@ export const saveSession = ({ token, user }) => {
   window.dispatchEvent(new Event('shopmate:session-started'))
 }
 
-export const saveShopSession = ({ shopToken, shop }) => {
-  sessionStorage.setItem(
+export const saveShopSession = ({ shopToken, shop, shopLoginEmail }) => {
+  const existingSession = getStoredShopSession() || {}
+  const normalizedSession = normalizeShopSession({
+    ...existingSession,
+    shopToken: shopToken || existingSession.shopToken || null,
+    shop: {
+      ...(existingSession.shop || {}),
+      ...(shop || {}),
+      shop_login_email:
+        shopLoginEmail ||
+        shop?.shop_login_email ||
+        shop?.login_email ||
+        existingSession.shop_login_email ||
+        existingSession.shop?.shop_login_email ||
+        null,
+    },
+    shop_login_email:
+      shopLoginEmail ||
+      shop?.shop_login_email ||
+      shop?.login_email ||
+      existingSession.shop_login_email ||
+      existingSession.shop?.shop_login_email ||
+      null,
+    shop_session_created_at:
+      existingSession.shop_session_created_at || new Date().toISOString(),
+  })
+
+  localStorage.setItem(
     SHOP_SESSION_KEY,
-    JSON.stringify({
-      shopToken,
-      shop: shop || {},
-    }),
+    JSON.stringify(normalizedSession),
   )
+  sessionStorage.removeItem(SHOP_SESSION_KEY)
 }
 
-export const getShopSession = () => safeJsonParse(sessionStorage.getItem(SHOP_SESSION_KEY), null)
+export const getShopSession = () => {
+  const session = getStoredShopSession()
+  return session ? normalizeShopSession(session) : null
+}
 
-export const clearShopSession = () => sessionStorage.removeItem(SHOP_SESSION_KEY)
+export const clearShopSession = () => {
+  localStorage.removeItem(SHOP_SESSION_KEY)
+  sessionStorage.removeItem(SHOP_SESSION_KEY)
+}
 
 export const getSessionToken = () => sessionStorage.getItem('token')
 
@@ -136,7 +211,12 @@ export const recordAutoLogout = (reason = 'Session expired') => {
 }
 
 export const clearSession = (message, options = {}) => {
-  const { broadcast = true, recordReason = '' } = options
+  const {
+    broadcast = true,
+    clearShop = false,
+    clearSettings = clearShop,
+    recordReason = '',
+  } = options
 
   if (recordReason) {
     recordAutoLogout(recordReason)
@@ -144,10 +224,16 @@ export const clearSession = (message, options = {}) => {
 
   sessionStorage.removeItem('token')
   sessionStorage.removeItem('user')
-  sessionStorage.removeItem('shopSettings')
-  sessionStorage.removeItem(SHOP_SESSION_KEY)
   sessionStorage.removeItem(HIDDEN_AT_KEY)
   clearLegacyAuthStorage()
+
+  if (clearSettings) {
+    clearStoredSettings()
+  }
+
+  if (clearShop) {
+    clearShopSession()
+  }
 
   if (message) {
     sessionStorage.setItem('sessionMessage', message)
@@ -156,6 +242,7 @@ export const clearSession = (message, options = {}) => {
   if (broadcast) {
     const payload = {
       type: 'logout',
+      clearShop,
       message,
       at: Date.now(),
     }
@@ -170,8 +257,15 @@ export const redirectToLogin = (
   message = 'Session expired. Please login again.',
   options = {},
 ) => {
-  const loginPath = window.location.pathname.startsWith('/admin') ? '/admin/login' : '/shop-login'
-  clearSession(message, options)
+  const isAdminPath = window.location.pathname.startsWith('/admin')
+  const clearShop = Boolean(options.clearShop)
+  const loginPath = isAdminPath
+    ? '/admin/login'
+    : clearShop || !hasShopContext()
+      ? '/shop-login'
+      : '/role-login'
+
+  clearSession(message, { ...options, clearShop })
 
   if (window.location.pathname !== loginPath) {
     window.location.href = loginPath
@@ -206,7 +300,7 @@ export const subscribeToSessionLogout = (onLogout) => {
   const channel = getAuthChannel()
   const handleMessage = (event) => {
     if (event.data?.type === 'logout') {
-      onLogout(event.data.message)
+      onLogout(event.data.message, event.data)
     }
   }
 
@@ -214,7 +308,7 @@ export const subscribeToSessionLogout = (onLogout) => {
     if (event.key !== AUTH_EVENT_KEY || !event.newValue) return
     const payload = safeJsonParse(event.newValue, null)
     if (payload?.type === 'logout') {
-      onLogout(payload.message)
+      onLogout(payload.message, payload)
     }
   }
 

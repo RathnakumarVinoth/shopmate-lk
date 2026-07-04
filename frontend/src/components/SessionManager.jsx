@@ -13,7 +13,7 @@ import {
 } from '../utils/session'
 
 const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll']
-const INACTIVITY_MESSAGE = 'Session expired due to inactivity. Please login again.'
+const INACTIVITY_MESSAGE = 'Session expired. Please login again.'
 const EXPIRY_MESSAGE = 'Session expired. Please login again.'
 
 function SessionManager() {
@@ -78,8 +78,11 @@ function SessionManager() {
       scheduleIdleLogout()
     }
 
-    const handleRemoteLogout = (message) => {
-      redirectToLogin(message || EXPIRY_MESSAGE, { broadcast: false })
+    const handleRemoteLogout = (message, payload) => {
+      redirectToLogin(message || '', {
+        broadcast: false,
+        clearShop: Boolean(payload?.clearShop),
+      })
     }
 
     const startSessionTimers = () => {

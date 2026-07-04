@@ -34,8 +34,14 @@ function Sidebar({ shopName = 'ShopMate LK', onNavigate, onClose }) {
     (link) => hasPermission(user, link.permission) && roleAllowed(user.role, link.roles),
   )
 
-  const logout = () => {
+  const userLogout = () => {
     clearSession()
+    onNavigate?.()
+    navigate('/role-login')
+  }
+
+  const shopLogout = () => {
+    clearSession(undefined, { clearShop: true })
     onNavigate?.()
     navigate('/shop-login')
   }
@@ -69,9 +75,14 @@ function Sidebar({ shopName = 'ShopMate LK', onNavigate, onClose }) {
         ))}
       </nav>
 
-      <button type="button" className="ghost-button sidebar-logout" onClick={logout}>
-        {t('logout')}
-      </button>
+      <div className="sidebar-session-actions">
+        <button type="button" className="ghost-button sidebar-logout" onClick={userLogout}>
+          {t('User Logout')}
+        </button>
+        <button type="button" className="ghost-button sidebar-logout sidebar-shop-logout" onClick={shopLogout}>
+          {t('Shop Logout')}
+        </button>
+      </div>
     </aside>
   )
 }

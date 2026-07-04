@@ -1,29 +1,66 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import BrandLogo from '../components/BrandLogo.jsx'
 import LanguageSelector from '../components/LanguageSelector.jsx'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
 import { getHomePath } from '../utils/permissions'
-import { getShopSession, saveSession, saveShopSession } from '../utils/session'
+import {
+  clearSession,
+  getSessionMessage,
+  getSessionToken,
+  getSessionUser,
+  getShopSession,
+  getShopSessionId,
+  isTokenExpired,
+  saveSession,
+  saveShopSession,
+} from '../utils/session'
+
+const shopAccessMessages = [
+  'Shop disabled',
+  'Shop not found',
+  'Subscription expired',
+  'Subscription is not active',
+  'Subscription suspended',
+]
+
+const isShopAccessError = (message = '') =>
+  shopAccessMessages.some((shopMessage) => message.includes(shopMessage))
 
 function RoleLogin() {
   const navigate = useNavigate()
   const shopSession = getShopSession()
+  const shopSessionId = getShopSessionId(shopSession)
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [, setLanguageVersion] = useState(0)
 
   useEffect(() => {
-    if (!shopSession?.shopToken) {
+    const sessionMessage = getSessionMessage()
+    if (sessionMessage) setMessage(sessionMessage)
+
+    const token = getSessionToken()
+
+    if (token && !isTokenExpired(token)) {
+      navigate(getHomePath(getSessionUser()), { replace: true })
+      return
+    }
+
+    if (token && isTokenExpired(token)) {
+      clearSession(undefined, { broadcast: false })
+    }
+
+    if (!shopSessionId) {
       navigate('/shop-login', { replace: true })
     }
-  }, [navigate, shopSession?.shopToken])
+  }, [navigate, shopSessionId])
 
-  if (!shopSession?.shopToken) {
+  if (!shopSessionId) {
     return <Navigate to="/shop-login" replace />
   }
 
@@ -34,6 +71,7 @@ function RoleLogin() {
   const submit = async (event) => {
     event.preventDefault()
     setError('')
+    setMessage('')
     setLoading(true)
 
     try {
@@ -41,6 +79,7 @@ function RoleLogin() {
         username: form.username,
         password: form.password,
         shop_token: shopSession.shopToken,
+        shop_id: shopSessionId,
       })
       saveSession({ token: response.data.token, user: response.data.user })
       saveShopSession({
@@ -49,11 +88,26 @@ function RoleLogin() {
       })
       navigate(getHomePath(response.data.user))
     } catch (err) {
-      setError(getApiMessage(err, 'Invalid username/password'))
+      const apiMessage = getApiMessage(err, 'Invalid username/password')
+
+      if (err.response?.status === 403 && isShopAccessError(apiMessage)) {
+        clearSession(apiMessage, { broadcast: false, clearShop: true })
+        navigate('/shop-login', { replace: true })
+        return
+      }
+
+      setError(apiMessage)
     } finally {
       setLoading(false)
     }
   }
+
+  const switchShop = () => {
+    clearSession(undefined, { clearShop: true })
+    navigate('/shop-login', { replace: true })
+  }
+
+  const shopName = shopSession.shop_name || shopSession.shop?.shop_name || t('Selected Shop')
 
   return (
     <main className="auth-page">
@@ -63,9 +117,12 @@ function RoleLogin() {
           <div className="auth-language">
             <LanguageSelector onLanguageChange={() => setLanguageVersion((version) => version + 1)} />
           </div>
-          <p className="eyebrow">{shopSession.shop?.shop_name || t('Selected Shop')}</p>
+          <p className="eyebrow">
+            {t('Logging in to')}: {shopName}
+          </p>
           <h1>{t('Role Login')}</h1>
           <form onSubmit={submit} className="form-stack">
+            {message && <div className="info-banner">{message}</div>}
             {error && <div className="alert">{error}</div>}
             <label>
               {t('Username')}
@@ -96,7 +153,9 @@ function RoleLogin() {
             </button>
           </form>
           <p className="auth-link">
-            <Link to="/shop-login">{t('Use another shop')}</Link>
+            <button type="button" className="link-button" onClick={switchShop}>
+              {t('Switch Shop')}
+            </button>
           </p>
         </section>
       </div>

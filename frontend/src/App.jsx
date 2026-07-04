@@ -35,11 +35,17 @@ import Staff from './pages/Staff.jsx'
 import Stock from './pages/Stock.jsx'
 import Suppliers from './pages/Suppliers.jsx'
 import { getHomePath } from './utils/permissions.js'
-import { getSessionToken, getSessionUser, isTokenExpired } from './utils/session.js'
+import {
+  hasShopContext,
+  getSessionToken,
+  getSessionUser,
+  isTokenExpired,
+} from './utils/session.js'
 
 function App() {
   const token = getSessionToken()
   const hasToken = Boolean(token && !isTokenExpired(token))
+  const hasShop = hasShopContext()
   const user = getSessionUser()
   const homePath = getHomePath(user)
 
@@ -51,7 +57,7 @@ function App() {
       <Routes>
         <Route
           path="/"
-          element={<Navigate to={hasToken ? homePath : '/shop-login'} replace />}
+          element={<Navigate to={hasToken ? homePath : hasShop ? '/role-login' : '/shop-login'} replace />}
         />
         <Route path="/shop-login" element={<ShopLogin />} />
         <Route path="/role-login" element={<RoleLogin />} />

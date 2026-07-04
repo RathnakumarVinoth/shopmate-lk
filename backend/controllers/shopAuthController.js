@@ -108,6 +108,7 @@ exports.shopLogin = async (req, res) => {
       shop_id: shop.id,
       shop_name: shop.shop_name,
       shop_code: shop.shop_code || null,
+      shop_login_email: shop.login_email || null,
     };
 
     await createLoginActivity({

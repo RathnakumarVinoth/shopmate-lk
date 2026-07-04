@@ -4,6 +4,7 @@ import { hasPermission, roleAllowed } from '../utils/permissions'
 import {
   clearSession,
   getShopSession,
+  getShopSessionId,
   getSessionToken,
   getSessionUser,
   isTokenExpired,
@@ -12,12 +13,10 @@ import {
 function ProtectedRoute({ children, roles, permission }) {
   const token = getSessionToken()
   const shopSession = getShopSession()
+  const shopSessionId = getShopSessionId(shopSession)
   const user = getSessionUser()
-  const loginPath = window.location.pathname.startsWith('/admin')
-    ? '/admin/login'
-    : shopSession?.shopToken
-      ? '/role-login'
-      : '/shop-login'
+  const isAdminPath = window.location.pathname.startsWith('/admin')
+  const loginPath = isAdminPath ? '/admin/login' : shopSessionId ? '/role-login' : '/shop-login'
 
   if (!token) {
     return <Navigate to={loginPath} replace />
@@ -30,9 +29,22 @@ function ProtectedRoute({ children, roles, permission }) {
     return <Navigate to={loginPath} replace />
   }
 
-  if (user.role !== 'admin' && !shopSession?.shopToken) {
-    clearSession('Shop session expired. Please login again.', { broadcast: false })
+  if (user.role !== 'admin' && !shopSessionId) {
+    clearSession('Shop session expired. Please login again.', {
+      broadcast: false,
+      clearShop: true,
+    })
     return <Navigate to="/shop-login" replace />
+  }
+
+  if (
+    user.role !== 'admin' &&
+    user.shop_id &&
+    shopSessionId &&
+    String(user.shop_id) !== String(shopSessionId)
+  ) {
+    clearSession('Session expired. Please login again.', { broadcast: false })
+    return <Navigate to="/role-login" replace />
   }
 
   if (roles && !roleAllowed(user.role, roles)) {

@@ -214,12 +214,18 @@ exports.login = async (req, res) => {
 };
 
 exports.roleLogin = async (req, res) => {
-  const { username, password, shop_token } = req.body;
+  const { username, password, shop_token, shop_id, shopId } = req.body;
   const loginUsername = String(username || "").trim();
   let tokenShopId = null;
+  const hasBodyShopId = shop_id !== undefined || shopId !== undefined;
+  const bodyShopId = hasBodyShopId ? Number(shop_id ?? shopId) : null;
 
   if (!loginUsername || !password) {
     return res.status(400).json({ message: "username and password are required" });
+  }
+
+  if (hasBodyShopId && (!Number.isInteger(bodyShopId) || bodyShopId <= 0)) {
+    return res.status(400).json({ message: "Invalid shop session" });
   }
 
   try {
@@ -227,7 +233,7 @@ exports.roleLogin = async (req, res) => {
     await ensureUserPermissionColumns();
     await ensureSecurityTables();
 
-    if (!shop_token) {
+    if (!shop_token && !hasBodyShopId) {
       await createLoginActivity({
         email: loginUsername,
         status: "failed",
@@ -237,30 +243,53 @@ exports.roleLogin = async (req, res) => {
       return res.status(400).json({ message: "Shop session is required" });
     }
 
-    try {
-      const decodedShop = jwt.verify(shop_token, process.env.JWT_SECRET);
-      if (decodedShop.type !== "shop") {
-        await createLoginActivity({
-          email: loginUsername,
-          status: "failed",
-          message: "Invalid shop session",
-          ...getRequestMeta(req),
-        });
-        return res.status(401).json({ message: "Invalid shop session" });
+    if (shop_token) {
+      try {
+        const decodedShop = jwt.verify(shop_token, process.env.JWT_SECRET);
+        if (decodedShop.type !== "shop") {
+          await createLoginActivity({
+            email: loginUsername,
+            status: "failed",
+            message: "Invalid shop session",
+            ...getRequestMeta(req),
+          });
+          return res.status(401).json({ message: "Invalid shop session" });
+        }
+        tokenShopId = Number(decodedShop.shop_id);
+
+        if (hasBodyShopId && tokenShopId !== bodyShopId) {
+          await createLoginActivity({
+            shop_id: bodyShopId,
+            email: loginUsername,
+            status: "failed",
+            message: "Shop session mismatch",
+            ...getRequestMeta(req),
+          });
+          return res.status(401).json({ message: "Invalid shop session" });
+        }
+      } catch (error) {
+        if (!hasBodyShopId) {
+          await createLoginActivity({
+            email: loginUsername,
+            status: "failed",
+            message: "Invalid or expired shop session",
+            ...getRequestMeta(req),
+          });
+          return res.status(401).json({ message: "Invalid or expired shop session" });
+        }
       }
-      tokenShopId = decodedShop.shop_id;
-    } catch {
+    }
+
+    tokenShopId = tokenShopId || bodyShopId;
+
+    if (!Number.isInteger(tokenShopId) || tokenShopId <= 0) {
       await createLoginActivity({
         email: loginUsername,
         status: "failed",
-        message: "Invalid or expired shop session",
+        message: "Invalid shop session",
         ...getRequestMeta(req),
       });
-      return res.status(401).json({ message: "Invalid or expired shop session" });
-    }
-
-    if (!tokenShopId) {
-      return res.status(400).json({ message: "Shop session is required" });
+      return res.status(400).json({ message: "Invalid shop session" });
     }
 
     const [shops] = await db.promise().query(

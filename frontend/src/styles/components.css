@@ -112,10 +112,29 @@
   text-align: center;
 }
 
+.sidebar-session-actions {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.sidebar-session-actions .sidebar-logout {
+  margin-top: 0;
+}
+
+.sidebar-shop-logout {
+  color: #dbeafe;
+  background: rgba(59, 130, 246, 0.1);
+}
+
 .sidebar-logout:hover {
   border-color: rgba(255, 255, 255, 0.2);
   color: #ffffff;
   background: rgba(196, 71, 71, 0.24);
+}
+
+.sidebar-shop-logout:hover {
+  background: rgba(59, 130, 246, 0.22);
 }
 
 .app-main {
@@ -930,6 +949,21 @@ tbody tr:last-child td {
 
 .auth-link a {
   color: var(--color-primary-700);
+}
+
+.link-button {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  color: var(--color-primary-700);
+  background: transparent;
+  font: inherit;
+}
+
+.link-button:hover {
+  color: var(--color-primary-800);
+  background: transparent;
+  text-decoration: underline;
 }
 
 /* POS and receipt workflow */

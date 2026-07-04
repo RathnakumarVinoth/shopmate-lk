@@ -5,7 +5,16 @@ import LanguageSelector from '../components/LanguageSelector.jsx'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
-import { clearSession, getSessionMessage, saveShopSession } from '../utils/session'
+import { getHomePath } from '../utils/permissions'
+import {
+  clearSession,
+  getSessionMessage,
+  getSessionToken,
+  getSessionUser,
+  hasShopContext,
+  isTokenExpired,
+  saveShopSession,
+} from '../utils/session'
 
 function ShopLogin() {
   const navigate = useNavigate()
@@ -17,10 +26,24 @@ function ShopLogin() {
   const [, setLanguageVersion] = useState(0)
 
   useEffect(() => {
-    clearSession(undefined, { broadcast: false })
     const sessionMessage = getSessionMessage()
     if (sessionMessage) setMessage(sessionMessage)
-  }, [])
+
+    const token = getSessionToken()
+
+    if (token && !isTokenExpired(token)) {
+      navigate(getHomePath(getSessionUser()), { replace: true })
+      return
+    }
+
+    if (token && isTokenExpired(token)) {
+      clearSession(undefined, { broadcast: false })
+    }
+
+    if (hasShopContext()) {
+      navigate('/role-login', { replace: true })
+    }
+  }, [navigate])
 
   const updateField = (event) => {
     setForm({ ...form, [event.target.name]: event.target.value })
@@ -37,6 +60,7 @@ function ShopLogin() {
       saveShopSession({
         shopToken: response.data.shop_token,
         shop: response.data.shop,
+        shopLoginEmail: form.login_email,
       })
       navigate('/role-login')
     } catch (err) {
