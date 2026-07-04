@@ -806,10 +806,8 @@ exports.resetShopPassword = async (req, res) => {
 
     return res.json({
       message: "Shop password reset successfully",
-      temporaryPassword,
       loginEmail: loginEmail.toLowerCase(),
-      temporary_password: temporaryPassword,
-      login_email: loginEmail.toLowerCase(),
+      temporaryPassword,
     });
   } catch (error) {
     console.error("Reset shop password error:", error);
@@ -877,7 +875,6 @@ const resetUserPassword = async ({ req, res, userId, shopId = null }) => {
       message: "User password reset successfully",
       username: getUserDisplayName(user),
       temporaryPassword,
-      temporary_password: temporaryPassword,
     });
   } catch (error) {
     console.error("Reset user password error:", error);

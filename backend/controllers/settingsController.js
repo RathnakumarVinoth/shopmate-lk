@@ -153,11 +153,19 @@ exports.updateSecuritySettings = async (req, res) => {
 };
 
 exports.updateSettings = async (req, res) => {
-  const targetShopId = req.user.shop_id;
+  if (req.user.role !== "admin") {
+    return res.status(403).json({
+      message: "Shop settings are managed by Master Admin. Please contact support.",
+    });
+  }
 
-  if (!targetShopId) {
+  const targetShopId = req.body.shop_id || req.query.shop_id;
+
+  if (!Number.isInteger(Number(targetShopId)) || Number(targetShopId) <= 0) {
     return res.status(403).json({ message: "Shop context is required" });
   }
+
+  const targetShopIdNumber = Number(targetShopId);
 
   const {
     shop_name,
@@ -254,7 +262,7 @@ exports.updateSettings = async (req, res) => {
         nextLanguage,
         nextIdleTimeout,
         nextBackgroundTimeout,
-        targetShopId,
+        targetShopIdNumber,
       ]
     );
 
@@ -262,12 +270,12 @@ exports.updateSettings = async (req, res) => {
       return res.status(404).json({ message: "Shop settings not found" });
     }
 
-    const settings = await getShopSettings(targetShopId);
+    const settings = await getShopSettings(targetShopIdNumber);
 
     await createAuditLogFromRequest(req, {
       action: "settings_update",
       entity_type: "settings",
-      entity_id: targetShopId,
+      entity_id: targetShopIdNumber,
       description: `Updated shop settings for ${settings.shop_name}`,
     });
 

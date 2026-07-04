@@ -8,7 +8,6 @@ const {
 } = require("../controllers/settingsController");
 const authMiddleware = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
-const { requirePermission } = require("../middleware/permissionMiddleware");
 
 const router = express.Router();
 
@@ -29,8 +28,7 @@ router.get("/", authMiddleware, allowRoles("owner", "staff"), getSettings);
 router.put(
   "/",
   authMiddleware,
-  allowRoles("owner"),
-  requirePermission("settings_access"),
+  allowRoles("admin"),
   updateSettings
 );
 

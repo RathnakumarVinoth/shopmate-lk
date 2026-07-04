@@ -172,7 +172,7 @@ function AdminShops() {
     setResetCredentials(null)
 
     try {
-      const response = await api.put(`/admin/shops/${shop.id}/reset-password`)
+      const response = await api.post(`/admin/shops/${shop.id}/reset-password`)
       setResetCredentials({
         loginEmail: response.data.loginEmail || response.data.login_email || shop.login_email || shop.email || '',
         temporaryPassword:
@@ -180,9 +180,22 @@ function AdminShops() {
       })
       setMessage(`Shop login password reset for ${shop.shop_name}`)
     } catch (err) {
-      setError(getApiMessage(err, 'Failed to reset shop password'))
+      setError(getApiMessage(err, t('Failed to reset shop password')))
     } finally {
       setSaving(false)
+    }
+  }
+
+  const copyShopResetCredentials = async () => {
+    if (!resetCredentials?.temporaryPassword) return
+
+    try {
+      await navigator.clipboard.writeText(
+        `${t('Shop Login Email')}: ${resetCredentials.loginEmail}\n${t('Temporary Shop Password')}: ${resetCredentials.temporaryPassword}`,
+      )
+      setMessage(t('Credentials copied to clipboard'))
+    } catch {
+      setError(t('Unable to copy credentials.'))
     }
   }
 
@@ -212,8 +225,11 @@ function AdminShops() {
         <div className="info-banner">
           <strong>{t('Shop password reset successfully')}</strong>
           <div>{t('Shop Login Email')}: {resetCredentials.loginEmail}</div>
-          <div>{t('Temporary Password')}: {resetCredentials.temporaryPassword}</div>
+          <div>{t('Temporary Shop Password')}: {resetCredentials.temporaryPassword}</div>
           <div>{t('Copy and give this to shop owner.')}</div>
+          <button type="button" className="ghost-button" onClick={copyShopResetCredentials}>
+            {t('Copy')}
+          </button>
         </div>
       )}
 

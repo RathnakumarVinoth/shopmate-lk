@@ -214,7 +214,7 @@ function AdminShopDetails() {
     setUserResetCredentials(null)
 
     try {
-      const response = await api.put(`/admin/shops/${id}/reset-password`)
+      const response = await api.post(`/admin/shops/${id}/reset-password`)
       setTemporaryPassword('')
       setResetCredentials({
         loginEmail: response.data.loginEmail || response.data.login_email || shop.login_email || shop.email || '',
@@ -223,10 +223,35 @@ function AdminShopDetails() {
       })
       setMessage('Shop login password reset successfully')
     } catch (err) {
-      setError(getApiMessage(err, 'Failed to reset shop password'))
+      setError(getApiMessage(err, t('Failed to reset shop password')))
     } finally {
       setSaving(false)
     }
+  }
+
+  const copyCredentials = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setMessage(t('Credentials copied to clipboard'))
+    } catch {
+      setError(t('Unable to copy credentials.'))
+    }
+  }
+
+  const copyShopResetCredentials = () => {
+    if (!resetCredentials?.temporaryPassword) return
+
+    copyCredentials(
+      `${t('Shop Login Email')}: ${resetCredentials.loginEmail}\n${t('Temporary Shop Password')}: ${resetCredentials.temporaryPassword}`,
+    )
+  }
+
+  const copyUserResetCredentials = () => {
+    if (!userResetCredentials?.temporaryPassword) return
+
+    copyCredentials(
+      `${t('Username')}: ${userResetCredentials.username}\n${t('Temporary Password')}: ${userResetCredentials.temporaryPassword}`,
+    )
   }
 
   const resetUserPassword = async (user) => {
@@ -259,7 +284,7 @@ function AdminShopDetails() {
     return <div className="panel loading-panel">{t('Loading shop details...')}</div>
   }
 
-  if (error) {
+  if (error && !shop) {
     return <div className="alert">{error}</div>
   }
 
@@ -354,8 +379,11 @@ function AdminShopDetails() {
         <div className="info-banner">
           <strong>{t('Shop password reset successfully')}</strong>
           <div>{t('Shop Login Email')}: {resetCredentials.loginEmail}</div>
-          <div>{t('Temporary Password')}: {resetCredentials.temporaryPassword}</div>
+          <div>{t('Temporary Shop Password')}: {resetCredentials.temporaryPassword}</div>
           <div>{t('Copy and give this to shop owner.')}</div>
+          <button type="button" className="ghost-button" onClick={copyShopResetCredentials}>
+            {t('Copy')}
+          </button>
         </div>
       )}
       {userResetCredentials?.temporaryPassword && (
@@ -364,6 +392,9 @@ function AdminShopDetails() {
           <div>{t('Username')}: {userResetCredentials.username}</div>
           <div>{t('Temporary Password')}: {userResetCredentials.temporaryPassword}</div>
           <div>{t('Copy and give this to the user')}</div>
+          <button type="button" className="ghost-button" onClick={copyUserResetCredentials}>
+            {t('Copy')}
+          </button>
         </div>
       )}
 
