@@ -55,6 +55,7 @@ function AdminShopDetails() {
   const [userForm, setUserForm] = useState(initialUserForm)
   const [temporaryPassword, setTemporaryPassword] = useState('')
   const [resetCredentials, setResetCredentials] = useState(null)
+  const [userResetCredentials, setUserResetCredentials] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -171,6 +172,7 @@ function AdminShopDetails() {
     })
     setTemporaryPassword('')
     setResetCredentials(null)
+    setUserResetCredentials(null)
   }
 
   const resetUserForm = () => {
@@ -184,6 +186,7 @@ function AdminShopDetails() {
     setMessage('')
     setTemporaryPassword('')
     setResetCredentials(null)
+    setUserResetCredentials(null)
 
     try {
       if (userForm.id) {
@@ -208,6 +211,7 @@ function AdminShopDetails() {
     setError('')
     setMessage('')
     setResetCredentials(null)
+    setUserResetCredentials(null)
 
     try {
       const response = await api.put(`/admin/shops/${id}/reset-password`)
@@ -230,13 +234,22 @@ function AdminShopDetails() {
     setError('')
     setMessage('')
     setResetCredentials(null)
+    setUserResetCredentials(null)
+    setTemporaryPassword('')
 
     try {
-      const response = await api.put(`/admin/shops/${id}/users/${user.id}/reset-password`)
-      setTemporaryPassword(response.data.temporary_password || '')
-      setMessage(`Password reset for ${user.username}`)
+      const response = await api.post(`/admin/users/${user.id}/reset-password`)
+      setUserResetCredentials({
+        username:
+          response.data.username || user.username || user.email || user.name || '',
+        temporaryPassword:
+          response.data.temporaryPassword || response.data.temporary_password || '',
+      })
+      setMessage(t('User password reset successfully'))
     } catch (err) {
-      setError(getApiMessage(err, 'Failed to reset user password'))
+      const backendMessage = getApiMessage(err, t('Failed to reset user password'))
+      const backendError = err.response?.data?.error
+      setError(backendError ? `${backendMessage}: ${backendError}` : backendMessage)
     } finally {
       setSaving(false)
     }
@@ -343,6 +356,14 @@ function AdminShopDetails() {
           <div>{t('Shop Login Email')}: {resetCredentials.loginEmail}</div>
           <div>{t('Temporary Password')}: {resetCredentials.temporaryPassword}</div>
           <div>{t('Copy and give this to shop owner.')}</div>
+        </div>
+      )}
+      {userResetCredentials?.temporaryPassword && (
+        <div className="info-banner">
+          <strong>{t('User password reset successfully')}</strong>
+          <div>{t('Username')}: {userResetCredentials.username}</div>
+          <div>{t('Temporary Password')}: {userResetCredentials.temporaryPassword}</div>
+          <div>{t('Copy and give this to the user')}</div>
         </div>
       )}
 

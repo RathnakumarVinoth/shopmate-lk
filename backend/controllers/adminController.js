@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const db = require("../config/db");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
 const {
@@ -53,7 +54,10 @@ const optionalText = (value) =>
     : String(value).trim();
 
 const generateTemporaryPassword = () =>
-  `ShopMate#${Math.random().toString(36).slice(2, 8)}${Math.floor(1000 + Math.random() * 9000)}`;
+  `ShopMate#${crypto.randomBytes(6).toString("hex")}${crypto.randomInt(1000, 10000)}`;
+
+const getUserDisplayName = (user) =>
+  optionalText(user?.username) || optionalText(user?.email) || optionalText(user?.name) || null;
 
 const normalizeReceiptSize = (value) =>
   receiptSizes.includes(value) ? value : "80mm";
@@ -813,13 +817,14 @@ exports.resetShopPassword = async (req, res) => {
   }
 };
 
-exports.resetShopUserPassword = async (req, res) => {
-  const { id: shopId, userId } = req.params;
-  const temporaryPassword = optionalText(req.body.password) || generateTemporaryPassword();
+const resetUserPassword = async ({ req, res, userId, shopId = null }) => {
+  const requestedPassword =
+    optionalText(req.body?.newPassword) || optionalText(req.body?.password);
+  const temporaryPassword = requestedPassword || generateTemporaryPassword();
   const passwordError = validateStrongPassword(temporaryPassword);
 
-  if (!isPositiveInteger(shopId) || !isPositiveInteger(userId)) {
-    return res.status(400).json({ message: "Valid shop and user ids are required" });
+  if (!isPositiveInteger(userId) || (shopId !== null && !isPositiveInteger(shopId))) {
+    return res.status(400).json({ message: "Valid user id is required" });
   }
 
   if (passwordError) {
@@ -829,10 +834,31 @@ exports.resetShopUserPassword = async (req, res) => {
   try {
     await ensureSaasSchema();
 
+    const queryValues = [userId];
+    let whereClause = "id = ?";
+
+    if (shopId !== null) {
+      whereClause += " AND shop_id = ?";
+      queryValues.push(shopId);
+    }
+
+    const [users] = await db.promise().query(
+      `SELECT id, username, email, name, shop_id
+       FROM users
+       WHERE ${whereClause}
+       LIMIT 1`,
+      queryValues
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const user = users[0];
     const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
     const [result] = await db.promise().query(
-      "UPDATE users SET password = ? WHERE id = ? AND shop_id = ?",
-      [hashedPassword, userId, shopId]
+      "UPDATE users SET password = ? WHERE id = ?",
+      [hashedPassword, userId]
     );
 
     if (result.affectedRows === 0) {
@@ -840,7 +866,7 @@ exports.resetShopUserPassword = async (req, res) => {
     }
 
     await createAuditLogFromRequest(req, {
-      shop_id: Number(shopId),
+      shop_id: Number(user.shop_id || shopId || 0) || null,
       action: "user_password_reset",
       entity_type: "user",
       entity_id: Number(userId),
@@ -849,12 +875,34 @@ exports.resetShopUserPassword = async (req, res) => {
 
     return res.json({
       message: "User password reset successfully",
+      username: getUserDisplayName(user),
+      temporaryPassword,
       temporary_password: temporaryPassword,
     });
   } catch (error) {
-    console.error("Reset user password error:", error.message);
-    return res.status(500).json({ message: "Server error while resetting user password" });
+    console.error("Reset user password error:", error);
+    return res.status(500).json({
+      message: "Server error while resetting user password",
+      error: error.message,
+    });
   }
+};
+
+exports.resetUserPassword = async (req, res) => {
+  return resetUserPassword({
+    req,
+    res,
+    userId: req.params.id,
+  });
+};
+
+exports.resetShopUserPassword = async (req, res) => {
+  return resetUserPassword({
+    req,
+    res,
+    userId: req.params.userId,
+    shopId: req.params.id,
+  });
 };
 
 exports.enableShop = async (req, res) => {

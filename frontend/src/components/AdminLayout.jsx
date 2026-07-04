@@ -2,7 +2,6 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import { clearSession, getSessionUser } from '../utils/session'
 import BrandLogo from './BrandLogo.jsx'
-import Notifications from './Notifications.jsx'
 import LanguageSelector from './LanguageSelector.jsx'
 import { useEffect, useState } from 'react'
 
@@ -53,7 +52,6 @@ function AdminLayout() {
         </div>
         <div className="mobile-header-actions">
           <LanguageSelector compact onLanguageChange={() => setLanguageVersion((version) => version + 1)} />
-          <Notifications />
           <div className="user-pill">
             <span>{user?.role || 'admin'}</span>
           </div>
@@ -128,7 +126,6 @@ function AdminLayout() {
           </div>
           <div className="topbar-actions">
             <LanguageSelector onLanguageChange={() => setLanguageVersion((version) => version + 1)} />
-            <Notifications />
             <div className="user-pill">
               <span>{user?.role || 'admin'}</span>
             </div>

@@ -10,6 +10,7 @@ const {
   getShopUsers,
   getSummary,
   resetShopPassword,
+  resetUserPassword,
   resetShopUserPassword,
   updateShop,
   updateShopUser,
@@ -29,6 +30,7 @@ router.get("/summary", getSummary);
 router.get("/audit-logs", getAuditLogs);
 router.get("/login-activity", getLoginActivity);
 router.get("/notifications", getNotifications);
+router.post("/users/:id/reset-password", resetUserPassword);
 router.post("/shops", createShop);
 router.get("/shops", getShops);
 router.get("/shops/:id", getShopDetails);
