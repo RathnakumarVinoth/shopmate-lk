@@ -85,7 +85,9 @@ exports.getPendingPayments = async (req, res) => {
          ON payment_verifications.sale_id = sales.id
          AND payment_verifications.shop_id = sales.shop_id
          AND payment_verifications.status = 'pending'
-       LEFT JOIN customers ON customers.id = sales.customer_id
+       LEFT JOIN customers
+         ON customers.id = sales.customer_id
+        AND customers.shop_id = sales.shop_id
        WHERE sales.shop_id = ?
          AND sales.payment_type IN ('card', 'bank_transfer', 'qr')
          AND (
@@ -237,7 +239,9 @@ exports.verifyPayment = async (req, res) => {
        LEFT JOIN payment_verifications
          ON payment_verifications.sale_id = sales.id
          AND payment_verifications.shop_id = sales.shop_id
-       LEFT JOIN customers ON customers.id = sales.customer_id
+       LEFT JOIN customers
+         ON customers.id = sales.customer_id
+        AND customers.shop_id = sales.shop_id
        WHERE sales.id = ? AND sales.shop_id = ?
        LIMIT 1`,
       [saleId, req.user.shop_id]

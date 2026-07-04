@@ -458,7 +458,9 @@ exports.getProducts = async (req, res) => {
     const [products] = await db.promise().query(
       `SELECT ${productSelect}
        FROM products
-       LEFT JOIN product_categories AS categories ON categories.id = products.category_id
+       LEFT JOIN product_categories AS categories
+         ON categories.id = products.category_id
+        AND categories.shop_id = products.shop_id
        WHERE products.shop_id = ?
        ORDER BY products.id DESC`,
       [req.user.shop_id]
@@ -488,7 +490,9 @@ exports.getProductByCode = async (req, res) => {
     const [products] = await db.promise().query(
       `SELECT ${productSelect}
        FROM products
-       LEFT JOIN product_categories AS categories ON categories.id = products.category_id
+       LEFT JOIN product_categories AS categories
+         ON categories.id = products.category_id
+        AND categories.shop_id = products.shop_id
        WHERE products.shop_id = ?
          AND (
            products.product_code = ?
@@ -521,7 +525,9 @@ exports.getLowStockProducts = async (req, res) => {
     const [products] = await db.promise().query(
       `SELECT ${productSelect}
        FROM products
-       LEFT JOIN product_categories AS categories ON categories.id = products.category_id
+       LEFT JOIN product_categories AS categories
+         ON categories.id = products.category_id
+        AND categories.shop_id = products.shop_id
        WHERE products.shop_id = ? AND stock_quantity <= low_stock_limit
        ORDER BY stock_quantity ASC`,
       [req.user.shop_id]

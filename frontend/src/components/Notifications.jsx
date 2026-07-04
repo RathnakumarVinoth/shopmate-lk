@@ -2,11 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import api from '../services/api'
+import { getSessionUser } from '../utils/session'
 
 const priorityLabel = (priority) => priority || 'low'
 
 function Notifications() {
   const navigate = useNavigate()
+  const user = getSessionUser()
+  const endpoint = user.role === 'admin' ? '/admin/notifications' : '/notifications'
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -17,14 +20,14 @@ function Notifications() {
     setError('')
 
     try {
-      const response = await api.get('/notifications')
+      const response = await api.get(endpoint)
       setNotifications(response.data.notifications || [])
     } catch {
       setError(t('Unable to load alerts'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [endpoint])
 
   useEffect(() => {
     loadNotifications()

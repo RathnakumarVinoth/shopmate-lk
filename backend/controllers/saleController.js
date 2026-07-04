@@ -340,8 +340,8 @@ exports.createSale = async (req, res) => {
 
     let customer = null;
     const [cashiers] = await connection.query(
-      "SELECT name FROM users WHERE id = ? LIMIT 1",
-      [userId]
+      "SELECT name FROM users WHERE id = ? AND shop_id = ? LIMIT 1",
+      [userId, shopId]
     );
     const cashierName = cashiers[0]?.name || null;
 
@@ -556,9 +556,10 @@ exports.createSale = async (req, res) => {
     const saleId = saleResult.insertId;
     const invoiceNo = generateInvoiceNo(saleId);
 
-    await connection.query("UPDATE sales SET invoice_no = ? WHERE id = ?", [
+    await connection.query("UPDATE sales SET invoice_no = ? WHERE id = ? AND shop_id = ?", [
       invoiceNo,
       saleId,
+      shopId,
     ]);
 
     if (requiresVerification) {
@@ -638,8 +639,12 @@ exports.createSale = async (req, res) => {
               customers.customer_name, customers.phone AS customer_phone,
               customers.address AS customer_address
        FROM sales
-       LEFT JOIN users ON users.id = sales.user_id
-       LEFT JOIN customers ON customers.id = sales.customer_id
+       LEFT JOIN users
+         ON users.id = sales.user_id
+        AND users.shop_id = sales.shop_id
+       LEFT JOIN customers
+         ON customers.id = sales.customer_id
+        AND customers.shop_id = sales.shop_id
        WHERE sales.id = ? AND sales.shop_id = ?
        LIMIT 1`,
       [saleId, shopId]
@@ -713,8 +718,12 @@ exports.getSales = async (req, res) => {
               customers.customer_name, customers.phone AS customer_phone,
               sales.created_at
        FROM sales
-       LEFT JOIN users ON users.id = sales.user_id
-       LEFT JOIN customers ON customers.id = sales.customer_id
+       LEFT JOIN users
+         ON users.id = sales.user_id
+        AND users.shop_id = sales.shop_id
+       LEFT JOIN customers
+         ON customers.id = sales.customer_id
+        AND customers.shop_id = sales.shop_id
        WHERE sales.shop_id = ?
        ORDER BY sales.id DESC`,
       [req.user.shop_id]
@@ -751,9 +760,13 @@ exports.getSaleById = async (req, res) => {
               customers.customer_name, customers.phone AS customer_phone,
               customers.address AS customer_address
        FROM sales
-       LEFT JOIN users ON users.id = sales.user_id
+       LEFT JOIN users
+         ON users.id = sales.user_id
+        AND users.shop_id = sales.shop_id
        LEFT JOIN shops ON shops.id = sales.shop_id
-       LEFT JOIN customers ON customers.id = sales.customer_id
+       LEFT JOIN customers
+         ON customers.id = sales.customer_id
+        AND customers.shop_id = sales.shop_id
        WHERE sales.id = ? AND sales.shop_id = ?
        LIMIT 1`,
       [saleId, req.user.shop_id]
@@ -772,10 +785,15 @@ exports.getSaleById = async (req, res) => {
               sale_items.tax_amount, sale_items.line_total_before_tax,
               sale_items.line_total, sale_items.subtotal, sale_items.profit
        FROM sale_items
-       LEFT JOIN products ON products.id = sale_items.product_id
+       INNER JOIN sales
+         ON sales.id = sale_items.sale_id
+        AND sales.shop_id = ?
+       LEFT JOIN products
+         ON products.id = sale_items.product_id
+        AND products.shop_id = sales.shop_id
        WHERE sale_items.sale_id = ?
        ORDER BY sale_items.id ASC`,
-      [saleId]
+      [req.user.shop_id, saleId]
     );
 
     const receipt = buildReceipt({

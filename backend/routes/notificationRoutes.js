@@ -6,6 +6,6 @@ const { allowRoles } = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.get("/", authMiddleware, allowRoles("owner", "staff", "admin"), getNotifications);
+router.get("/", authMiddleware, allowRoles("owner", "staff"), getNotifications);
 
 module.exports = router;

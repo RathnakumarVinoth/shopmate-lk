@@ -29,7 +29,7 @@ router.get("/", authMiddleware, allowRoles("owner", "staff"), getSettings);
 router.put(
   "/",
   authMiddleware,
-  allowRoles("admin", "owner", "staff"),
+  allowRoles("owner"),
   requirePermission("settings_access"),
   updateSettings
 );

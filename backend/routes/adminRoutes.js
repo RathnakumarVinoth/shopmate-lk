@@ -15,6 +15,9 @@ const {
   updateShopUser,
   updateSubscription,
 } = require("../controllers/adminController");
+const { getAuditLogs } = require("../controllers/auditLogController");
+const { getLoginActivity } = require("../controllers/loginActivityController");
+const { getNotifications } = require("../controllers/notificationController");
 const authMiddleware = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
@@ -23,6 +26,9 @@ const router = express.Router();
 router.use(authMiddleware, allowRoles("admin"));
 
 router.get("/summary", getSummary);
+router.get("/audit-logs", getAuditLogs);
+router.get("/login-activity", getLoginActivity);
+router.get("/notifications", getNotifications);
 router.post("/shops", createShop);
 router.get("/shops", getShops);
 router.get("/shops/:id", getShopDetails);

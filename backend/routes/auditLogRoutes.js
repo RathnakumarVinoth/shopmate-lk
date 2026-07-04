@@ -10,7 +10,7 @@ const router = express.Router();
 router.get(
   "/",
   authMiddleware,
-  allowRoles("owner", "admin", "staff"),
+  allowRoles("owner", "staff"),
   requirePermission("audit_logs_access"),
   getAuditLogs
 );

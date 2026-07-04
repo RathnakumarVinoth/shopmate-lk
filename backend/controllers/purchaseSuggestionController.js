@@ -97,6 +97,7 @@ const getLowStockSuggestionRows = async (shopId) => {
          GROUP BY product_id
        ) AS latest_movements
          ON latest_movements.latest_movement_id = stock_movements.id
+        AND stock_movements.shop_id = ?
      ) AS preferred_suppliers ON preferred_suppliers.product_id = products.id
      LEFT JOIN suppliers
        ON suppliers.id = preferred_suppliers.supplier_id
@@ -104,7 +105,7 @@ const getLowStockSuggestionRows = async (shopId) => {
      WHERE products.shop_id = ?
        AND products.stock_quantity <= products.low_stock_limit
      ORDER BY products.stock_quantity ASC, sales_last_30_days DESC, products.product_name ASC`,
-    [shopId, shopId, shopId]
+    [shopId, shopId, shopId, shopId]
   );
 
   return rows;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
+import { getSessionUser } from '../utils/session'
 
 const actionOptions = [
   'user_login',
@@ -53,6 +54,8 @@ const formatDateTime = (value) => {
 }
 
 function AuditLogs() {
+  const user = getSessionUser()
+  const endpoint = user.role === 'admin' ? '/admin/audit-logs' : '/audit-logs'
   const [logs, setLogs] = useState([])
   const [filters, setFilters] = useState(initialFilters)
   const [loading, setLoading] = useState(true)
@@ -70,14 +73,14 @@ function AuditLogs() {
       })
 
       const query = params.toString()
-      const response = await api.get(`/audit-logs${query ? `?${query}` : ''}`)
+      const response = await api.get(`${endpoint}${query ? `?${query}` : ''}`)
       setLogs(response.data.logs || [])
     } catch (err) {
       setError(getApiMessage(err, 'Failed to load audit logs'))
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [endpoint, filters])
 
   useEffect(() => {
     loadLogs()

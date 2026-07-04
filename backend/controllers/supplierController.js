@@ -232,7 +232,9 @@ exports.getSupplierTransactions = async (req, res) => {
     const [transactions] = await db.promise().query(
       `SELECT supplier_transactions.*, suppliers.supplier_name, suppliers.phone
        FROM supplier_transactions
-       INNER JOIN suppliers ON suppliers.id = supplier_transactions.supplier_id
+       INNER JOIN suppliers
+         ON suppliers.id = supplier_transactions.supplier_id
+        AND suppliers.shop_id = supplier_transactions.shop_id
        WHERE supplier_transactions.shop_id = ?
        ORDER BY supplier_transactions.id DESC`,
       [req.user.shop_id]

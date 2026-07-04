@@ -221,9 +221,15 @@ exports.getStockMovements = async (req, res) => {
          stock_movements.created_at,
          users.name AS user_name
        FROM stock_movements
-       INNER JOIN products ON products.id = stock_movements.product_id
-       INNER JOIN users ON users.id = stock_movements.user_id
-       LEFT JOIN suppliers ON suppliers.id = stock_movements.supplier_id
+       INNER JOIN products
+         ON products.id = stock_movements.product_id
+        AND products.shop_id = stock_movements.shop_id
+       INNER JOIN users
+         ON users.id = stock_movements.user_id
+        AND users.shop_id = stock_movements.shop_id
+       LEFT JOIN suppliers
+         ON suppliers.id = stock_movements.supplier_id
+        AND suppliers.shop_id = stock_movements.shop_id
        WHERE stock_movements.shop_id = ?
        ORDER BY stock_movements.id DESC`,
       [req.user.shop_id]
@@ -275,9 +281,15 @@ exports.getProductStockMovements = async (req, res) => {
          stock_movements.created_at,
          users.name AS user_name
        FROM stock_movements
-       INNER JOIN products ON products.id = stock_movements.product_id
-       INNER JOIN users ON users.id = stock_movements.user_id
-       LEFT JOIN suppliers ON suppliers.id = stock_movements.supplier_id
+       INNER JOIN products
+         ON products.id = stock_movements.product_id
+        AND products.shop_id = stock_movements.shop_id
+       INNER JOIN users
+         ON users.id = stock_movements.user_id
+        AND users.shop_id = stock_movements.shop_id
+       LEFT JOIN suppliers
+         ON suppliers.id = stock_movements.supplier_id
+        AND suppliers.shop_id = stock_movements.shop_id
        WHERE stock_movements.shop_id = ? AND stock_movements.product_id = ?
        ORDER BY stock_movements.id DESC`,
       [req.user.shop_id, id]

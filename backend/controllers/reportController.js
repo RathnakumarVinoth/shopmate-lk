@@ -272,7 +272,9 @@ exports.getTopProducts = async (req, res) => {
          COALESCE(SUM(sale_items.profit), 0) AS total_profit
        FROM sale_items
        INNER JOIN sales ON sale_items.sale_id = sales.id
-       LEFT JOIN products ON sale_items.product_id = products.id
+       LEFT JOIN products
+         ON sale_items.product_id = products.id
+        AND products.shop_id = sales.shop_id
        WHERE sales.shop_id = ? AND DATE(sales.created_at) BETWEEN ? AND ?
        GROUP BY sale_items.product_id, products.product_name
        ORDER BY total_quantity_sold DESC, total_sales_amount DESC

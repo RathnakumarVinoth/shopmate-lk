@@ -256,7 +256,9 @@ exports.getSaleItemsExport = runExport("sale items", async (req) => {
 
   const hasProducts = Boolean(productColumns);
   const hasCategories = await tableExists("product_categories");
-  const productJoin = hasProducts ? "LEFT JOIN products p ON si.product_id = p.id" : "";
+  const productJoin = hasProducts
+    ? "LEFT JOIN products p ON si.product_id = p.id AND p.shop_id = s.shop_id"
+    : "";
   const categoryJoin =
     hasProducts && hasCategories && productColumns.has("category_id")
       ? "LEFT JOIN product_categories pc ON pc.id = p.category_id AND pc.shop_id = p.shop_id"
@@ -461,7 +463,7 @@ exports.getStockMovementsExport = runExport("stock movements", async (req) => {
       ? "LEFT JOIN suppliers s ON sm.supplier_id = s.id AND s.shop_id = sm.shop_id"
       : "";
   const userJoin = movementColumns.has("user_id")
-    ? "LEFT JOIN users u ON sm.user_id = u.id"
+    ? "LEFT JOIN users u ON sm.user_id = u.id AND u.shop_id = sm.shop_id"
     : "";
   const productExpression =
     productColumns && productColumns.has("product_name")
@@ -518,7 +520,7 @@ exports.getPaymentVerificationsExport = runExport("payment verifications", async
        ${aliased(columnExpression(paymentColumns, "pv", "created_at", null), "Created Date")}
      FROM payment_verifications pv
      LEFT JOIN sales s ON pv.sale_id = s.id AND pv.shop_id = s.shop_id
-     LEFT JOIN users u ON pv.verified_by = u.id
+     LEFT JOIN users u ON pv.verified_by = u.id AND u.shop_id = pv.shop_id
      WHERE pv.shop_id = ?
      ORDER BY pv.created_at DESC`,
     [shopId]

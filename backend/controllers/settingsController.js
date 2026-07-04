@@ -153,16 +153,10 @@ exports.updateSecuritySettings = async (req, res) => {
 };
 
 exports.updateSettings = async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({
-      message: "Shop settings are managed by Master Admin. Please contact support.",
-    });
-  }
-
-  const targetShopId = req.body.shop_id || req.user.shop_id;
+  const targetShopId = req.user.shop_id;
 
   if (!targetShopId) {
-    return res.status(400).json({ message: "shop_id is required for admin settings updates" });
+    return res.status(403).json({ message: "Shop context is required" });
   }
 
   const {
@@ -209,7 +203,6 @@ exports.updateSettings = async (req, res) => {
   }
 
   if (
-    req.user.role === "owner" &&
     idle_timeout_minutes !== undefined &&
     !isIntegerInRange(idle_timeout_minutes, 1, 480)
   ) {
@@ -219,7 +212,6 @@ exports.updateSettings = async (req, res) => {
   }
 
   if (
-    req.user.role === "owner" &&
     background_logout_minutes !== undefined &&
     !isIntegerInRange(background_logout_minutes, 1, 60)
   ) {
@@ -232,13 +224,9 @@ exports.updateSettings = async (req, res) => {
     default_receipt_size === undefined ? null : normalizeReceiptSize(default_receipt_size);
   const nextLanguage = language === undefined ? null : normalizeLanguage(language);
   const nextIdleTimeout =
-    req.user.role === "owner" && idle_timeout_minutes !== undefined
-      ? Number(idle_timeout_minutes)
-      : null;
+    idle_timeout_minutes !== undefined ? Number(idle_timeout_minutes) : null;
   const nextBackgroundTimeout =
-    req.user.role === "owner" && background_logout_minutes !== undefined
-      ? Number(background_logout_minutes)
-      : null;
+    background_logout_minutes !== undefined ? Number(background_logout_minutes) : null;
 
   try {
     await ensureShopSettingsColumns();

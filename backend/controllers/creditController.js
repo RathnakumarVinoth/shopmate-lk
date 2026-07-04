@@ -103,7 +103,9 @@ exports.addCredit = async (req, res) => {
     const [credits] = await db.promise().query(
       `SELECT credit_records.*, customers.customer_name, customers.phone
        FROM credit_records
-       INNER JOIN customers ON customers.id = credit_records.customer_id
+       INNER JOIN customers
+         ON customers.id = credit_records.customer_id
+        AND customers.shop_id = credit_records.shop_id
        WHERE credit_records.id = ? AND credit_records.shop_id = ?
        LIMIT 1`,
       [result.insertId, req.user.shop_id]
@@ -124,7 +126,9 @@ exports.getCredits = async (req, res) => {
     const [credits] = await db.promise().query(
       `SELECT credit_records.*, customers.customer_name, customers.phone
        FROM credit_records
-       INNER JOIN customers ON customers.id = credit_records.customer_id
+       INNER JOIN customers
+         ON customers.id = credit_records.customer_id
+        AND customers.shop_id = credit_records.shop_id
        WHERE credit_records.shop_id = ?
        ORDER BY credit_records.id DESC`,
       [req.user.shop_id]
@@ -203,7 +207,9 @@ exports.payCredit = async (req, res) => {
     const [updatedCredits] = await db.promise().query(
       `SELECT credit_records.*, customers.customer_name, customers.phone
        FROM credit_records
-       INNER JOIN customers ON customers.id = credit_records.customer_id
+       INNER JOIN customers
+         ON customers.id = credit_records.customer_id
+        AND customers.shop_id = credit_records.shop_id
        WHERE credit_records.id = ? AND credit_records.shop_id = ?
        LIMIT 1`,
       [id, req.user.shop_id]

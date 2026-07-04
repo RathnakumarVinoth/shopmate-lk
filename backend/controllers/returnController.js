@@ -92,8 +92,12 @@ const getReturnDetails = async (connection, shopId, returnId) => {
             sales_returns.reason, sales_returns.created_at,
             sales.invoice_no, users.name AS user_name
      FROM sales_returns
-     INNER JOIN sales ON sales.id = sales_returns.sale_id
-     INNER JOIN users ON users.id = sales_returns.user_id
+     INNER JOIN sales
+       ON sales.id = sales_returns.sale_id
+      AND sales.shop_id = sales_returns.shop_id
+     INNER JOIN users
+       ON users.id = sales_returns.user_id
+      AND users.shop_id = sales_returns.shop_id
      WHERE sales_returns.id = ? AND sales_returns.shop_id = ?
      LIMIT 1`,
     [returnId, shopId]
@@ -108,10 +112,15 @@ const getReturnDetails = async (connection, shopId, returnId) => {
             sales_return_items.quantity, sales_return_items.refund_price,
             sales_return_items.refund_subtotal
      FROM sales_return_items
-     LEFT JOIN products ON products.id = sales_return_items.product_id
+     INNER JOIN sales_returns
+       ON sales_returns.id = sales_return_items.return_id
+      AND sales_returns.shop_id = ?
+     LEFT JOIN products
+       ON products.id = sales_return_items.product_id
+      AND products.shop_id = sales_returns.shop_id
      WHERE sales_return_items.return_id = ?
      ORDER BY sales_return_items.id ASC`,
-    [returnId]
+    [shopId, returnId]
   );
 
   return {
@@ -139,7 +148,9 @@ exports.getSaleForReturn = async (req, res) => {
               customers.phone AS customer_phone,
               customers.address AS customer_address
        FROM sales
-       LEFT JOIN customers ON customers.id = sales.customer_id
+       LEFT JOIN customers
+         ON customers.id = sales.customer_id
+        AND customers.shop_id = sales.shop_id
        WHERE sales.shop_id = ? AND ${byId ? "sales.id = ?" : "sales.invoice_no = ?"}
        LIMIT 1`,
       [shopId, byId ? Number(saleIdentifier) : saleIdentifier]
@@ -156,10 +167,15 @@ exports.getSaleForReturn = async (req, res) => {
               sale_items.quantity AS sold_quantity, sale_items.selling_price,
               sale_items.subtotal
        FROM sale_items
-       LEFT JOIN products ON products.id = sale_items.product_id
+       INNER JOIN sales
+         ON sales.id = sale_items.sale_id
+        AND sales.shop_id = ?
+       LEFT JOIN products
+         ON products.id = sale_items.product_id
+        AND products.shop_id = sales.shop_id
        WHERE sale_items.sale_id = ?
        ORDER BY sale_items.id ASC`,
-      [sale.id]
+      [shopId, sale.id]
     );
 
     const saleItemIds = items.map((item) => item.sale_item_id);
@@ -254,10 +270,15 @@ exports.createReturn = async (req, res) => {
               sale_items.quantity AS sold_quantity, sale_items.selling_price,
               products.product_name, products.stock_quantity
        FROM sale_items
-       INNER JOIN products ON products.id = sale_items.product_id
+       INNER JOIN sales
+         ON sales.id = sale_items.sale_id
+        AND sales.shop_id = ?
+       INNER JOIN products
+         ON products.id = sale_items.product_id
+        AND products.shop_id = sales.shop_id
        WHERE sale_items.sale_id = ? AND sale_items.id IN (?)
        FOR UPDATE`,
-      [sale_id, saleItemIds]
+      [shopId, sale_id, saleItemIds]
     );
 
     if (saleItems.length !== saleItemIds.length) {
@@ -402,8 +423,12 @@ exports.getReturns = async (req, res) => {
               sales_returns.reason, users.name AS user_name,
               sales_returns.created_at
        FROM sales_returns
-       INNER JOIN sales ON sales.id = sales_returns.sale_id
-       INNER JOIN users ON users.id = sales_returns.user_id
+       INNER JOIN sales
+         ON sales.id = sales_returns.sale_id
+        AND sales.shop_id = sales_returns.shop_id
+       INNER JOIN users
+         ON users.id = sales_returns.user_id
+        AND users.shop_id = sales_returns.shop_id
        WHERE sales_returns.shop_id = ?
        ORDER BY sales_returns.id DESC`,
       [req.user.shop_id]

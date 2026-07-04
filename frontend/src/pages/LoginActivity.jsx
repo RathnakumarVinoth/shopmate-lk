@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { getApiMessage } from '../utils/formatters'
+import { getSessionUser } from '../utils/session'
 
 const initialFilters = {
   date_from: '',
@@ -20,6 +21,8 @@ const formatDateTime = (value) => {
 }
 
 function LoginActivity() {
+  const user = getSessionUser()
+  const endpoint = user.role === 'admin' ? '/admin/login-activity' : '/login-activity'
   const [activity, setActivity] = useState([])
   const [filters, setFilters] = useState(initialFilters)
   const [loading, setLoading] = useState(true)
@@ -37,14 +40,14 @@ function LoginActivity() {
       })
 
       const query = params.toString()
-      const response = await api.get(`/login-activity${query ? `?${query}` : ''}`)
+      const response = await api.get(`${endpoint}${query ? `?${query}` : ''}`)
       setActivity(response.data.activity || [])
     } catch (err) {
       setError(getApiMessage(err, 'Failed to load login activity'))
     } finally {
       setLoading(false)
     }
-  }, [filters])
+  }, [endpoint, filters])
 
   useEffect(() => {
     loadActivity()
