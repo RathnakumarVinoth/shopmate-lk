@@ -17,3 +17,28 @@ login-desktop.png
 login-mobile.png
 pos-desktop.png
 pos-mobile.png
+
+# Browser/test profiles - never commit
+.qa-edge-profile/
+edge-profile/
+chrome-profile/
+browser-profile/
+Default/
+History
+Cache/
+Code Cache/
+GPUCache/
+Service Worker/
+Extensions/
+
+# Secrets
+.env
+.env.local
+.env.production
+backend/.env
+frontend/.env
+
+# Build/dependencies
+node_modules/
+dist/
+build/
