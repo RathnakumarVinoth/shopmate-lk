@@ -2,6 +2,7 @@ const db = require("../config/db");
 const {
   ensurePaymentVerificationTable,
   ensureSalesPaymentColumns,
+  ensureStockMovementsTable,
 } = require("../utils/paymentSchema");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
 
@@ -56,6 +57,122 @@ const validateVerificationFields = (body) => {
   }
 
   return errors;
+};
+
+const getReturnedQuantityByProduct = async (connection, shopId, saleId) => {
+  const [returnTables] = await connection.query("SHOW TABLES LIKE 'sales_returns'");
+  const [returnItemTables] = await connection.query(
+    "SHOW TABLES LIKE 'sales_return_items'"
+  );
+
+  if (returnTables.length === 0 || returnItemTables.length === 0) return {};
+
+  const [rows] = await connection.query(
+    `SELECT sales_return_items.product_id,
+            COALESCE(SUM(sales_return_items.quantity), 0) AS returned_quantity
+     FROM sales_return_items
+     INNER JOIN sales_returns
+       ON sales_returns.id = sales_return_items.return_id
+     WHERE sales_returns.shop_id = ?
+       AND sales_returns.sale_id = ?
+     GROUP BY sales_return_items.product_id`,
+    [shopId, saleId]
+  );
+
+  return rows.reduce((map, row) => {
+    map[row.product_id] = Number(row.returned_quantity || 0);
+    return map;
+  }, {});
+};
+
+const restoreStockForFailedSale = async (connection, sale, shopId, userId) => {
+  if (sale.stock_restored_at) return [];
+
+  const returnedByProduct = await getReturnedQuantityByProduct(
+    connection,
+    shopId,
+    sale.id
+  );
+
+  const [saleItems] = await connection.query(
+    `SELECT sale_items.product_id, sale_items.quantity,
+            products.product_name, products.stock_quantity, products.buying_price
+     FROM sale_items
+     LEFT JOIN products
+       ON products.id = sale_items.product_id
+      AND products.shop_id = ?
+     WHERE sale_items.sale_id = ?
+     FOR UPDATE`,
+    [shopId, sale.id]
+  );
+
+  const restoreByProduct = saleItems.reduce((map, item) => {
+    if (!map[item.product_id]) {
+      map[item.product_id] = {
+        product_id: item.product_id,
+        product_name: item.product_name,
+        stock_quantity: item.stock_quantity,
+        buying_price: item.buying_price,
+        quantity: 0,
+      };
+    }
+
+    map[item.product_id].quantity += Number(item.quantity || 0);
+    return map;
+  }, {});
+
+  const restoredItems = [];
+  const saleLabel = sale.invoice_no || `sale ${sale.id}`;
+
+  for (const item of Object.values(restoreByProduct)) {
+    const alreadyReturnedQuantity = Number(returnedByProduct[item.product_id] || 0);
+    const previousStock = Number(item.stock_quantity || 0);
+    const restoreQuantity = Math.max(Number(item.quantity || 0) - alreadyReturnedQuantity, 0);
+
+    if (restoreQuantity === 0) continue;
+
+    if (item.stock_quantity === null || item.stock_quantity === undefined) {
+      const error = new Error("Cannot restore stock for one or more deleted products");
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const newStock = previousStock + restoreQuantity;
+
+    await connection.query(
+      `UPDATE products
+       SET stock_quantity = ?
+       WHERE id = ? AND shop_id = ?`,
+      [newStock, item.product_id, shopId]
+    );
+
+    await connection.query(
+      `INSERT INTO stock_movements
+       (shop_id, product_id, user_id, supplier_id, movement_type, quantity,
+        previous_stock, new_stock, buying_price, total_cost, note)
+       VALUES (?, ?, ?, NULL, 'payment_failed_restore', ?, ?, ?, ?, 0, ?)`,
+      [
+        shopId,
+        item.product_id,
+        userId,
+        restoreQuantity,
+        previousStock,
+        newStock,
+        item.buying_price,
+        `Payment failed stock restore for ${saleLabel}`,
+      ]
+    );
+
+    restoredItems.push({
+      product_id: item.product_id,
+      product_name: item.product_name,
+      quantity: restoreQuantity,
+      previous_stock: previousStock,
+      new_stock: newStock,
+    });
+  }
+
+  return restoredItems;
 };
 
 exports.getPendingPayments = async (req, res) => {
@@ -130,7 +247,8 @@ exports.verifyPayment = async (req, res) => {
     await connection.beginTransaction();
 
     const [sales] = await connection.query(
-      `SELECT id, payment_type, total_amount, payment_reference, approval_code, card_last_four
+      `SELECT id, payment_type, payment_status, total_amount, stock_restored_at,
+              payment_reference, approval_code, card_last_four
        FROM sales
        WHERE id = ? AND shop_id = ?
        LIMIT 1
@@ -148,6 +266,13 @@ exports.verifyPayment = async (req, res) => {
       return res
         .status(400)
         .json({ message: "Only card, bank transfer, and QR payments can be verified" });
+    }
+
+    if (sales[0].payment_status === "failed" || sales[0].stock_restored_at) {
+      await connection.rollback();
+      return res.status(409).json({
+        message: "Failed payments cannot be verified. Create a new sale.",
+      });
     }
 
     const paymentReference = optionalText(req.body.payment_reference);
@@ -286,10 +411,12 @@ exports.failPayment = async (req, res) => {
   try {
     await ensureSalesPaymentColumns();
     await ensurePaymentVerificationTable();
+    await ensureStockMovementsTable();
     await connection.beginTransaction();
 
     const [sales] = await connection.query(
-      `SELECT id, payment_type, total_amount, payment_reference, approval_code, card_last_four
+      `SELECT id, invoice_no, payment_type, payment_status, total_amount,
+              stock_restored_at, payment_reference, approval_code, card_last_four
        FROM sales
        WHERE id = ? AND shop_id = ?
        LIMIT 1
@@ -309,11 +436,19 @@ exports.failPayment = async (req, res) => {
         .json({ message: "Only card, bank transfer, and QR payments can be failed" });
     }
 
+    const restoredItems = await restoreStockForFailedSale(
+      connection,
+      sales[0],
+      req.user.shop_id,
+      req.user.id
+    );
+
     await connection.query(
       `UPDATE sales
        SET payment_status = 'failed',
            verified_by = NULL,
-           verified_at = NULL
+           verified_at = NULL,
+           stock_restored_at = COALESCE(stock_restored_at, NOW())
        WHERE id = ? AND shop_id = ?`,
       [saleId, req.user.shop_id]
     );
@@ -328,7 +463,7 @@ exports.failPayment = async (req, res) => {
            card_last_four = COALESCE(card_last_four, ?),
            verified_by = NULL,
            verified_at = NULL,
-           failed_at = NOW()
+           failed_at = COALESCE(failed_at, NOW())
        WHERE sale_id = ? AND shop_id = ?`,
       [
         sales[0].total_amount,
@@ -368,7 +503,11 @@ exports.failPayment = async (req, res) => {
       description: `Marked ${sales[0].payment_type} payment as failed for sale ${saleId}`,
     });
 
-    return res.json({ message: "Payment marked as failed" });
+    return res.json({
+      message: "Payment marked as failed",
+      stock_restored: restoredItems.length > 0,
+      restored_items: restoredItems,
+    });
   } catch (error) {
     try {
       await connection.rollback();
@@ -377,6 +516,11 @@ exports.failPayment = async (req, res) => {
     }
 
     console.error("Fail payment error:", error.message);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+
     return res
       .status(500)
       .json({ message: "Server error while failing payment" });

@@ -3,6 +3,7 @@ const { ensureReturnTables } = require("./returnController");
 const { ensureSalesPaymentColumns } = require("../utils/paymentSchema");
 
 const toNumber = (value) => Number(value || 0);
+const finalSaleStatusFilter = "payment_status IN ('verified', 'credit')";
 
 const formatDate = (date) => {
   const year = date.getFullYear();
@@ -82,7 +83,9 @@ const loadOverview = async (req) => {
          COUNT(*) AS total_bills,
          COALESCE(AVG(total_amount), 0) AS average_bill_value
        FROM sales
-       WHERE shop_id = ? AND DATE(created_at) BETWEEN ? AND ?`,
+       WHERE shop_id = ?
+         AND DATE(created_at) BETWEEN ? AND ?
+         AND ${finalSaleStatusFilter}`,
       [shopId, start_date, end_date]
     ),
     db.promise().query(
@@ -114,9 +117,14 @@ const loadOverview = async (req) => {
     db.promise().query(
       `SELECT
          COUNT(*) AS total_returns,
-         COALESCE(SUM(refund_amount), 0) AS total_refunds
+         COALESCE(SUM(sales_returns.refund_amount), 0) AS total_refunds
        FROM sales_returns
-       WHERE shop_id = ? AND DATE(created_at) BETWEEN ? AND ?`,
+       INNER JOIN sales
+         ON sales.id = sales_returns.sale_id
+        AND sales.shop_id = sales_returns.shop_id
+       WHERE sales_returns.shop_id = ?
+         AND DATE(sales_returns.created_at) BETWEEN ? AND ?
+         AND sales.${finalSaleStatusFilter}`,
       [shopId, start_date, end_date]
     ),
     db.promise().query(
@@ -203,7 +211,9 @@ const loadSalesChart = async (req) => {
        COALESCE(SUM(tax_amount), 0) AS total_tax,
        COUNT(*) AS total_bills
      FROM sales
-     WHERE shop_id = ? AND DATE(created_at) BETWEEN ? AND ?
+     WHERE shop_id = ?
+       AND DATE(created_at) BETWEEN ? AND ?
+       AND ${finalSaleStatusFilter}
      GROUP BY period, sort_key
      ORDER BY sort_key ASC`,
     [shopId, start_date, end_date]
@@ -263,6 +273,8 @@ exports.getTopProducts = async (req, res) => {
   const { start_date, end_date } = getDateRange(req);
 
   try {
+    await ensureSalesPaymentColumns();
+
     const [rows] = await db.promise().query(
       `SELECT
          sale_items.product_id,
@@ -275,7 +287,9 @@ exports.getTopProducts = async (req, res) => {
        LEFT JOIN products
          ON sale_items.product_id = products.id
         AND products.shop_id = sales.shop_id
-       WHERE sales.shop_id = ? AND DATE(sales.created_at) BETWEEN ? AND ?
+       WHERE sales.shop_id = ?
+         AND DATE(sales.created_at) BETWEEN ? AND ?
+         AND sales.${finalSaleStatusFilter}
        GROUP BY sale_items.product_id, products.product_name
        ORDER BY total_quantity_sold DESC, total_sales_amount DESC
        LIMIT 10`,
@@ -305,13 +319,17 @@ exports.getPaymentMethods = async (req, res) => {
   const { start_date, end_date } = getDateRange(req);
 
   try {
+    await ensureSalesPaymentColumns();
+
     const [rows] = await db.promise().query(
       `SELECT
          payment_type,
          COALESCE(SUM(total_amount), 0) AS total_amount,
          COUNT(*) AS bill_count
        FROM sales
-       WHERE shop_id = ? AND DATE(created_at) BETWEEN ? AND ?
+       WHERE shop_id = ?
+         AND DATE(created_at) BETWEEN ? AND ?
+         AND ${finalSaleStatusFilter}
        GROUP BY payment_type
        ORDER BY total_amount DESC`,
       [shopId, start_date, end_date]
@@ -352,7 +370,9 @@ exports.getMonthlyComparison = async (req, res) => {
        FROM (
          SELECT DATE_FORMAT(created_at, '%Y-%m') AS period
          FROM sales
-         WHERE shop_id = ? AND DATE(created_at) BETWEEN ? AND ?
+         WHERE shop_id = ?
+           AND DATE(created_at) BETWEEN ? AND ?
+           AND ${finalSaleStatusFilter}
          UNION
          SELECT DATE_FORMAT(expense_date, '%Y-%m') AS period
          FROM expenses
@@ -363,7 +383,9 @@ exports.getMonthlyComparison = async (req, res) => {
                 COALESCE(SUM(total_amount), 0) AS total_sales,
                 COALESCE(SUM(total_profit), 0) AS total_profit
          FROM sales
-         WHERE shop_id = ? AND DATE(created_at) BETWEEN ? AND ?
+         WHERE shop_id = ?
+           AND DATE(created_at) BETWEEN ? AND ?
+           AND ${finalSaleStatusFilter}
          GROUP BY DATE_FORMAT(created_at, '%Y-%m')
        ) AS sales ON sales.period = months.period
        LEFT JOIN (

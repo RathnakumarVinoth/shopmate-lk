@@ -1,11 +1,15 @@
 const db = require("../config/db");
+const { ensureSalesPaymentColumns } = require("../utils/paymentSchema");
 
 const toNumber = (value) => Number(value || 0);
+const finalSaleStatusFilter = "payment_status IN ('verified', 'credit')";
 
 exports.getDashboard = async (req, res) => {
   const shopId = req.user.shop_id;
 
   try {
+    await ensureSalesPaymentColumns();
+
     const [
       [todaySalesRows],
       [productRows],
@@ -21,7 +25,9 @@ exports.getDashboard = async (req, res) => {
            COALESCE(SUM(total_profit), 0) AS today_profit_total,
            COUNT(*) AS today_bill_count
          FROM sales
-         WHERE shop_id = ? AND DATE(created_at) = CURDATE()`,
+         WHERE shop_id = ?
+           AND DATE(created_at) = CURDATE()
+           AND ${finalSaleStatusFilter}`,
         [shopId]
       ),
       db.promise().query(
@@ -60,9 +66,11 @@ exports.getDashboard = async (req, res) => {
         [shopId]
       ),
       db.promise().query(
-        `SELECT id, invoice_no, total_amount, total_profit, payment_type, created_at
+        `SELECT id, invoice_no, total_amount, total_profit, payment_type,
+                payment_status, created_at
          FROM sales
          WHERE shop_id = ?
+           AND ${finalSaleStatusFilter}
          ORDER BY id DESC
          LIMIT 5`,
         [shopId]

@@ -2,6 +2,7 @@ const db = require("../config/db");
 
 let ensuredSalesColumns = false;
 let ensuredPaymentVerifications = false;
+let ensuredStockMovements = false;
 
 const paymentColumns = [
   {
@@ -73,6 +74,68 @@ const paymentColumns = [
   {
     name: "verified_at",
     definition: "ALTER TABLE sales ADD COLUMN verified_at DATETIME NULL",
+  },
+  {
+    name: "stock_restored_at",
+    definition: "ALTER TABLE sales ADD COLUMN stock_restored_at DATETIME NULL",
+  },
+];
+
+const stockMovementColumns = [
+  {
+    name: "shop_id",
+    definition: "ALTER TABLE stock_movements ADD COLUMN shop_id INT NULL",
+  },
+  {
+    name: "product_id",
+    definition: "ALTER TABLE stock_movements ADD COLUMN product_id INT NULL",
+  },
+  {
+    name: "user_id",
+    definition: "ALTER TABLE stock_movements ADD COLUMN user_id INT NULL",
+  },
+  {
+    name: "supplier_id",
+    definition: "ALTER TABLE stock_movements ADD COLUMN supplier_id INT NULL",
+  },
+  {
+    name: "movement_type",
+    definition:
+      "ALTER TABLE stock_movements ADD COLUMN movement_type VARCHAR(50) NOT NULL DEFAULT 'adjustment'",
+  },
+  {
+    name: "quantity",
+    definition:
+      "ALTER TABLE stock_movements ADD COLUMN quantity INT NOT NULL DEFAULT 0",
+  },
+  {
+    name: "previous_stock",
+    definition:
+      "ALTER TABLE stock_movements ADD COLUMN previous_stock INT NOT NULL DEFAULT 0",
+  },
+  {
+    name: "new_stock",
+    definition:
+      "ALTER TABLE stock_movements ADD COLUMN new_stock INT NOT NULL DEFAULT 0",
+  },
+  {
+    name: "buying_price",
+    definition:
+      "ALTER TABLE stock_movements ADD COLUMN buying_price DECIMAL(10,2) NULL",
+  },
+  {
+    name: "total_cost",
+    definition:
+      "ALTER TABLE stock_movements ADD COLUMN total_cost DECIMAL(10,2) NOT NULL DEFAULT 0",
+  },
+  {
+    name: "note",
+    definition: "ALTER TABLE stock_movements ADD COLUMN note TEXT NULL",
+  },
+  {
+    name: "created_at",
+    definition:
+      "ALTER TABLE stock_movements ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
   },
 ];
 
@@ -272,4 +335,46 @@ const ensurePaymentVerificationTable = async () => {
   ensuredPaymentVerifications = true;
 };
 
-module.exports = { ensurePaymentVerificationTable, ensureSalesPaymentColumns };
+const ensureStockMovementsTable = async () => {
+  if (ensuredStockMovements) return;
+
+  const connection = db.promise();
+
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS stock_movements (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      shop_id INT NOT NULL,
+      product_id INT NOT NULL,
+      user_id INT NULL,
+      supplier_id INT NULL,
+      movement_type VARCHAR(50) NOT NULL,
+      quantity INT NOT NULL DEFAULT 0,
+      previous_stock INT NOT NULL DEFAULT 0,
+      new_stock INT NOT NULL DEFAULT 0,
+      buying_price DECIMAL(10,2) NULL,
+      total_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
+      note TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_stock_movements_shop_created (shop_id, created_at),
+      INDEX idx_stock_movements_product_created (product_id, created_at),
+      INDEX idx_stock_movements_type (movement_type)
+    )
+  `);
+
+  const [columns] = await connection.query("SHOW COLUMNS FROM stock_movements");
+  const existingColumns = new Set(columns.map((column) => column.Field));
+
+  for (const column of stockMovementColumns) {
+    if (!existingColumns.has(column.name)) {
+      await connection.query(column.definition);
+    }
+  }
+
+  ensuredStockMovements = true;
+};
+
+module.exports = {
+  ensurePaymentVerificationTable,
+  ensureSalesPaymentColumns,
+  ensureStockMovementsTable,
+};
