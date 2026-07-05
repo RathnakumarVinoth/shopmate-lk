@@ -33,6 +33,8 @@ function RoleLogin() {
   const navigate = useNavigate()
   const shopSession = getShopSession()
   const shopSessionId = getShopSessionId(shopSession)
+  const shopToken = shopSession?.shopToken
+  const shopSessionInvalid = !shopSessionId || !shopToken || isTokenExpired(shopToken)
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -55,12 +57,16 @@ function RoleLogin() {
       clearSession(undefined, { broadcast: false })
     }
 
-    if (!shopSessionId) {
+    if (shopSessionInvalid) {
+      clearSession('Shop session expired. Please login again.', {
+        broadcast: false,
+        clearShop: true,
+      })
       navigate('/shop-login', { replace: true })
     }
-  }, [navigate, shopSessionId])
+  }, [navigate, shopSessionInvalid])
 
-  if (!shopSessionId) {
+  if (shopSessionInvalid) {
     return <Navigate to="/shop-login" replace />
   }
 
@@ -72,18 +78,28 @@ function RoleLogin() {
     event.preventDefault()
     setError('')
     setMessage('')
+
+    if (!shopSessionId || !shopToken || isTokenExpired(shopToken)) {
+      clearSession('Shop session expired. Please login again.', {
+        broadcast: false,
+        clearShop: true,
+      })
+      navigate('/shop-login', { replace: true })
+      return
+    }
+
     setLoading(true)
 
     try {
       const response = await api.post('/auth/role-login', {
         username: form.username,
         password: form.password,
-        shop_token: shopSession.shopToken,
+        shop_token: shopToken,
         shop_id: shopSessionId,
       })
       saveSession({ token: response.data.token, user: response.data.user })
       saveShopSession({
-        shopToken: shopSession.shopToken,
+        shopToken,
         shop: response.data.shop || shopSession.shop,
       })
       navigate(getHomePath(response.data.user))

@@ -233,7 +233,7 @@ exports.roleLogin = async (req, res) => {
     await ensureUserPermissionColumns();
     await ensureSecurityTables();
 
-    if (!shop_token && !hasBodyShopId) {
+    if (!shop_token) {
       await createLoginActivity({
         email: loginUsername,
         status: "failed",
@@ -243,44 +243,43 @@ exports.roleLogin = async (req, res) => {
       return res.status(400).json({ message: "Shop session is required" });
     }
 
-    if (shop_token) {
-      try {
-        const decodedShop = jwt.verify(shop_token, process.env.JWT_SECRET);
-        if (decodedShop.type !== "shop") {
-          await createLoginActivity({
-            email: loginUsername,
-            status: "failed",
-            message: "Invalid shop session",
-            ...getRequestMeta(req),
-          });
-          return res.status(401).json({ message: "Invalid shop session" });
-        }
-        tokenShopId = Number(decodedShop.shop_id);
+    try {
+      const decodedShop = jwt.verify(shop_token, process.env.JWT_SECRET);
+      tokenShopId = Number(decodedShop.shop_id);
 
-        if (hasBodyShopId && tokenShopId !== bodyShopId) {
-          await createLoginActivity({
-            shop_id: bodyShopId,
-            email: loginUsername,
-            status: "failed",
-            message: "Shop session mismatch",
-            ...getRequestMeta(req),
-          });
-          return res.status(401).json({ message: "Invalid shop session" });
-        }
-      } catch (error) {
-        if (!hasBodyShopId) {
-          await createLoginActivity({
-            email: loginUsername,
-            status: "failed",
-            message: "Invalid or expired shop session",
-            ...getRequestMeta(req),
-          });
-          return res.status(401).json({ message: "Invalid or expired shop session" });
-        }
+      if (
+        decodedShop.type !== "shop" ||
+        !Number.isInteger(tokenShopId) ||
+        tokenShopId <= 0
+      ) {
+        await createLoginActivity({
+          email: loginUsername,
+          status: "failed",
+          message: "Invalid shop session",
+          ...getRequestMeta(req),
+        });
+        return res.status(401).json({ message: "Invalid shop session" });
       }
-    }
 
-    tokenShopId = tokenShopId || bodyShopId;
+      if (hasBodyShopId && tokenShopId !== bodyShopId) {
+        await createLoginActivity({
+          shop_id: tokenShopId,
+          email: loginUsername,
+          status: "failed",
+          message: "Shop session mismatch",
+          ...getRequestMeta(req),
+        });
+        return res.status(401).json({ message: "Invalid shop session" });
+      }
+    } catch (error) {
+      await createLoginActivity({
+        email: loginUsername,
+        status: "failed",
+        message: "Invalid or expired shop session",
+        ...getRequestMeta(req),
+      });
+      return res.status(401).json({ message: "Invalid or expired shop session" });
+    }
 
     if (!Number.isInteger(tokenShopId) || tokenShopId <= 0) {
       await createLoginActivity({
