@@ -1,11 +1,40 @@
 const express = require("express");
 
-const { getNotifications } = require("../controllers/notificationController");
+const {
+  getNotificationPreferences,
+  getNotifications,
+  markNotificationRead,
+  updateNotificationPreferences,
+} = require("../controllers/notificationController");
 const authMiddleware = require("../middleware/authMiddleware");
+const { requirePermission } = require("../middleware/permissionMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.get("/", authMiddleware, allowRoles("owner", "staff"), getNotifications);
+router.use(authMiddleware);
+
+router.get(
+  "/",
+  allowRoles("owner", "staff", "admin"),
+  requirePermission("notifications_access"),
+  getNotifications
+);
+router.patch(
+  "/:id/read",
+  allowRoles("owner", "staff", "admin"),
+  requirePermission("notifications_access"),
+  markNotificationRead
+);
+router.get(
+  "/preferences",
+  allowRoles("owner", "admin"),
+  getNotificationPreferences
+);
+router.put(
+  "/preferences",
+  allowRoles("owner", "admin"),
+  updateNotificationPreferences
+);
 
 module.exports = router;

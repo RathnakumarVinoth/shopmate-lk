@@ -13,6 +13,7 @@ import SessionManager from './components/SessionManager.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
 import AdminBackups from './pages/AdminBackups.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
+import AdminNotifications from './pages/AdminNotifications.jsx'
 import AdminShopDetails from './pages/AdminShopDetails.jsx'
 import AdminShops from './pages/AdminShops.jsx'
 import AdminSystemHealth from './pages/AdminSystemHealth.jsx'
@@ -23,6 +24,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Expenses from './pages/Expenses.jsx'
 import Login from './pages/Login.jsx'
 import LoginActivity from './pages/LoginActivity.jsx'
+import NotificationPreferences from './pages/NotificationPreferences.jsx'
 import PaymentVerification from './pages/PaymentVerification.jsx'
 import POS from './pages/POS.jsx'
 import Products from './pages/Products.jsx'
@@ -193,6 +195,14 @@ function App() {
             }
           />
           <Route
+            path="/notification-preferences"
+            element={
+              <ProtectedRoute roles={['owner']} permission="notifications_access">
+                <NotificationPreferences />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/audit-logs"
             element={
               <ProtectedRoute permission="audit_logs_access">
@@ -237,6 +247,7 @@ function App() {
           <Route path="/admin/shops/:id" element={<AdminShopDetails />} />
           <Route path="/admin/backups" element={<AdminBackups />} />
           <Route path="/admin/system-health" element={<AdminSystemHealth />} />
+          <Route path="/admin/notifications" element={<AdminNotifications />} />
           <Route path="/admin/audit-logs" element={<AuditLogs />} />
           <Route path="/admin/login-activity" element={<LoginActivity />} />
         </Route>

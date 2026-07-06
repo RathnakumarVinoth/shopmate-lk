@@ -4,9 +4,34 @@ const path = require("path");
 
 const db = require("../config/db");
 const { ensureBackupSchema } = require("./backupSchema");
+const { dispatchNotification } = require("./notificationService");
 
 const BACKUP_FORMAT = "shopmate_lk_backup";
 const BACKUP_VERSION = 1;
+
+const notifyBackupEvent = async ({
+  templateKey,
+  shopId,
+  shopName,
+  sourceId,
+  error = "",
+}) =>
+  dispatchNotification({
+    templateKey,
+    audienceType: "shop_owner",
+    shopId,
+    variables: {
+      shop_name: shopName || `Shop ${shopId}`,
+      error,
+    },
+    payload: {
+      source_id: sourceId,
+      source_type: templateKey.startsWith("restore") ? "restore_job" : "backup_job",
+    },
+    link: "/backup-export",
+    priority: templateKey.endsWith("failure") ? "high" : undefined,
+    dedupeKey: `${templateKey}:${sourceId}`,
+  });
 
 const quoteIdentifier = (identifier) => `\`${String(identifier).replace(/`/g, "``")}\``;
 
@@ -393,6 +418,13 @@ const createManualBackup = async ({ shopId, userId }) => {
       [jobId, shopId]
     );
 
+    await notifyBackupEvent({
+      templateKey: "backup_success",
+      shopId,
+      shopName: jobs[0]?.shop_name,
+      sourceId: jobId,
+    });
+
     return {
       job: formatJob(jobs[0]),
       payload,
@@ -406,6 +438,13 @@ const createManualBackup = async ({ shopId, userId }) => {
        WHERE id = ? AND shop_id = ?`,
       [error.message, jobId, shopId]
     );
+
+    await notifyBackupEvent({
+      templateKey: "backup_failure",
+      shopId,
+      sourceId: jobId,
+      error: error.message,
+    });
 
     throw error;
   }
@@ -1094,6 +1133,13 @@ const restoreBackup = async ({
       [restoreJobId, backupShopId]
     );
 
+    await notifyBackupEvent({
+      templateKey: "restore_success",
+      shopId: backupShopId,
+      shopName: jobs[0]?.shop_name,
+      sourceId: restoreJobId,
+    });
+
     return {
       restore: formatRestoreJob(jobs[0]),
       record_count: recordCount,
@@ -1114,6 +1160,13 @@ const restoreBackup = async ({
        WHERE id = ? AND shop_id = ?`,
       [error.message, restoreJobId, backupShopId]
     );
+
+    await notifyBackupEvent({
+      templateKey: "restore_failure",
+      shopId: backupShopId,
+      sourceId: restoreJobId,
+      error: error.message,
+    });
 
     error.restoreJobRecorded = true;
     throw error;

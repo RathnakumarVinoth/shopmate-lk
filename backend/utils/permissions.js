@@ -17,6 +17,7 @@ const permissions = [
   "expenses_access",
   "reports_access",
   "payment_verification_access",
+  "notifications_access",
   "audit_logs_access",
   "backup_export_access",
   "settings_access",

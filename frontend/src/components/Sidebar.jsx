@@ -22,6 +22,12 @@ const ownerLinks = [
   { to: '/returns', labelKey: 'Returns', permission: 'returns_access' },
   { to: '/expenses', labelKey: 'Expenses', permission: 'expenses_access' },
   { to: '/reports', labelKey: 'reports', permission: 'reports_access' },
+  {
+    to: '/notification-preferences',
+    labelKey: 'Notifications',
+    permission: 'notifications_access',
+    roles: ['owner'],
+  },
   { to: '/audit-logs', labelKey: 'auditLogs', permission: 'audit_logs_access' },
   { to: '/backup-export', labelKey: 'backupExport', permission: 'backup_export_access' },
   { to: '/settings', labelKey: 'settings', permission: 'settings_access' },

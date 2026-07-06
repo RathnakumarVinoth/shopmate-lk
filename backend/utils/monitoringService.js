@@ -36,6 +36,41 @@ const safeMonitoringOperation = async (operation, fallback = null) => {
   }
 };
 
+const deliverAdminAlert = async ({
+  alertId,
+  shopId,
+  alertType,
+  title,
+  message,
+}) => {
+  const { dispatchNotification } = require("./notificationService");
+  const templateKey =
+    alertType === "backup_failure"
+      ? "backup_failure"
+      : alertType === "restore_failure"
+        ? "restore_failure"
+        : "system_error";
+
+  await dispatchNotification({
+    templateKey,
+    audienceType: "admin",
+    shopId,
+    variables: {
+      shop_name: shopId ? `Shop ${shopId}` : "ShopMate LK",
+      error: message,
+      message: `${title}: ${message}`,
+    },
+    payload: {
+      admin_alert_id: alertId,
+      alert_type: alertType,
+      shop_id: shopId,
+    },
+    link: "/admin/system-health",
+    priority: "high",
+    dedupeKey: `admin-alert:${alertId}:${Math.floor(Date.now() / 3600000)}`,
+  });
+};
+
 const createAdminAlert = async ({
   shopId = null,
   alertType,
@@ -77,6 +112,13 @@ const createAdminAlert = async ({
               existingRows[0].id,
             ]
           );
+          await deliverAdminAlert({
+            alertId: existingRows[0].id,
+            shopId,
+            alertType,
+            title,
+            message,
+          });
         }
 
         return existingRows[0].id;
@@ -98,6 +140,14 @@ const createAdminAlert = async ({
         dedupeKey ? String(dedupeKey).slice(0, 191) : null,
       ]
     );
+
+    await deliverAdminAlert({
+      alertId: result.insertId,
+      shopId,
+      alertType,
+      title,
+      message,
+    });
 
     return result.insertId;
   });

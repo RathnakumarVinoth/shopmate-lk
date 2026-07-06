@@ -19,7 +19,11 @@ const {
 const { getAdminBackupStatus } = require("../controllers/backupController");
 const { getAuditLogs } = require("../controllers/auditLogController");
 const { getLoginActivity } = require("../controllers/loginActivityController");
-const { getNotifications } = require("../controllers/notificationController");
+const {
+  getAdminNotificationLogs,
+  getNotifications,
+  sendAdminTestNotification,
+} = require("../controllers/notificationController");
 const {
   getApiRequestLogs,
   getErrorLogs,
@@ -44,6 +48,8 @@ router.get("/api-request-logs", getApiRequestLogs);
 router.get("/audit-logs", getAuditLogs);
 router.get("/login-activity", getLoginActivity);
 router.get("/notifications", getNotifications);
+router.get("/notification-logs", getAdminNotificationLogs);
+router.post("/notifications/test", sendAdminTestNotification);
 router.post("/users/:id/reset-password", resetUserPassword);
 router.post("/shops", createShop);
 router.get("/shops", getShops);
