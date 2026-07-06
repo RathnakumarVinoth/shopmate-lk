@@ -24,6 +24,7 @@ import LoginActivity from './pages/LoginActivity.jsx'
 import PaymentVerification from './pages/PaymentVerification.jsx'
 import POS from './pages/POS.jsx'
 import Products from './pages/Products.jsx'
+import Purchasing from './pages/Purchasing.jsx'
 import PurchaseSuggestions from './pages/PurchaseSuggestions.jsx'
 import Register from './pages/Register.jsx'
 import Reports from './pages/Reports.jsx'
@@ -132,6 +133,14 @@ function App() {
             element={
               <ProtectedRoute permission="stock_access">
                 <Stock />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/purchasing"
+            element={
+              <ProtectedRoute permission="purchasing_access">
+                <Purchasing />
               </ProtectedRoute>
             }
           />

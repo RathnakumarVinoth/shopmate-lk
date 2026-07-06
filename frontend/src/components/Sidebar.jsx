@@ -17,6 +17,7 @@ const ownerLinks = [
   { to: '/credits', labelKey: 'creditBook', permission: 'credit_book_access' },
   { to: '/suppliers', labelKey: 'suppliers', permission: 'suppliers_access' },
   { to: '/stock', labelKey: 'stock', permission: 'stock_access' },
+  { to: '/purchasing', labelKey: 'purchasing', permission: 'purchasing_access' },
   { to: '/purchase-suggestions', labelKey: 'Purchase Suggestions', permission: 'purchase_suggestions_access' },
   { to: '/returns', labelKey: 'Returns', permission: 'returns_access' },
   { to: '/expenses', labelKey: 'Expenses', permission: 'expenses_access' },

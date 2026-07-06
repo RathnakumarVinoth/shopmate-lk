@@ -8,6 +8,8 @@ const permissions = [
   "credit_book_access",
   "suppliers_access",
   "stock_access",
+  "purchasing_access",
+  "purchasing_manage",
   "purchase_suggestions_access",
   "returns_access",
   "expenses_access",
