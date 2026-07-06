@@ -131,7 +131,13 @@ function App() {
           <Route
             path="/stock"
             element={
-              <ProtectedRoute permission="stock_access">
+              <ProtectedRoute
+                permission={[
+                  'stock_access',
+                  'stock_adjustments_manage',
+                  'stock_reconciliation_manage',
+                ]}
+              >
                 <Stock />
               </ProtectedRoute>
             }

@@ -51,7 +51,16 @@ function ProtectedRoute({ children, roles, permission }) {
     return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/dashboard'} replace />
   }
 
-  if (permission && !hasPermission(user, permission)) {
+  const allowedPermissions = Array.isArray(permission)
+    ? permission
+    : permission
+      ? [permission]
+      : []
+
+  if (
+    allowedPermissions.length > 0 &&
+    !allowedPermissions.some((permissionName) => hasPermission(user, permissionName))
+  ) {
     return (
       <div className="panel">
         <div className="alert">{t('You do not have permission to access this page.')}</div>
