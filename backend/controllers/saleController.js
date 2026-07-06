@@ -7,6 +7,8 @@ const { ensureProductCatalogSchema } = require("../utils/productCatalogSchema");
 const { ensureSaasSchema } = require("../utils/saasSchema");
 const { ensureShopSettingsColumns } = require("../utils/shopSchema");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
+const { ensureSaleBatchSchema } = require("../utils/saleBatchSchema");
+const { allocateSaleBatches } = require("../utils/saleBatchService");
 
 const allowedPaymentTypes = ["cash", "card", "bank_transfer", "qr", "credit"];
 const paidRequiredTypes = ["cash", "card", "bank_transfer", "qr"];
@@ -323,6 +325,7 @@ exports.createSale = async (req, res) => {
     await ensureShopSettingsColumns();
     await ensureProductCatalogSchema();
     await ensureSaasSchema();
+    await ensureSaleBatchSchema();
     await connection.beginTransaction();
 
     const [shops] = await connection.query(
@@ -606,6 +609,43 @@ exports.createSale = async (req, res) => {
       [saleItemRows]
     );
 
+    const [insertedSaleItems] = await connection.query(
+      `SELECT id, product_id, quantity
+       FROM sale_items
+       WHERE sale_id = ?
+       ORDER BY id ASC`,
+      [saleId]
+    );
+    const productStockCursor = productIds.reduce((map, productId) => {
+      map[productId] = Number(productMap[productId].stock_quantity || 0);
+      return map;
+    }, {});
+    const batchAllocations = [];
+
+    for (const [index, saleItem] of insertedSaleItems.entries()) {
+      const finalSaleItem = finalSaleItems[index];
+      const product = productMap[saleItem.product_id];
+      const allocationResult = await allocateSaleBatches(connection, {
+        shopId,
+        productId: Number(saleItem.product_id),
+        productName: product.product_name,
+        quantity: Number(saleItem.quantity),
+        saleId,
+        saleItemId: saleItem.id,
+        userId,
+        buyingPrice: finalSaleItem?.buying_price ?? product.buying_price,
+        productStockCursor,
+      });
+
+      if (allocationResult.tracked) {
+        batchAllocations.push({
+          sale_item_id: saleItem.id,
+          product_id: Number(saleItem.product_id),
+          allocations: allocationResult.allocations,
+        });
+      }
+    }
+
     for (const productId of productIds) {
       await connection.query(
         "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ? AND shop_id = ?",
@@ -680,6 +720,7 @@ exports.createSale = async (req, res) => {
         total_before_tax: totalBeforeTax,
         items_total: subtotal,
         items: finalSaleItems.map(formatSaleItem),
+        batch_allocations: batchAllocations,
         credit_record_id: creditRecordId,
       },
     });
@@ -691,7 +732,10 @@ exports.createSale = async (req, res) => {
     }
 
     if (error.statusCode) {
-      return res.status(error.statusCode).json({ message: error.message });
+      return res.status(error.statusCode).json({
+        message: error.message,
+        ...(error.details || {}),
+      });
     }
 
     console.error("Create sale error:", error.message);

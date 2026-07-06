@@ -5,6 +5,8 @@ const {
   ensureStockMovementsTable,
 } = require("../utils/paymentSchema");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
+const { ensureSaleBatchSchema } = require("../utils/saleBatchSchema");
+const { restoreSaleBatches } = require("../utils/saleBatchService");
 
 const verifiablePaymentTypes = ["card", "bank_transfer", "qr"];
 
@@ -86,7 +88,9 @@ const getReturnedQuantityByProduct = async (connection, shopId, saleId) => {
 };
 
 const restoreStockForFailedSale = async (connection, sale, shopId, userId) => {
-  if (sale.stock_restored_at) return [];
+  if (sale.stock_restored_at) {
+    return { restoredItems: [], restoredBatchItems: [] };
+  }
 
   const returnedByProduct = await getReturnedQuantityByProduct(
     connection,
@@ -123,6 +127,20 @@ const restoreStockForFailedSale = async (connection, sale, shopId, userId) => {
 
   const restoredItems = [];
   const saleLabel = sale.invoice_no || `sale ${sale.id}`;
+  const productStockCursor = Object.values(restoreByProduct).reduce((map, item) => {
+    map[item.product_id] = Number(item.stock_quantity || 0);
+    return map;
+  }, {});
+  const restoredBatchItems = await restoreSaleBatches(connection, {
+    shopId,
+    saleId: sale.id,
+    userId,
+    productStockCursor,
+    movementType: "payment_failed_batch_restore",
+    referenceType: "sale",
+    referenceId: sale.id,
+    note: `Payment failed batch stock restore for ${saleLabel}`,
+  });
 
   for (const item of Object.values(restoreByProduct)) {
     const alreadyReturnedQuantity = Number(returnedByProduct[item.product_id] || 0);
@@ -172,7 +190,7 @@ const restoreStockForFailedSale = async (connection, sale, shopId, userId) => {
     });
   }
 
-  return restoredItems;
+  return { restoredItems, restoredBatchItems };
 };
 
 exports.getPendingPayments = async (req, res) => {
@@ -412,6 +430,7 @@ exports.failPayment = async (req, res) => {
     await ensureSalesPaymentColumns();
     await ensurePaymentVerificationTable();
     await ensureStockMovementsTable();
+    await ensureSaleBatchSchema();
     await connection.beginTransaction();
 
     const [sales] = await connection.query(
@@ -436,7 +455,7 @@ exports.failPayment = async (req, res) => {
         .json({ message: "Only card, bank transfer, and QR payments can be failed" });
     }
 
-    const restoredItems = await restoreStockForFailedSale(
+    const restoreResult = await restoreStockForFailedSale(
       connection,
       sales[0],
       req.user.shop_id,
@@ -505,8 +524,11 @@ exports.failPayment = async (req, res) => {
 
     return res.json({
       message: "Payment marked as failed",
-      stock_restored: restoredItems.length > 0,
-      restored_items: restoredItems,
+      stock_restored:
+        restoreResult.restoredItems.length > 0 ||
+        restoreResult.restoredBatchItems.length > 0,
+      restored_items: restoreResult.restoredItems,
+      batch_restored_items: restoreResult.restoredBatchItems,
     });
   } catch (error) {
     try {

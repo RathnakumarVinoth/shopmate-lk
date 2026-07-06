@@ -1,5 +1,7 @@
 const db = require("../config/db");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
+const { ensureSaleBatchSchema } = require("../utils/saleBatchSchema");
+const { restoreSaleBatches } = require("../utils/saleBatchService");
 
 let returnTablesReady = false;
 
@@ -27,6 +29,23 @@ const formatReturnItem = (item) => ({
   refund_price: Number(item.refund_price || 0),
   refund_subtotal: Number(item.refund_subtotal || 0),
 });
+
+const addColumnIfMissing = async (connection, table, existingColumns, name, definition) => {
+  if (!existingColumns.has(name)) {
+    await connection.query(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+    existingColumns.add(name);
+  }
+};
+
+const addIndexIfMissing = async (connection, table, name, definition) => {
+  const [indexes] = await connection.query(`SHOW INDEX FROM ${table} WHERE Key_name = ?`, [
+    name,
+  ]);
+
+  if (indexes.length === 0) {
+    await connection.query(`ALTER TABLE ${table} ADD INDEX ${name} ${definition}`);
+  }
+};
 
 const ensureReturnTables = async (connection = db.promise()) => {
   if (returnTablesReady) return;
@@ -61,6 +80,88 @@ const ensureReturnTables = async (connection = db.promise()) => {
       INDEX idx_sales_return_items_product_id (product_id)
     )
   `);
+
+  const [returnColumns] = await connection.query("SHOW COLUMNS FROM sales_returns");
+  const existingReturnColumns = new Set(returnColumns.map((column) => column.Field));
+
+  await addColumnIfMissing(
+    connection,
+    "sales_returns",
+    existingReturnColumns,
+    "user_id",
+    "user_id INT NULL"
+  );
+  await addColumnIfMissing(
+    connection,
+    "sales_returns",
+    existingReturnColumns,
+    "refund_amount",
+    "refund_amount DECIMAL(10,2) NOT NULL DEFAULT 0"
+  );
+  await addColumnIfMissing(
+    connection,
+    "sales_returns",
+    existingReturnColumns,
+    "reason",
+    "reason TEXT NULL"
+  );
+
+  const [returnItemColumns] = await connection.query("SHOW COLUMNS FROM sales_return_items");
+  const existingReturnItemColumns = new Set(
+    returnItemColumns.map((column) => column.Field)
+  );
+
+  await addColumnIfMissing(
+    connection,
+    "sales_return_items",
+    existingReturnItemColumns,
+    "refund_price",
+    "refund_price DECIMAL(10,2) NOT NULL DEFAULT 0"
+  );
+  await addColumnIfMissing(
+    connection,
+    "sales_return_items",
+    existingReturnItemColumns,
+    "refund_subtotal",
+    "refund_subtotal DECIMAL(10,2) NOT NULL DEFAULT 0"
+  );
+
+  await addIndexIfMissing(
+    connection,
+    "sales_returns",
+    "idx_sales_returns_shop_id",
+    "(shop_id)"
+  );
+  await addIndexIfMissing(
+    connection,
+    "sales_returns",
+    "idx_sales_returns_sale_id",
+    "(sale_id)"
+  );
+  await addIndexIfMissing(
+    connection,
+    "sales_returns",
+    "idx_sales_returns_user_id",
+    "(user_id)"
+  );
+  await addIndexIfMissing(
+    connection,
+    "sales_return_items",
+    "idx_sales_return_items_return_id",
+    "(return_id)"
+  );
+  await addIndexIfMissing(
+    connection,
+    "sales_return_items",
+    "idx_sales_return_items_sale_item_id",
+    "(sale_item_id)"
+  );
+  await addIndexIfMissing(
+    connection,
+    "sales_return_items",
+    "idx_sales_return_items_product_id",
+    "(product_id)"
+  );
 
   returnTablesReady = true;
 };
@@ -248,10 +349,11 @@ exports.createReturn = async (req, res) => {
 
   try {
     await ensureReturnTables(connection);
+    await ensureSaleBatchSchema();
     await connection.beginTransaction();
 
     const [sales] = await connection.query(
-      `SELECT id, invoice_no
+      `SELECT id, invoice_no, payment_status
        FROM sales
        WHERE id = ? AND shop_id = ?
        LIMIT 1
@@ -265,6 +367,12 @@ exports.createReturn = async (req, res) => {
     }
 
     const sale = sales[0];
+
+    if (sale.payment_status === "failed") {
+      await connection.rollback();
+      return res.status(400).json({ message: "Failed payment sales cannot be returned" });
+    }
+
     const [saleItems] = await connection.query(
       `SELECT sale_items.id AS sale_item_id, sale_items.product_id,
               sale_items.quantity AS sold_quantity, sale_items.selling_price,
@@ -357,7 +465,24 @@ exports.createReturn = async (req, res) => {
       [returnItemRows]
     );
 
+    const productStockCursor = { ...productStock };
+    const batchRestoredItems = [];
+
     for (const item of returnItems) {
+      const itemBatchRestores = await restoreSaleBatches(connection, {
+        shopId,
+        saleId: sale.id,
+        saleItemId: item.sale_item_id,
+        quantity: item.quantity,
+        userId,
+        productStockCursor,
+        movementType: "return_batch_restore",
+        referenceType: "return",
+        referenceId: returnId,
+        note: `Return batch stock restore for ${sale.invoice_no || `sale ${sale.id}`}`,
+      });
+      batchRestoredItems.push(...itemBatchRestores);
+
       const previousStock = productStock[item.product_id];
       const newStock = previousStock + item.quantity;
       productStock[item.product_id] = newStock;
@@ -399,13 +524,23 @@ exports.createReturn = async (req, res) => {
 
     return res.status(201).json({
       message: "Return processed successfully",
-      return: createdReturn,
+      return: {
+        ...createdReturn,
+        batch_restored_items: batchRestoredItems,
+      },
     });
   } catch (error) {
     try {
       await connection.rollback();
     } catch (rollbackError) {
       console.error("Return rollback failed:", rollbackError.message);
+    }
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        message: error.message,
+        ...(error.details || {}),
+      });
     }
 
     console.error("Create return error:", error.message);

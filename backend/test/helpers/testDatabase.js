@@ -42,6 +42,7 @@ async function resetTestDatabase(db) {
     "stock_reconciliation_items",
     "stock_reconciliations",
     "stock_adjustments",
+    "sale_item_batches",
     "stock_batches",
     "grn_items",
     "goods_received_notes",
@@ -243,6 +244,26 @@ async function resetTestDatabase(db) {
   `);
 
   await db.query(`
+    CREATE TABLE sale_item_batches (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      shop_id INT NOT NULL,
+      sale_id INT NOT NULL,
+      sale_item_id INT NOT NULL,
+      product_id INT NOT NULL,
+      batch_id INT NOT NULL,
+      quantity_deducted INT NOT NULL DEFAULT 0,
+      quantity_restored INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_sale_item_batch (shop_id, sale_item_id, batch_id),
+      INDEX idx_sale_item_batches_shop_sale (shop_id, sale_id),
+      INDEX idx_sale_item_batches_sale_item (shop_id, sale_item_id),
+      INDEX idx_sale_item_batches_product (shop_id, product_id),
+      INDEX idx_sale_item_batches_batch (shop_id, batch_id)
+    )
+  `);
+
+  await db.query(`
     CREATE TABLE payment_verifications (
       id INT PRIMARY KEY AUTO_INCREMENT,
       sale_id INT NOT NULL,
@@ -390,6 +411,7 @@ async function resetTestDatabase(db) {
       INDEX idx_stock_batches_supplier (shop_id, supplier_id),
       INDEX idx_stock_batches_grn (shop_id, grn_id),
       INDEX idx_stock_batches_received_date (shop_id, received_date),
+      INDEX idx_stock_batches_expiry (shop_id, expiry_date),
       INDEX idx_stock_batches_status (shop_id, status)
     )
   `);
@@ -530,8 +552,10 @@ async function resetTestDatabase(db) {
       id INT PRIMARY KEY AUTO_INCREMENT,
       shop_id INT NOT NULL,
       sale_id INT NOT NULL,
+      user_id INT NULL,
       refund_amount DECIMAL(10,2) DEFAULT 0,
       status VARCHAR(50) DEFAULT 'completed',
+      reason TEXT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_sales_returns_shop FOREIGN KEY (shop_id) REFERENCES shops(id),
       CONSTRAINT fk_sales_returns_sale FOREIGN KEY (sale_id) REFERENCES sales(id)
@@ -546,6 +570,8 @@ async function resetTestDatabase(db) {
       product_id INT NOT NULL,
       quantity INT NOT NULL,
       refund_amount DECIMAL(10,2) DEFAULT 0,
+      refund_price DECIMAL(10,2) DEFAULT 0,
+      refund_subtotal DECIMAL(10,2) DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_sales_return_items_return FOREIGN KEY (return_id) REFERENCES sales_returns(id)
     )
