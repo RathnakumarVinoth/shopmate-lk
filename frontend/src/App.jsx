@@ -11,6 +11,7 @@ import ProtectedRoute from './components/ProtectedRoute.jsx'
 import PwaInstallPrompt from './components/PwaInstallPrompt.jsx'
 import SessionManager from './components/SessionManager.jsx'
 import AdminDashboard from './pages/AdminDashboard.jsx'
+import AdminBackups from './pages/AdminBackups.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
 import AdminShopDetails from './pages/AdminShopDetails.jsx'
 import AdminShops from './pages/AdminShops.jsx'
@@ -233,6 +234,7 @@ function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/shops" element={<AdminShops />} />
           <Route path="/admin/shops/:id" element={<AdminShopDetails />} />
+          <Route path="/admin/backups" element={<AdminBackups />} />
           <Route path="/admin/audit-logs" element={<AuditLogs />} />
           <Route path="/admin/login-activity" element={<LoginActivity />} />
         </Route>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { t } from '../i18n/translations'
 import api from '../services/api'
@@ -141,6 +141,35 @@ function BackupExport() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [exportingKey, setExportingKey] = useState('')
+  const [backupStatus, setBackupStatus] = useState(null)
+  const [backupHistory, setBackupHistory] = useState([])
+  const [restoreHistory, setRestoreHistory] = useState([])
+  const [backupLoading, setBackupLoading] = useState(true)
+  const [backupBusy, setBackupBusy] = useState('')
+  const [restoreFile, setRestoreFile] = useState(null)
+  const [restoreConfirmed, setRestoreConfirmed] = useState(false)
+
+  const loadBackupData = async () => {
+    setBackupLoading(true)
+
+    try {
+      const [statusResponse, historyResponse] = await Promise.all([
+        api.get('/backups/status'),
+        api.get('/backups/history'),
+      ])
+      setBackupStatus(statusResponse.data.status || null)
+      setBackupHistory(historyResponse.data.backups || [])
+      setRestoreHistory(historyResponse.data.restores || [])
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to load backup status'))
+    } finally {
+      setBackupLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadBackupData()
+  }, [])
 
   const applyDates = (event) => {
     event.preventDefault()
@@ -194,8 +223,247 @@ function BackupExport() {
     }
   }
 
+  const downloadBackup = async (backup) => {
+    setBackupBusy(`download-${backup.id}`)
+    setMessage('')
+    setError('')
+
+    try {
+      const response = await api.get(`/backups/${backup.id}/download`, {
+        responseType: 'blob',
+      })
+      const blob = new Blob([response.data], { type: 'application/json' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = backup.file_name || `shopmate-backup-${backup.id}.json`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+      setMessage('Backup downloaded successfully')
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to download backup'))
+    } finally {
+      setBackupBusy('')
+    }
+  }
+
+  const createManualBackup = async () => {
+    setBackupBusy('manual')
+    setMessage('')
+    setError('')
+
+    try {
+      const response = await api.post('/backups/manual')
+      const backup = response.data.backup
+      setMessage('Backup created successfully')
+      await loadBackupData()
+
+      if (backup?.id) {
+        await downloadBackup(backup)
+      }
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to create backup'))
+    } finally {
+      setBackupBusy('')
+    }
+  }
+
+  const restoreBackup = async (event) => {
+    event.preventDefault()
+
+    if (!restoreFile) {
+      setError('Select a backup file to restore')
+      return
+    }
+
+    if (!restoreConfirmed) {
+      setError('Confirm that you understand restore will replace current business data')
+      return
+    }
+
+    setBackupBusy('restore')
+    setMessage('')
+    setError('')
+
+    try {
+      const backupText = await restoreFile.text()
+      await api.post('/backups/restore', {
+        backup: backupText,
+        file_name: restoreFile.name,
+      })
+      setMessage('Backup restored successfully')
+      setRestoreFile(null)
+      setRestoreConfirmed(false)
+      event.target.reset()
+      await loadBackupData()
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to restore backup'))
+    } finally {
+      setBackupBusy('')
+    }
+  }
+
+  const latestBackup = backupStatus?.latest_backup
+  const latestRestore = backupStatus?.latest_restore
+
   return (
     <section className="page-stack">
+      <section className="panel">
+        <div className="section-heading">
+          <h2>{t('Backup / Restore')}</h2>
+          <button type="button" className="ghost-button" onClick={loadBackupData} disabled={backupLoading}>
+            {backupLoading ? t('Refreshing...') : t('Refresh')}
+          </button>
+        </div>
+        <div className="metric-grid report-metrics">
+          <article className="metric-card">
+            <div className="metric-card-heading">
+              <span>{t('Last Backup')}</span>
+              <i aria-hidden="true">B</i>
+            </div>
+            <strong>{latestBackup?.status || t('No records found')}</strong>
+            <span>{latestBackup?.completed_at || latestBackup?.created_at || '-'}</span>
+          </article>
+          <article className="metric-card">
+            <div className="metric-card-heading">
+              <span>{t('Last Restore')}</span>
+              <i aria-hidden="true">R</i>
+            </div>
+            <strong>{latestRestore?.status || t('No records found')}</strong>
+            <span>{latestRestore?.completed_at || latestRestore?.created_at || '-'}</span>
+          </article>
+          <article className="metric-card">
+            <div className="metric-card-heading">
+              <span>{t('Failed Backups')}</span>
+              <i aria-hidden="true">!</i>
+            </div>
+            <strong>{backupStatus?.failed_backup_count || 0}</strong>
+          </article>
+        </div>
+        <div className="topbar-actions">
+          <button type="button" onClick={createManualBackup} disabled={Boolean(backupBusy)}>
+            {backupBusy === 'manual' ? t('Saving...') : t('Create Manual Backup')}
+          </button>
+          {latestBackup?.id && (
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => downloadBackup(latestBackup)}
+              disabled={Boolean(backupBusy)}
+            >
+              {backupBusy === `download-${latestBackup.id}` ? t('Downloading...') : t('Download Latest Backup')}
+            </button>
+          )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <h2>{t('Restore Backup')}</h2>
+        </div>
+        <form className="form-grid" onSubmit={restoreBackup}>
+          <label>
+            {t('Backup File')}
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={(event) => setRestoreFile(event.target.files?.[0] || null)}
+            />
+          </label>
+          <label className="checkbox-label">
+            <input
+              type="checkbox"
+              checked={restoreConfirmed}
+              onChange={(event) => setRestoreConfirmed(event.target.checked)}
+            />
+            {t('I understand restore replaces current shop business data.')}
+          </label>
+          <button type="submit" disabled={Boolean(backupBusy)}>
+            {backupBusy === 'restore' ? t('Restoring...') : t('Restore Backup')}
+          </button>
+        </form>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <h2>{t('Backup History')}</h2>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>{t('Date')}</th>
+                <th>{t('Status')}</th>
+                <th>{t('Records')}</th>
+                <th>{t('File')}</th>
+                <th>{t('Action')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {backupHistory.map((backup) => (
+                <tr key={backup.id}>
+                  <td>{backup.completed_at || backup.created_at}</td>
+                  <td>{backup.status}</td>
+                  <td>{backup.record_count}</td>
+                  <td>{backup.file_name || '-'}</td>
+                  <td>
+                    {backup.status === 'completed' ? (
+                      <button
+                        type="button"
+                        className="ghost-button"
+                        onClick={() => downloadBackup(backup)}
+                        disabled={Boolean(backupBusy)}
+                      >
+                        {t('Download')}
+                      </button>
+                    ) : (
+                      backup.error_message || '-'
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {backupHistory.length === 0 && (
+                <tr>
+                  <td colSpan="5">{t('No records found')}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {restoreHistory.length > 0 && (
+        <section className="panel">
+          <div className="section-heading">
+            <h2>{t('Restore History')}</h2>
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('Date')}</th>
+                  <th>{t('Status')}</th>
+                  <th>{t('Records')}</th>
+                  <th>{t('File')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {restoreHistory.map((restore) => (
+                  <tr key={restore.id}>
+                    <td>{restore.completed_at || restore.created_at}</td>
+                    <td>{restore.status}</td>
+                    <td>{restore.record_count}</td>
+                    <td>{restore.source_file_name || restore.error_message || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
       <section className="panel">
         <div className="section-heading">
           <h2>{t('backupExport')}</h2>

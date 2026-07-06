@@ -16,6 +16,7 @@ const {
   updateShopUser,
   updateSubscription,
 } = require("../controllers/adminController");
+const { getAdminBackupStatus } = require("../controllers/backupController");
 const { getAuditLogs } = require("../controllers/auditLogController");
 const { getLoginActivity } = require("../controllers/loginActivityController");
 const { getNotifications } = require("../controllers/notificationController");
@@ -27,6 +28,7 @@ const router = express.Router();
 router.use(authMiddleware, allowRoles("admin"));
 
 router.get("/summary", getSummary);
+router.get("/backups/status", getAdminBackupStatus);
 router.get("/audit-logs", getAuditLogs);
 router.get("/login-activity", getLoginActivity);
 router.get("/notifications", getNotifications);

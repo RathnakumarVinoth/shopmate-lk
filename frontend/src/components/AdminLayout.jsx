@@ -98,6 +98,13 @@ function AdminLayout() {
             Shops
           </NavLink>
           <NavLink
+            to="/admin/backups"
+            className={({ isActive }) => (isActive ? 'active' : '')}
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            {t('Backup Status')}
+          </NavLink>
+          <NavLink
             to="/admin/audit-logs"
             className={({ isActive }) => (isActive ? 'active' : '')}
             onClick={() => setMobileMenuOpen(false)}

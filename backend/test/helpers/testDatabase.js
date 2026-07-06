@@ -37,6 +37,8 @@ async function resetTestDatabase(db) {
 
   await db.query("SET FOREIGN_KEY_CHECKS = 0");
   const tables = [
+    "restore_jobs",
+    "backup_jobs",
     "payment_verifications",
     "buying_price_history",
     "stock_reconciliation_items",
@@ -579,6 +581,52 @@ async function resetTestDatabase(db) {
       ip_address VARCHAR(100) NULL,
       user_agent TEXT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE backup_jobs (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      shop_id INT NOT NULL,
+      requested_by INT NULL,
+      backup_type VARCHAR(30) NOT NULL DEFAULT 'manual',
+      status VARCHAR(30) NOT NULL DEFAULT 'pending',
+      storage_type VARCHAR(30) NULL,
+      file_name VARCHAR(255) NULL,
+      file_path TEXT NULL,
+      backup_data LONGTEXT NULL,
+      checksum VARCHAR(128) NULL,
+      size_bytes BIGINT NOT NULL DEFAULT 0,
+      record_count INT NOT NULL DEFAULT 0,
+      started_at DATETIME NULL,
+      completed_at DATETIME NULL,
+      error_message TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_backup_jobs_shop_created (shop_id, created_at),
+      INDEX idx_backup_jobs_status (status),
+      INDEX idx_backup_jobs_requested_by (requested_by)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE restore_jobs (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      shop_id INT NOT NULL,
+      requested_by INT NULL,
+      backup_job_id INT NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'pending',
+      source_file_name VARCHAR(255) NULL,
+      checksum VARCHAR(128) NULL,
+      record_count INT NOT NULL DEFAULT 0,
+      started_at DATETIME NULL,
+      completed_at DATETIME NULL,
+      error_message TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_restore_jobs_shop_created (shop_id, created_at),
+      INDEX idx_restore_jobs_status (status),
+      INDEX idx_restore_jobs_requested_by (requested_by)
     )
   `);
 }
