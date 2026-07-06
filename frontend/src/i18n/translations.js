@@ -776,6 +776,14 @@ const legacyKeys = Object.entries(en).reduce((aliases, [key, value]) => {
 }, {})
 
 const extraEn = {
+  'Failed to load receipt': 'Failed to load receipt',
+  'Failed to load sales history': 'Failed to load sales history',
+  'Reprint Receipt': 'Reprint Receipt',
+  'Sales history is unavailable while offline.': 'Sales history is unavailable while offline.',
+  'Show Cashier on Receipt': 'Show Cashier on Receipt',
+  'Show Discounts on Receipt': 'Show Discounts on Receipt',
+  'Show Logo on Receipt': 'Show Logo on Receipt',
+  'Show Tax on Receipt': 'Show Tax on Receipt',
   'Channel': 'Channel',
   'Delivery Logs': 'Delivery Logs',
   'Email': 'Email',

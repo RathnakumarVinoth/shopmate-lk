@@ -19,6 +19,10 @@ const initialForm = {
   tax_percentage: '0',
   logo_url: '',
   default_receipt_size: '80mm',
+  receipt_show_logo: true,
+  receipt_show_tax: true,
+  receipt_show_discounts: true,
+  receipt_show_cashier: true,
   language: 'en',
   idle_timeout_minutes: '15',
   background_logout_minutes: '3',
@@ -37,6 +41,10 @@ const settingsToForm = (settings) => ({
   default_receipt_size: receiptSizes.includes(settings.default_receipt_size)
     ? settings.default_receipt_size
     : '80mm',
+  receipt_show_logo: settings.receipt_show_logo !== false,
+  receipt_show_tax: settings.receipt_show_tax !== false,
+  receipt_show_discounts: settings.receipt_show_discounts !== false,
+  receipt_show_cashier: settings.receipt_show_cashier !== false,
   language: languageOptions.some((language) => language.value === settings.language)
     ? settings.language
     : getLanguage(),
@@ -81,13 +89,16 @@ function Settings() {
   }, [])
 
   const updateField = (event) => {
-    const { name, value } = event.target
+    const { name, value, checked, type } = event.target
 
     if (name === 'language') {
       setLanguage(value)
     }
 
-    setForm((current) => ({ ...current, [name]: value }))
+    setForm((current) => ({
+      ...current,
+      [name]: type === 'checkbox' ? checked : value,
+    }))
   }
 
   const updatePasswordField = (event) => {
@@ -205,6 +216,42 @@ function Settings() {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="checkbox-row">
+              <input
+                name="receipt_show_logo"
+                type="checkbox"
+                checked={form.receipt_show_logo}
+                onChange={updateField}
+              />
+              {t('Show Logo on Receipt')}
+            </label>
+            <label className="checkbox-row">
+              <input
+                name="receipt_show_tax"
+                type="checkbox"
+                checked={form.receipt_show_tax}
+                onChange={updateField}
+              />
+              {t('Show Tax on Receipt')}
+            </label>
+            <label className="checkbox-row">
+              <input
+                name="receipt_show_discounts"
+                type="checkbox"
+                checked={form.receipt_show_discounts}
+                onChange={updateField}
+              />
+              {t('Show Discounts on Receipt')}
+            </label>
+            <label className="checkbox-row">
+              <input
+                name="receipt_show_cashier"
+                type="checkbox"
+                checked={form.receipt_show_cashier}
+                onChange={updateField}
+              />
+              {t('Show Cashier on Receipt')}
             </label>
           </div>
         </section>

@@ -1444,6 +1444,15 @@ th {
   font-size: 20px;
 }
 
+.receipt-logo {
+  display: block;
+  width: auto;
+  max-width: 110px;
+  max-height: 72px;
+  margin: 0 auto 6px;
+  object-fit: contain;
+}
+
 .receipt-customer {
   display: grid;
   gap: 4px;
@@ -2310,6 +2319,11 @@ th {
     width: 100%;
     max-height: none;
     box-shadow: none;
+  }
+
+  .receipt-logo {
+    max-width: 90px;
+    max-height: 58px;
   }
 
   .no-print {

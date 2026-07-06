@@ -36,6 +36,10 @@ const shopToForm = (shop) => ({
   default_low_stock_limit: String(shop?.default_low_stock_limit ?? 5),
   tax_percentage: String(shop?.tax_percentage ?? 0),
   default_receipt_size: shop?.default_receipt_size || '80mm',
+  receipt_show_logo: shop?.receipt_show_logo !== false,
+  receipt_show_tax: shop?.receipt_show_tax !== false,
+  receipt_show_discounts: shop?.receipt_show_discounts !== false,
+  receipt_show_cashier: shop?.receipt_show_cashier !== false,
   language: shop?.language || 'en',
   subscription_plan: shop?.subscription_plan || 'starter',
   subscription_status: shop?.subscription_status || 'trial',
@@ -470,6 +474,22 @@ function AdminShopDetails() {
               <option value="58mm">58mm</option>
               <option value="80mm">80mm</option>
             </select>
+          </label>
+          <label className="checkbox-row">
+            <input name="receipt_show_logo" type="checkbox" checked={shopForm.receipt_show_logo} onChange={updateShopField} />
+            {t('Show Logo on Receipt')}
+          </label>
+          <label className="checkbox-row">
+            <input name="receipt_show_tax" type="checkbox" checked={shopForm.receipt_show_tax} onChange={updateShopField} />
+            {t('Show Tax on Receipt')}
+          </label>
+          <label className="checkbox-row">
+            <input name="receipt_show_discounts" type="checkbox" checked={shopForm.receipt_show_discounts} onChange={updateShopField} />
+            {t('Show Discounts on Receipt')}
+          </label>
+          <label className="checkbox-row">
+            <input name="receipt_show_cashier" type="checkbox" checked={shopForm.receipt_show_cashier} onChange={updateShopField} />
+            {t('Show Cashier on Receipt')}
           </label>
           <label>
             {t('Plan')}

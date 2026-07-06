@@ -199,6 +199,28 @@ const formatSaleItem = (item) => ({
   profit: Number(item.profit),
 });
 
+const canViewSaleCosts = (user) =>
+  user?.role === "owner" || user?.role === "admin";
+
+const formatSaleForResponse = (sale, user) => {
+  const formatted = formatSale(sale);
+  if (canViewSaleCosts(user)) return formatted;
+
+  const safeSale = { ...formatted };
+  delete safeSale.total_profit;
+  return safeSale;
+};
+
+const formatSaleItemForResponse = (item, user) => {
+  const formatted = formatSaleItem(item);
+  if (canViewSaleCosts(user)) return formatted;
+
+  const safeItem = { ...formatted };
+  delete safeItem.buying_price;
+  delete safeItem.profit;
+  return safeItem;
+};
+
 const buildReceipt = ({ sale, shop, customer, items }) => {
   const formattedSale = formatSale(sale);
   const receiptItems = items.map(formatSaleItem);
@@ -230,6 +252,12 @@ const buildReceipt = ({ sale, shop, customer, items }) => {
     currency: shop?.currency || "LKR",
     logo_url: shop?.logo_url || null,
     default_receipt_size: shop?.default_receipt_size || "80mm",
+    receipt_show_logo: Boolean(Number(shop?.receipt_show_logo ?? 1)),
+    receipt_show_tax: Boolean(Number(shop?.receipt_show_tax ?? 1)),
+    receipt_show_discounts: Boolean(
+      Number(shop?.receipt_show_discounts ?? 1)
+    ),
+    receipt_show_cashier: Boolean(Number(shop?.receipt_show_cashier ?? 1)),
     items: receiptItems.map((item) => ({
       product_id: item.product_id,
       product_name: item.product_name,
@@ -327,7 +355,8 @@ exports.createSale = async (req, res) => {
 
     const [shops] = await connection.query(
       `SELECT shop_name, phone, email, address, receipt_footer, currency, logo_url,
-              default_receipt_size, tax_percentage
+              default_receipt_size, receipt_show_logo, receipt_show_tax,
+              receipt_show_discounts, receipt_show_cashier, tax_percentage
        FROM shops
        WHERE id = ?
        LIMIT 1`,
@@ -670,7 +699,7 @@ exports.createSale = async (req, res) => {
       message: "Sale created successfully",
       receipt,
       sale: {
-        ...formatSale(sales[0]),
+        ...formatSaleForResponse(sales[0], req.user),
         subtotal,
         item_discount_total: itemDiscountTotal,
         bill_discount: requestedBillDiscount,
@@ -679,7 +708,9 @@ exports.createSale = async (req, res) => {
         tax_amount: taxAmount,
         total_before_tax: totalBeforeTax,
         items_total: subtotal,
-        items: finalSaleItems.map(formatSaleItem),
+        items: finalSaleItems.map((item) =>
+          formatSaleItemForResponse(item, req.user)
+        ),
         credit_record_id: creditRecordId,
       },
     });
@@ -731,7 +762,7 @@ exports.getSales = async (req, res) => {
 
     return res.json({
       message: "Sales fetched successfully",
-      sales: sales.map(formatSale),
+      sales: sales.map((sale) => formatSaleForResponse(sale, req.user)),
     });
   } catch (error) {
     console.error("Get sales error:", error.message);
@@ -756,6 +787,8 @@ exports.getSaleById = async (req, res) => {
               shops.shop_name, shops.phone, shops.email, shops.address,
               shops.receipt_footer, shops.currency, shops.logo_url,
               shops.default_receipt_size,
+              shops.receipt_show_logo, shops.receipt_show_tax,
+              shops.receipt_show_discounts, shops.receipt_show_cashier,
               sales.cashier_name,
               customers.customer_name, customers.phone AS customer_phone,
               customers.address AS customer_address
@@ -807,9 +840,9 @@ exports.getSaleById = async (req, res) => {
       message: "Sale fetched successfully",
       receipt,
       sale: {
-        ...formatSale(sales[0]),
+        ...formatSaleForResponse(sales[0], req.user),
         items_total: receipt.total_before_discount,
-        items: items.map(formatSaleItem),
+        items: items.map((item) => formatSaleItemForResponse(item, req.user)),
       },
     });
   } catch (error) {

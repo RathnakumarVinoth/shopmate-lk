@@ -49,6 +49,22 @@ const receiptBrandingSubline = 'POS & Stock Management'
 
 const normalizeReceiptSize = (value) => (receiptSizes.includes(value) ? value : '80mm')
 
+const normalizeReceiptFlag = (value, fallback = true) => {
+  if (value === undefined || value === null) return fallback
+  return ![false, 0, '0', 'false'].includes(value)
+}
+
+const getSafeLogoUrl = (value) => {
+  if (!value || typeof window === 'undefined') return ''
+
+  try {
+    const url = new URL(String(value), window.location.origin)
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : ''
+  } catch {
+    return ''
+  }
+}
+
 const escapeHtml = (value) =>
   String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -123,6 +139,22 @@ const getReceiptDetails = (receipt) => {
   const defaultReceiptSize = normalizeReceiptSize(
     receipt?.default_receipt_size || settings.default_receipt_size,
   )
+  const showLogo = normalizeReceiptFlag(
+    receipt?.receipt_show_logo,
+    normalizeReceiptFlag(settings.receipt_show_logo),
+  )
+  const showTax = normalizeReceiptFlag(
+    receipt?.receipt_show_tax,
+    normalizeReceiptFlag(settings.receipt_show_tax),
+  )
+  const showDiscounts = normalizeReceiptFlag(
+    receipt?.receipt_show_discounts,
+    normalizeReceiptFlag(settings.receipt_show_discounts),
+  )
+  const showCashier = normalizeReceiptFlag(
+    receipt?.receipt_show_cashier,
+    normalizeReceiptFlag(settings.receipt_show_cashier),
+  )
   const balanceLabel =
     paymentType === 'credit' ? t('creditBalance') : balanceAmount < 0 ? t('balanceDue') : t('change')
 
@@ -139,7 +171,13 @@ const getReceiptDetails = (receipt) => {
     shopPhone: receipt?.shop_phone || settings.phone || '',
     shopEmail: receipt?.shop_email || settings.email || '',
     shopAddress: receipt?.shop_address || settings.address || '',
-    logoUrl: receipt?.logo_url || settings.logo_url || '',
+    logoUrl: showLogo
+      ? getSafeLogoUrl(receipt?.logo_url || settings.logo_url || '')
+      : '',
+    showLogo,
+    showTax,
+    showDiscounts,
+    showCashier,
     receiptFooter,
     defaultReceiptSize,
     currency,
@@ -214,6 +252,8 @@ const generateInvoicePDF = (receipt) => {
   }
   doc.text(`Invoice: ${details.invoiceNo}`, 14, metaY)
   metaY += 8
+  doc.text(`Sale ID: ${details.saleId}`, 14, metaY)
+  metaY += 8
   if (details.offlinePending) {
     doc.text('OFFLINE SALE - Pending Sync', 14, metaY)
     metaY += 8
@@ -221,7 +261,7 @@ const generateInvoicePDF = (receipt) => {
   doc.text(`Date: ${formatDateTime(details.createdAt)}`, 14, metaY)
   metaY += 8
   doc.text(`${t('paymentMethod')}: ${details.paymentType}`, 14, metaY)
-  if (details.billedBy) {
+  if (details.showCashier && details.billedBy) {
     metaY += 8
     doc.text(`${t('Billed by')}: ${details.billedBy}`, 14, metaY)
   }
@@ -236,11 +276,20 @@ const generateInvoicePDF = (receipt) => {
 
   autoTable(doc, {
     startY: metaY + 10,
-    head: [['Item', 'Qty', 'Unit Price', 'Subtotal']],
+    head: [[
+      'Item',
+      'Qty',
+      'Unit Price',
+      ...(details.showDiscounts ? ['Discount'] : []),
+      'Subtotal',
+    ]],
     body: details.items.map((item) => [
       item.product_name || 'Item',
       formatQuantity(item),
       formatCurrency(item.selling_price, details.currency),
+      ...(details.showDiscounts
+        ? [formatCurrency(item.item_discount, details.currency)]
+        : []),
       formatCurrency(item.subtotal, details.currency),
     ]),
     styles: { fontSize: 9 },
@@ -250,11 +299,19 @@ const generateInvoicePDF = (receipt) => {
   const finalY = doc.lastAutoTable?.finalY || 70
   const totals = [
     [t('Subtotal'), formatCurrency(details.subtotal, details.currency)],
-    [t('Item Discount Total'), formatCurrency(details.itemDiscountTotal, details.currency)],
-    [t('Bill Discount'), formatCurrency(details.billDiscount, details.currency)],
-    [t('Total Before Tax'), formatCurrency(details.totalBeforeTax, details.currency)],
-    [t('Tax Percentage'), `${details.taxPercentage}%`],
-    [t('Tax Amount'), formatCurrency(details.taxAmount, details.currency)],
+    ...(details.showDiscounts
+      ? [
+          [t('Item Discount Total'), formatCurrency(details.itemDiscountTotal, details.currency)],
+          [t('Bill Discount'), formatCurrency(details.billDiscount, details.currency)],
+        ]
+      : []),
+    ...(details.showTax
+      ? [
+          [t('Total Before Tax'), formatCurrency(details.totalBeforeTax, details.currency)],
+          [t('Tax Percentage'), `${details.taxPercentage}%`],
+          [t('Tax Amount'), formatCurrency(details.taxAmount, details.currency)],
+        ]
+      : []),
     [t('Final Total'), formatCurrency(details.finalTotal, details.currency)],
     [t('paid'), formatCurrency(details.paidAmount, details.currency)],
     [details.balanceLabel, formatCurrency(Math.abs(details.balanceAmount), details.currency)],
@@ -287,7 +344,11 @@ const shareInvoiceWhatsApp = (receipt) => {
     .slice(0, 8)
     .map(
       (item) =>
-        `- ${item.product_name || 'Item'} x ${formatQuantity(item)} = ${formatCurrency(
+        `- ${item.product_name || 'Item'} x ${formatQuantity(item)}${
+          details.showDiscounts && Number(item.item_discount || 0) > 0
+            ? `, Discount ${formatCurrency(item.item_discount, details.currency)}`
+            : ''
+        } = ${formatCurrency(
           item.subtotal,
           details.currency,
         )}`,
@@ -301,10 +362,11 @@ const shareInvoiceWhatsApp = (receipt) => {
     details.customerName ? `Customer: ${details.customerName}` : '',
     details.customerPhone ? `Customer Phone: ${details.customerPhone}` : '',
     `Invoice: ${details.invoiceNo}`,
+    `Sale ID: ${details.saleId}`,
     details.offlinePending ? 'OFFLINE SALE - Pending Sync' : '',
     `Date: ${formatDateTime(details.createdAt)}`,
     `Payment: ${details.paymentType}`,
-    details.billedBy ? `Billed by: ${details.billedBy}` : '',
+    details.showCashier && details.billedBy ? `Billed by: ${details.billedBy}` : '',
     details.paymentReference ? `Reference: ${details.paymentReference}` : '',
     details.paymentType === 'card' && details.cardLastFour
       ? `Card Last 4: ${details.cardLastFour}`
@@ -315,10 +377,18 @@ const shareInvoiceWhatsApp = (receipt) => {
     moreItems,
     '',
     `Subtotal: ${formatCurrency(details.subtotal, details.currency)}`,
-    `Item Discount Total: ${formatCurrency(details.itemDiscountTotal, details.currency)}`,
-    `Bill Discount: ${formatCurrency(details.billDiscount, details.currency)}`,
-    `Total Before Tax: ${formatCurrency(details.totalBeforeTax, details.currency)}`,
-    `Tax (${details.taxPercentage}%): ${formatCurrency(details.taxAmount, details.currency)}`,
+    details.showDiscounts
+      ? `Item Discount Total: ${formatCurrency(details.itemDiscountTotal, details.currency)}`
+      : '',
+    details.showDiscounts
+      ? `Bill Discount: ${formatCurrency(details.billDiscount, details.currency)}`
+      : '',
+    details.showTax
+      ? `Total Before Tax: ${formatCurrency(details.totalBeforeTax, details.currency)}`
+      : '',
+    details.showTax
+      ? `Tax (${details.taxPercentage}%): ${formatCurrency(details.taxAmount, details.currency)}`
+      : '',
     `Final Total: ${formatCurrency(details.finalTotal, details.currency)}`,
     `Paid: ${formatCurrency(details.paidAmount, details.currency)}`,
     `${details.balanceLabel}: ${formatCurrency(
@@ -340,10 +410,17 @@ const printReceipt = (receipt) => {
     .map(
       (item) => `
         <tr>
-          <td>${item.product_name || 'Item'}</td>
-          <td>${formatQuantity(item)}</td>
-          <td>${formatCurrency(item.selling_price, details.currency)}</td>
-          <td>${formatCurrency(item.subtotal, details.currency)}</td>
+          <td>${escapeHtml(item.product_name || 'Item')}</td>
+          <td>${escapeHtml(formatQuantity(item))}</td>
+          <td>${escapeHtml(formatCurrency(item.selling_price, details.currency))}</td>
+          ${
+            details.showDiscounts
+              ? `<td>${escapeHtml(
+                  formatCurrency(item.item_discount, details.currency),
+                )}</td>`
+              : ''
+          }
+          <td>${escapeHtml(formatCurrency(item.subtotal, details.currency))}</td>
         </tr>
       `,
     )
@@ -359,11 +436,12 @@ const printReceipt = (receipt) => {
   printWindow.document.write(`
     <html>
       <head>
-        <title>${details.invoiceNo}</title>
+        <title>${escapeHtml(details.invoiceNo)}</title>
         <style>
           body { font-family: Arial, sans-serif; color: #111827; padding: 18px; }
           .header { text-align: center; margin-bottom: 16px; }
           .header strong { display: block; font-size: 18px; margin-bottom: 6px; }
+          .logo { display: block; width: auto; max-width: 92px; max-height: 64px; margin: 0 auto 8px; object-fit: contain; }
           .meta { color: #4b5563; font-size: 12px; line-height: 1.5; }
           table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; }
           th, td { border-bottom: 1px solid #e5e7eb; padding: 7px 4px; text-align: left; }
@@ -378,55 +456,99 @@ const printReceipt = (receipt) => {
       </head>
       <body>
         <div class="header">
-          <strong>${details.shopName}</strong>
-          ${details.shopAddress ? `<div class="meta">${details.shopAddress}</div>` : ''}
-          ${details.shopPhone ? `<div class="meta">Phone: ${details.shopPhone}</div>` : ''}
-          ${details.shopEmail ? `<div class="meta">Email: ${details.shopEmail}</div>` : ''}
-          ${details.customerName ? `<div class="meta">Customer: ${details.customerName}</div>` : ''}
-          ${details.customerPhone ? `<div class="meta">Customer Phone: ${details.customerPhone}</div>` : ''}
-          ${details.customerAddress ? `<div class="meta">Customer Address: ${details.customerAddress}</div>` : ''}
-          <div class="meta">Invoice: ${details.invoiceNo}</div>
+          ${
+            details.showLogo && details.logoUrl
+              ? `<img class="logo" src="${escapeHtml(details.logoUrl)}" alt="">`
+              : ''
+          }
+          <strong>${escapeHtml(details.shopName)}</strong>
+          ${details.shopAddress ? `<div class="meta">${escapeHtml(details.shopAddress)}</div>` : ''}
+          ${details.shopPhone ? `<div class="meta">Phone: ${escapeHtml(details.shopPhone)}</div>` : ''}
+          ${details.shopEmail ? `<div class="meta">Email: ${escapeHtml(details.shopEmail)}</div>` : ''}
+          ${details.customerName ? `<div class="meta">Customer: ${escapeHtml(details.customerName)}</div>` : ''}
+          ${details.customerPhone ? `<div class="meta">Customer Phone: ${escapeHtml(details.customerPhone)}</div>` : ''}
+          ${details.customerAddress ? `<div class="meta">Customer Address: ${escapeHtml(details.customerAddress)}</div>` : ''}
+          <div class="meta">Invoice: ${escapeHtml(details.invoiceNo)}</div>
+          <div class="meta">Sale ID: ${escapeHtml(details.saleId)}</div>
           ${details.offlinePending ? '<div class="meta"><strong>OFFLINE SALE - Pending Sync</strong></div>' : ''}
-          <div class="meta">Date: ${formatDateTime(details.createdAt)}</div>
-          <div class="meta">${t('paymentMethod')}: ${details.paymentType}</div>
-          ${details.billedBy ? `<div class="meta">${t('Billed by')}: ${details.billedBy}</div>` : ''}
-          ${details.paymentReference ? `<div class="meta">Reference: ${details.paymentReference}</div>` : ''}
+          <div class="meta">Date: ${escapeHtml(formatDateTime(details.createdAt))}</div>
+          <div class="meta">${escapeHtml(t('paymentMethod'))}: ${escapeHtml(details.paymentType)}</div>
+          ${
+            details.showCashier && details.billedBy
+              ? `<div class="meta">${escapeHtml(t('Billed by'))}: ${escapeHtml(details.billedBy)}</div>`
+              : ''
+          }
+          ${details.paymentReference ? `<div class="meta">Reference: ${escapeHtml(details.paymentReference)}</div>` : ''}
           ${
             details.paymentType === 'card' && details.cardLastFour
-              ? `<div class="meta">Card Last 4: ${details.cardLastFour}</div>`
+              ? `<div class="meta">Card Last 4: ${escapeHtml(details.cardLastFour)}</div>`
               : ''
           }
         </div>
         <table>
           <thead>
-            <tr><th>${t('Product')}</th><th>${t('Quantity')}</th><th>${t('Price')}</th><th>${t('total')}</th></tr>
+            <tr>
+              <th>${escapeHtml(t('Product'))}</th>
+              <th>${escapeHtml(t('Quantity'))}</th>
+              <th>${escapeHtml(t('Price'))}</th>
+              ${details.showDiscounts ? `<th>${escapeHtml(t('Discount'))}</th>` : ''}
+              <th>${escapeHtml(t('total'))}</th>
+            </tr>
           </thead>
           <tbody>${rows}</tbody>
         </table>
         <div class="totals">
-          <div><span>${t('Subtotal')}</span><strong>${formatCurrency(details.subtotal, details.currency)}</strong></div>
-          <div><span>${t('Item Discount Total')}</span><strong>${formatCurrency(details.itemDiscountTotal, details.currency)}</strong></div>
-          <div><span>${t('Bill Discount')}</span><strong>${formatCurrency(details.billDiscount, details.currency)}</strong></div>
-          <div><span>${t('Total Before Tax')}</span><strong>${formatCurrency(details.totalBeforeTax, details.currency)}</strong></div>
-          <div><span>${t('Tax Percentage')}</span><strong>${details.taxPercentage}%</strong></div>
-          <div><span>${t('Tax Amount')}</span><strong>${formatCurrency(details.taxAmount, details.currency)}</strong></div>
-          <div class="total"><span>${t('Final Total')}</span><strong>${formatCurrency(details.finalTotal, details.currency)}</strong></div>
-          <div><span>${t('paid')}</span><strong>${formatCurrency(details.paidAmount, details.currency)}</strong></div>
-          <div><span>${details.balanceLabel}</span><strong>${formatCurrency(
+          <div><span>${escapeHtml(t('Subtotal'))}</span><strong>${escapeHtml(
+            formatCurrency(details.subtotal, details.currency),
+          )}</strong></div>
+          ${
+            details.showDiscounts
+              ? `<div><span>${escapeHtml(t('Item Discount Total'))}</span><strong>${escapeHtml(
+                  formatCurrency(details.itemDiscountTotal, details.currency),
+                )}</strong></div>
+                 <div><span>${escapeHtml(t('Bill Discount'))}</span><strong>${escapeHtml(
+                   formatCurrency(details.billDiscount, details.currency),
+                 )}</strong></div>`
+              : ''
+          }
+          ${
+            details.showTax
+              ? `<div><span>${escapeHtml(t('Total Before Tax'))}</span><strong>${escapeHtml(
+                  formatCurrency(details.totalBeforeTax, details.currency),
+                )}</strong></div>
+                 <div><span>${escapeHtml(t('Tax Percentage'))}</span><strong>${escapeHtml(
+                   details.taxPercentage,
+                 )}%</strong></div>
+                 <div><span>${escapeHtml(t('Tax Amount'))}</span><strong>${escapeHtml(
+                   formatCurrency(details.taxAmount, details.currency),
+                 )}</strong></div>`
+              : ''
+          }
+          <div class="total"><span>${escapeHtml(t('Final Total'))}</span><strong>${escapeHtml(
+            formatCurrency(details.finalTotal, details.currency),
+          )}</strong></div>
+          <div><span>${escapeHtml(t('paid'))}</span><strong>${escapeHtml(
+            formatCurrency(details.paidAmount, details.currency),
+          )}</strong></div>
+          <div><span>${escapeHtml(details.balanceLabel)}</span><strong>${escapeHtml(formatCurrency(
             Math.abs(details.balanceAmount),
             details.currency,
-          )}</strong></div>
+          ))}</strong></div>
         </div>
         <div class="footer">
-          <div>${details.receiptFooter}</div>
-          <div class="powered">${t(receiptBrandingLine)}<span>${t(receiptBrandingSubline)}</span></div>
+          <div>${escapeHtml(details.receiptFooter)}</div>
+          <div class="powered">${escapeHtml(t(receiptBrandingLine))}<span>${escapeHtml(t(receiptBrandingSubline))}</span></div>
         </div>
+        <script>
+          window.onload = function () {
+            window.focus();
+            window.print();
+          };
+        </script>
       </body>
     </html>
   `)
   printWindow.document.close()
-  printWindow.focus()
-  printWindow.print()
 }
 
 const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
@@ -436,7 +558,16 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
     .map(
       (item) => `
         <tr>
-          <td class="item-name">${escapeHtml(item.product_name || 'Item')}</td>
+          <td class="item-name">
+            ${escapeHtml(item.product_name || 'Item')}
+            ${
+              details.showDiscounts && Number(item.item_discount || 0) > 0
+                ? `<div class="muted">${escapeHtml(t('Discount'))}: ${escapeHtml(
+                    formatCurrency(item.item_discount, details.currency),
+                  )}</div>`
+                : ''
+            }
+          </td>
           <td class="num">${escapeHtml(formatQuantity(item))}</td>
           <td class="num">${escapeHtml(formatCurrency(item.selling_price, details.currency))}</td>
           <td class="num">${escapeHtml(formatCurrency(item.subtotal, details.currency))}</td>
@@ -473,6 +604,7 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
           }
           .center { text-align: center; }
           .shop-name { display: block; font-size: ${width === '58mm' ? '13px' : '15px'}; margin-bottom: 3px; }
+          .logo { display: block; width: auto; max-width: ${width === '58mm' ? '32mm' : '42mm'}; max-height: 18mm; margin: 0 auto 4px; object-fit: contain; }
           .muted { font-size: ${width === '58mm' ? '9px' : '10px'}; }
           .powered { display: block; margin-top: 3px; font-size: ${width === '58mm' ? '8px' : '9px'}; }
           .line { border-top: 1px dashed #000; margin: 6px 0; }
@@ -493,6 +625,11 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
       <body>
         <main class="receipt">
           <header class="center">
+            ${
+              details.showLogo && details.logoUrl
+                ? `<img class="logo" src="${escapeHtml(details.logoUrl)}" alt="">`
+                : ''
+            }
             <strong class="shop-name">${escapeHtml(details.shopName)}</strong>
             ${details.shopAddress ? `<div>${escapeHtml(details.shopAddress)}</div>` : ''}
             ${details.shopPhone ? `<div>Phone: ${escapeHtml(details.shopPhone)}</div>` : ''}
@@ -501,13 +638,18 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
           <div class="line"></div>
           <section>
             <div class="row"><span>${escapeHtml(t('Invoice'))}</span><strong>${escapeHtml(details.invoiceNo)}</strong></div>
+            <div class="row"><span>${escapeHtml(t('Sale ID'))}</span><span>${escapeHtml(details.saleId)}</span></div>
             ${
               details.offlinePending
                 ? `<div class="center"><strong>${escapeHtml('OFFLINE SALE - Pending Sync')}</strong></div>`
                 : ''
             }
             <div class="row"><span>${escapeHtml(t('Date'))}</span><span>${escapeHtml(formatDateTime(details.createdAt))}</span></div>
-            ${details.billedBy ? `<div>${escapeHtml(t('Billed by'))}: ${escapeHtml(details.billedBy)}</div>` : ''}
+            ${
+              details.showCashier && details.billedBy
+                ? `<div>${escapeHtml(t('Billed by'))}: ${escapeHtml(details.billedBy)}</div>`
+                : ''
+            }
             ${
               details.customerName
                 ? `<div>Customer: ${escapeHtml(details.customerName)}</div>`
@@ -538,18 +680,26 @@ const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
             <div class="row"><span>${escapeHtml(t('Subtotal'))}</span><span>${escapeHtml(
               formatCurrency(details.subtotal, details.currency),
             )}</span></div>
-            <div class="row"><span>${escapeHtml(t('Item Discount Total'))}</span><span>${escapeHtml(
-              formatCurrency(details.itemDiscountTotal, details.currency),
-            )}</span></div>
-            <div class="row"><span>${escapeHtml(t('Bill Discount'))}</span><span>${escapeHtml(
-              formatCurrency(details.billDiscount, details.currency),
-            )}</span></div>
-            <div class="row"><span>${escapeHtml(t('Total Before Tax'))}</span><span>${escapeHtml(
-              formatCurrency(details.totalBeforeTax, details.currency),
-            )}</span></div>
-            <div class="row"><span>${escapeHtml(t('Tax'))} ${escapeHtml(String(details.taxPercentage))}%</span><span>${escapeHtml(
-              formatCurrency(details.taxAmount, details.currency),
-            )}</span></div>
+            ${
+              details.showDiscounts
+                ? `<div class="row"><span>${escapeHtml(t('Item Discount Total'))}</span><span>${escapeHtml(
+                    formatCurrency(details.itemDiscountTotal, details.currency),
+                  )}</span></div>
+                   <div class="row"><span>${escapeHtml(t('Bill Discount'))}</span><span>${escapeHtml(
+                     formatCurrency(details.billDiscount, details.currency),
+                   )}</span></div>`
+                : ''
+            }
+            ${
+              details.showTax
+                ? `<div class="row"><span>${escapeHtml(t('Total Before Tax'))}</span><span>${escapeHtml(
+                    formatCurrency(details.totalBeforeTax, details.currency),
+                  )}</span></div>
+                   <div class="row"><span>${escapeHtml(t('Tax'))} ${escapeHtml(String(details.taxPercentage))}%</span><span>${escapeHtml(
+                     formatCurrency(details.taxAmount, details.currency),
+                   )}</span></div>`
+                : ''
+            }
             <div class="row grand-total"><span>${escapeHtml(t('Final Total'))}</span><span>${escapeHtml(
               formatCurrency(details.finalTotal, details.currency),
             )}</span></div>
@@ -614,6 +764,10 @@ function POS() {
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [thermalReceiptSize, setThermalReceiptSize] = useState('80mm')
+  const [showSalesHistory, setShowSalesHistory] = useState(false)
+  const [salesHistory, setSalesHistory] = useState([])
+  const [loadingSalesHistory, setLoadingSalesHistory] = useState(false)
+  const [loadingReceiptId, setLoadingReceiptId] = useState(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loadingProducts, setLoadingProducts] = useState(true)
@@ -678,6 +832,42 @@ function POS() {
       setLoadingCustomers(false)
     }
   }, [user.role])
+
+  const openSalesHistory = async () => {
+    if (!isOnline) {
+      setError(t('Sales history is unavailable while offline.'))
+      return
+    }
+
+    setShowSalesHistory(true)
+    setLoadingSalesHistory(true)
+    setError('')
+
+    try {
+      const response = await api.get('/sales')
+      setSalesHistory((response.data.sales || []).slice(0, 50))
+    } catch (err) {
+      setShowSalesHistory(false)
+      setError(getApiMessage(err, 'Failed to load sales history'))
+    } finally {
+      setLoadingSalesHistory(false)
+    }
+  }
+
+  const loadReceiptForReprint = async (saleId) => {
+    setLoadingReceiptId(saleId)
+    setError('')
+
+    try {
+      const response = await api.get(`/sales/${saleId}`)
+      setReceipt(response.data.receipt || null)
+      setShowSalesHistory(false)
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to load receipt'))
+    } finally {
+      setLoadingReceiptId(null)
+    }
+  }
 
   useEffect(() => {
     loadProducts()
@@ -1354,6 +1544,14 @@ function POS() {
             <button
               type="button"
               className="ghost-button"
+              onClick={openSalesHistory}
+              disabled={!isOnline}
+            >
+              {t('Sales History')}
+            </button>
+            <button
+              type="button"
+              className="ghost-button"
               onClick={syncOfflineSales}
               disabled={syncingOffline || !isOnline || pendingOfflineCount === 0}
             >
@@ -1870,6 +2068,68 @@ function POS() {
         </div>
       </aside>
 
+      {showSalesHistory && (
+        <div className="modal-backdrop">
+          <section className="receipt-modal history-modal">
+            <div className="section-heading">
+              <h2>{t('Sales History')}</h2>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setShowSalesHistory(false)}
+              >
+                {t('Close')}
+              </button>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{t('Invoice')}</th>
+                    <th>{t('Date')}</th>
+                    <th>{t('Customer')}</th>
+                    <th>{t('total')}</th>
+                    <th>{t('Payment Method')}</th>
+                    <th>{t('Action')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {salesHistory.map((sale) => (
+                    <tr key={sale.id}>
+                      <td>{sale.invoice_no || `SALE-${sale.id}`}</td>
+                      <td>{formatDateTime(sale.created_at)}</td>
+                      <td>{sale.customer_name || t('Walk-in customer')}</td>
+                      <td>{formatCurrency(sale.total_amount, getShopSettings().currency || 'LKR')}</td>
+                      <td>{sale.payment_type}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="ghost-button"
+                          onClick={() => loadReceiptForReprint(sale.id)}
+                          disabled={loadingReceiptId === sale.id}
+                        >
+                          {loadingReceiptId === sale.id ? t('Loading...') : t('Reprint Receipt')}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!loadingSalesHistory && salesHistory.length === 0 && (
+                    <tr>
+                      <td colSpan="6">{t('No records found')}</td>
+                    </tr>
+                  )}
+                  {loadingSalesHistory && (
+                    <tr>
+                      <td colSpan="6">{t('Loading...')}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      )}
+
       {receipt && (
         <div className="modal-backdrop">
           <section className="receipt-modal">
@@ -1916,16 +2176,26 @@ function POS() {
 
             <div className="receipt-print-area">
               <div className="receipt-header">
+                {receiptDetails.showLogo && receiptDetails.logoUrl && (
+                  <img
+                    className="receipt-logo"
+                    src={receiptDetails.logoUrl}
+                    alt=""
+                  />
+                )}
                 <strong>{receiptDetails.shopName}</strong>
                 {receiptDetails.shopAddress && <span>{receiptDetails.shopAddress}</span>}
                 {receiptDetails.shopPhone && <span>{t('Phone')}: {receiptDetails.shopPhone}</span>}
                 {receiptDetails.shopEmail && <span>{t('Email')}: {receiptDetails.shopEmail}</span>}
                 <span>{formatDateTime(receiptDetails.createdAt)}</span>
                 <span>{t('Invoice')}: {receiptDetails.invoiceNo}</span>
+                <span>{t('Sale ID')}: {receiptDetails.saleId}</span>
                 {receiptDetails.offlinePending && (
                   <strong>{t('OFFLINE SALE - Pending Sync')}</strong>
                 )}
-                {receiptDetails.billedBy && <span>{t('Billed by')}: {receiptDetails.billedBy}</span>}
+                {receiptDetails.showCashier && receiptDetails.billedBy && (
+                  <span>{t('Billed by')}: {receiptDetails.billedBy}</span>
+                )}
                 <span>{t('paymentMethod')}: {receiptDetails.paymentType}</span>
                 {receiptDetails.paymentReference && (
                   <span>{t('Reference')}: {receiptDetails.paymentReference}</span>
@@ -1952,6 +2222,7 @@ function POS() {
                     <th>{t('Product')}</th>
                     <th>{t('Quantity')}</th>
                     <th>{t('Price')}</th>
+                    {receiptDetails.showDiscounts && <th>{t('Discount')}</th>}
                     <th>{t('total')}</th>
                   </tr>
                 </thead>
@@ -1961,6 +2232,9 @@ function POS() {
                       <td>{item.product_name}</td>
                       <td>{formatQuantity(item)}</td>
                       <td>{formatCurrency(item.selling_price, receiptDetails.currency)}</td>
+                      {receiptDetails.showDiscounts && (
+                        <td>{formatCurrency(item.item_discount, receiptDetails.currency)}</td>
+                      )}
                       <td>{formatCurrency(item.subtotal, receiptDetails.currency)}</td>
                     </tr>
                   ))}
@@ -1972,26 +2246,34 @@ function POS() {
                   <span>{t('Subtotal')}</span>
                   <strong>{formatCurrency(receiptDetails.subtotal, receiptDetails.currency)}</strong>
                 </div>
-                <div>
-                  <span>{t('Item Discount Total')}</span>
-                  <strong>{formatCurrency(receiptDetails.itemDiscountTotal, receiptDetails.currency)}</strong>
-                </div>
-                <div>
-                  <span>{t('Bill Discount')}</span>
-                  <strong>{formatCurrency(receiptDetails.billDiscount, receiptDetails.currency)}</strong>
-                </div>
-                <div>
-                  <span>{t('Total Before Tax')}</span>
-                  <strong>{formatCurrency(receiptDetails.totalBeforeTax, receiptDetails.currency)}</strong>
-                </div>
-                <div>
-                  <span>{t('Tax Percentage')}</span>
-                  <strong>{receiptDetails.taxPercentage}%</strong>
-                </div>
-                <div>
-                  <span>{t('Tax Amount')}</span>
-                  <strong>{formatCurrency(receiptDetails.taxAmount, receiptDetails.currency)}</strong>
-                </div>
+                {receiptDetails.showDiscounts && (
+                  <>
+                    <div>
+                      <span>{t('Item Discount Total')}</span>
+                      <strong>{formatCurrency(receiptDetails.itemDiscountTotal, receiptDetails.currency)}</strong>
+                    </div>
+                    <div>
+                      <span>{t('Bill Discount')}</span>
+                      <strong>{formatCurrency(receiptDetails.billDiscount, receiptDetails.currency)}</strong>
+                    </div>
+                  </>
+                )}
+                {receiptDetails.showTax && (
+                  <>
+                    <div>
+                      <span>{t('Total Before Tax')}</span>
+                      <strong>{formatCurrency(receiptDetails.totalBeforeTax, receiptDetails.currency)}</strong>
+                    </div>
+                    <div>
+                      <span>{t('Tax Percentage')}</span>
+                      <strong>{receiptDetails.taxPercentage}%</strong>
+                    </div>
+                    <div>
+                      <span>{t('Tax Amount')}</span>
+                      <strong>{formatCurrency(receiptDetails.taxAmount, receiptDetails.currency)}</strong>
+                    </div>
+                  </>
+                )}
                 <div>
                   <span>{t('Final Total')}</span>
                   <strong>{formatCurrency(receiptDetails.finalTotal, receiptDetails.currency)}</strong>
@@ -2008,7 +2290,7 @@ function POS() {
                   <span>{t('paymentMethod')}</span>
                   <strong>{receiptDetails.paymentType}</strong>
                 </div>
-                {receiptDetails.billedBy && (
+                {receiptDetails.showCashier && receiptDetails.billedBy && (
                   <div>
                     <span>{t('Billed by')}</span>
                     <strong>{receiptDetails.billedBy}</strong>

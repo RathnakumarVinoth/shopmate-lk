@@ -25,6 +25,10 @@ const initialCreateForm = {
   default_low_stock_limit: '5',
   tax_percentage: '0',
   default_receipt_size: '80mm',
+  receipt_show_logo: true,
+  receipt_show_tax: true,
+  receipt_show_discounts: true,
+  receipt_show_cashier: true,
   subscription_plan: 'starter',
   subscription_status: 'trial',
   subscription_expiry_date: '',
@@ -505,6 +509,22 @@ function AdminShops() {
                 <select name="default_receipt_size" value={createForm.default_receipt_size} onChange={updateCreateField}>
                   {receiptSizes.map((size) => <option key={size} value={size}>{size}</option>)}
                 </select>
+              </label>
+              <label className="checkbox-row">
+                <input name="receipt_show_logo" type="checkbox" checked={createForm.receipt_show_logo} onChange={updateCreateField} />
+                {t('Show Logo on Receipt')}
+              </label>
+              <label className="checkbox-row">
+                <input name="receipt_show_tax" type="checkbox" checked={createForm.receipt_show_tax} onChange={updateCreateField} />
+                {t('Show Tax on Receipt')}
+              </label>
+              <label className="checkbox-row">
+                <input name="receipt_show_discounts" type="checkbox" checked={createForm.receipt_show_discounts} onChange={updateCreateField} />
+                {t('Show Discounts on Receipt')}
+              </label>
+              <label className="checkbox-row">
+                <input name="receipt_show_cashier" type="checkbox" checked={createForm.receipt_show_cashier} onChange={updateCreateField} />
+                {t('Show Cashier on Receipt')}
               </label>
               <label>
                 {t('Plan')}

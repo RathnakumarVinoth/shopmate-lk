@@ -81,6 +81,10 @@ const formatShop = (shop) => ({
   default_low_stock_limit: Number(shop.default_low_stock_limit || 5),
   tax_percentage: toNumber(shop.tax_percentage),
   default_receipt_size: normalizeReceiptSize(shop.default_receipt_size),
+  receipt_show_logo: Boolean(Number(shop.receipt_show_logo ?? 1)),
+  receipt_show_tax: Boolean(Number(shop.receipt_show_tax ?? 1)),
+  receipt_show_discounts: Boolean(Number(shop.receipt_show_discounts ?? 1)),
+  receipt_show_cashier: Boolean(Number(shop.receipt_show_cashier ?? 1)),
   language: normalizeLanguage(shop.language),
   subscription_plan: shop.subscription_plan || null,
   subscription_status: shop.subscription_status || null,
@@ -110,6 +114,10 @@ const getShopById = async (shopId) => {
        shops.default_low_stock_limit,
        shops.tax_percentage,
        shops.default_receipt_size,
+       shops.receipt_show_logo,
+       shops.receipt_show_tax,
+       shops.receipt_show_discounts,
+       shops.receipt_show_cashier,
        shops.language,
        shops.subscription_plan,
        shops.subscription_status,
@@ -150,6 +158,10 @@ exports.getShops = async (req, res) => {
          shops.default_low_stock_limit,
          shops.tax_percentage,
          shops.default_receipt_size,
+         shops.receipt_show_logo,
+         shops.receipt_show_tax,
+         shops.receipt_show_discounts,
+         shops.receipt_show_cashier,
          shops.language,
          shops.subscription_plan,
          shops.subscription_status,
@@ -193,6 +205,10 @@ exports.createShop = async (req, res) => {
     default_low_stock_limit,
     tax_percentage,
     default_receipt_size,
+    receipt_show_logo,
+    receipt_show_tax,
+    receipt_show_discounts,
+    receipt_show_cashier,
     subscription_plan,
     subscription_status,
     subscription_start_date,
@@ -206,6 +222,18 @@ exports.createShop = async (req, res) => {
   if (!optionalText(owner_name)) errors.push("owner_name is required");
   if (!optionalText(login_email)) errors.push("shop login email is required");
   if (!optionalText(owner_username)) errors.push("owner username is required");
+
+  const receiptFlagInputs = {
+    receipt_show_logo,
+    receipt_show_tax,
+    receipt_show_discounts,
+    receipt_show_cashier,
+  };
+  for (const [name, value] of Object.entries(receiptFlagInputs)) {
+    if (value !== undefined && toBooleanNumber(value) === null) {
+      errors.push(`${name} must be a boolean`);
+    }
+  }
 
   const shopPassword = optionalText(login_password) || generateTemporaryPassword();
   const rolePassword = optionalText(owner_password) || generateTemporaryPassword();
@@ -238,10 +266,12 @@ exports.createShop = async (req, res) => {
        (shop_name, owner_name, login_email, login_password_hash, shop_code,
         phone, email, address, receipt_footer, logo_url, language, currency,
         default_low_stock_limit, tax_percentage,
-        default_receipt_size, subscription_plan, subscription_status,
+        default_receipt_size, receipt_show_logo, receipt_show_tax,
+        receipt_show_discounts, receipt_show_cashier, subscription_plan,
+        subscription_status,
         subscription_start_date, subscription_expiry_date, monthly_fee,
         is_enabled, created_by_admin)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         optionalText(shop_name),
         optionalText(owner_name),
@@ -258,6 +288,10 @@ exports.createShop = async (req, res) => {
         Number(default_low_stock_limit || 5),
         Number(tax_percentage || 0),
         normalizeReceiptSize(default_receipt_size),
+        toBooleanNumber(receipt_show_logo ?? true),
+        toBooleanNumber(receipt_show_tax ?? true),
+        toBooleanNumber(receipt_show_discounts ?? true),
+        toBooleanNumber(receipt_show_cashier ?? true),
         plan,
         status,
         optionalDate(subscription_start_date),
@@ -488,6 +522,10 @@ exports.updateShop = async (req, res) => {
     default_low_stock_limit,
     tax_percentage,
     default_receipt_size,
+    receipt_show_logo,
+    receipt_show_tax,
+    receipt_show_discounts,
+    receipt_show_cashier,
     subscription_plan,
     subscription_status,
     subscription_start_date,
@@ -507,6 +545,17 @@ exports.updateShop = async (req, res) => {
   }
 
   const enabledValue = toBooleanNumber(is_enabled === undefined ? true : is_enabled);
+  const receiptFlagInputs = {
+    receipt_show_logo,
+    receipt_show_tax,
+    receipt_show_discounts,
+    receipt_show_cashier,
+  };
+  for (const [name, value] of Object.entries(receiptFlagInputs)) {
+    if (value !== undefined && toBooleanNumber(value) === null) {
+      return res.status(400).json({ message: `${name} must be a boolean` });
+    }
+  }
 
   try {
     await ensureSaasSchema();
@@ -516,7 +565,12 @@ exports.updateShop = async (req, res) => {
        SET shop_name = ?, owner_name = ?, login_email = ?, phone = ?, email = ?,
            address = ?, receipt_footer = ?, logo_url = ?, language = ?, currency = ?,
            default_low_stock_limit = ?, tax_percentage = ?,
-           default_receipt_size = ?, subscription_plan = ?,
+           default_receipt_size = ?,
+           receipt_show_logo = COALESCE(?, receipt_show_logo),
+           receipt_show_tax = COALESCE(?, receipt_show_tax),
+           receipt_show_discounts = COALESCE(?, receipt_show_discounts),
+           receipt_show_cashier = COALESCE(?, receipt_show_cashier),
+           subscription_plan = ?,
            subscription_status = ?, subscription_start_date = ?,
            subscription_expiry_date = ?, monthly_fee = ?, is_enabled = ?
        WHERE id = ?`,
@@ -534,6 +588,16 @@ exports.updateShop = async (req, res) => {
         Number(default_low_stock_limit || 5),
         Number(tax_percentage || 0),
         normalizeReceiptSize(default_receipt_size),
+        receipt_show_logo === undefined
+          ? null
+          : toBooleanNumber(receipt_show_logo),
+        receipt_show_tax === undefined ? null : toBooleanNumber(receipt_show_tax),
+        receipt_show_discounts === undefined
+          ? null
+          : toBooleanNumber(receipt_show_discounts),
+        receipt_show_cashier === undefined
+          ? null
+          : toBooleanNumber(receipt_show_cashier),
         allowedPlans.includes(subscription_plan) ? subscription_plan : "starter",
         allowedStatuses.includes(subscription_status) ? subscription_status : "trial",
         optionalDate(subscription_start_date),

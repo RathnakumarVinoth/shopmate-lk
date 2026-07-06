@@ -34,13 +34,21 @@ const languages = ["en", "si", "ta"];
 
 const normalizeLanguage = (value) => (languages.includes(value) ? value : "en");
 
+const toBooleanNumber = (value) => {
+  if (value === true || value === 1 || value === "1" || value === "true") return 1;
+  if (value === false || value === 0 || value === "0" || value === "false") return 0;
+  return null;
+};
+
 const getShopSettings = async (shopId) => {
   await ensureShopSettingsColumns();
 
   const [shops] = await db.promise().query(
     `SELECT shop_name, phone, email, address, receipt_footer, currency,
             default_low_stock_limit, tax_percentage, logo_url, default_receipt_size,
-            language, idle_timeout_minutes, background_logout_minutes
+            receipt_show_logo, receipt_show_tax, receipt_show_discounts,
+            receipt_show_cashier, language, idle_timeout_minutes,
+            background_logout_minutes
      FROM shops
      WHERE id = ?
      LIMIT 1`,
@@ -64,6 +72,12 @@ exports.getSettings = async (req, res) => {
       default_low_stock_limit: Number(settings.default_low_stock_limit || 0),
       tax_percentage: Number(settings.tax_percentage || 0),
       default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
+      receipt_show_logo: Boolean(Number(settings.receipt_show_logo ?? 1)),
+      receipt_show_tax: Boolean(Number(settings.receipt_show_tax ?? 1)),
+      receipt_show_discounts: Boolean(
+        Number(settings.receipt_show_discounts ?? 1)
+      ),
+      receipt_show_cashier: Boolean(Number(settings.receipt_show_cashier ?? 1)),
       language: normalizeLanguage(settings.language),
       idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
       background_logout_minutes: Number(settings.background_logout_minutes || 3),
@@ -178,6 +192,10 @@ exports.updateSettings = async (req, res) => {
     tax_percentage,
     logo_url,
     default_receipt_size,
+    receipt_show_logo,
+    receipt_show_tax,
+    receipt_show_discounts,
+    receipt_show_cashier,
     language,
     idle_timeout_minutes,
     background_logout_minutes,
@@ -219,6 +237,19 @@ exports.updateSettings = async (req, res) => {
       .json({ message: "idle_timeout_minutes must be between 1 and 480" });
   }
 
+  const receiptFlagInputs = {
+    receipt_show_logo,
+    receipt_show_tax,
+    receipt_show_discounts,
+    receipt_show_cashier,
+  };
+
+  for (const [name, value] of Object.entries(receiptFlagInputs)) {
+    if (value !== undefined && toBooleanNumber(value) === null) {
+      return res.status(400).json({ message: `${name} must be a boolean` });
+    }
+  }
+
   if (
     background_logout_minutes !== undefined &&
     !isIntegerInRange(background_logout_minutes, 1, 60)
@@ -231,6 +262,18 @@ exports.updateSettings = async (req, res) => {
   const nextReceiptSize =
     default_receipt_size === undefined ? null : normalizeReceiptSize(default_receipt_size);
   const nextLanguage = language === undefined ? null : normalizeLanguage(language);
+  const nextReceiptShowLogo =
+    receipt_show_logo === undefined ? null : toBooleanNumber(receipt_show_logo);
+  const nextReceiptShowTax =
+    receipt_show_tax === undefined ? null : toBooleanNumber(receipt_show_tax);
+  const nextReceiptShowDiscounts =
+    receipt_show_discounts === undefined
+      ? null
+      : toBooleanNumber(receipt_show_discounts);
+  const nextReceiptShowCashier =
+    receipt_show_cashier === undefined
+      ? null
+      : toBooleanNumber(receipt_show_cashier);
   const nextIdleTimeout =
     idle_timeout_minutes !== undefined ? Number(idle_timeout_minutes) : null;
   const nextBackgroundTimeout =
@@ -244,6 +287,10 @@ exports.updateSettings = async (req, res) => {
        SET shop_name = ?, phone = ?, email = ?, address = ?, receipt_footer = ?,
            currency = ?, default_low_stock_limit = ?, tax_percentage = ?, logo_url = ?,
            default_receipt_size = COALESCE(?, default_receipt_size),
+           receipt_show_logo = COALESCE(?, receipt_show_logo),
+           receipt_show_tax = COALESCE(?, receipt_show_tax),
+           receipt_show_discounts = COALESCE(?, receipt_show_discounts),
+           receipt_show_cashier = COALESCE(?, receipt_show_cashier),
            language = COALESCE(?, language),
            idle_timeout_minutes = COALESCE(?, idle_timeout_minutes),
            background_logout_minutes = COALESCE(?, background_logout_minutes)
@@ -259,6 +306,10 @@ exports.updateSettings = async (req, res) => {
         Number(tax_percentage || 0),
         optionalText(logo_url),
         nextReceiptSize,
+        nextReceiptShowLogo,
+        nextReceiptShowTax,
+        nextReceiptShowDiscounts,
+        nextReceiptShowCashier,
         nextLanguage,
         nextIdleTimeout,
         nextBackgroundTimeout,
@@ -287,6 +338,12 @@ exports.updateSettings = async (req, res) => {
         default_low_stock_limit: Number(settings.default_low_stock_limit || 0),
         tax_percentage: Number(settings.tax_percentage || 0),
         default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
+        receipt_show_logo: Boolean(Number(settings.receipt_show_logo ?? 1)),
+        receipt_show_tax: Boolean(Number(settings.receipt_show_tax ?? 1)),
+        receipt_show_discounts: Boolean(
+          Number(settings.receipt_show_discounts ?? 1)
+        ),
+        receipt_show_cashier: Boolean(Number(settings.receipt_show_cashier ?? 1)),
         language: normalizeLanguage(settings.language),
         idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
         background_logout_minutes: Number(settings.background_logout_minutes || 3),

@@ -26,6 +26,23 @@ const ensureShopSettingsColumns = async () => {
       .query("ALTER TABLE shops ADD COLUMN logo_url TEXT NULL");
   }
 
+  const receiptFlags = [
+    "receipt_show_logo",
+    "receipt_show_tax",
+    "receipt_show_discounts",
+    "receipt_show_cashier",
+  ];
+
+  for (const flag of receiptFlags) {
+    if (!existingColumns.has(flag)) {
+      await db
+        .promise()
+        .query(
+          `ALTER TABLE shops ADD COLUMN ${flag} TINYINT(1) NOT NULL DEFAULT 1`
+        );
+    }
+  }
+
   if (!existingColumns.has("default_low_stock_limit")) {
     await db
       .promise()

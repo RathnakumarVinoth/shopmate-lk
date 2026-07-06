@@ -140,6 +140,34 @@ const ensureSaasSchema = async () => {
     connection,
     "shops",
     existingShopColumns,
+    "receipt_show_logo",
+    "receipt_show_logo TINYINT(1) NOT NULL DEFAULT 1"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
+    "receipt_show_tax",
+    "receipt_show_tax TINYINT(1) NOT NULL DEFAULT 1"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
+    "receipt_show_discounts",
+    "receipt_show_discounts TINYINT(1) NOT NULL DEFAULT 1"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
+    "receipt_show_cashier",
+    "receipt_show_cashier TINYINT(1) NOT NULL DEFAULT 1"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
     "language",
     "language VARCHAR(10) DEFAULT 'en'"
   );
