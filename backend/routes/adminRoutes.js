@@ -20,6 +20,13 @@ const { getAdminBackupStatus } = require("../controllers/backupController");
 const { getAuditLogs } = require("../controllers/auditLogController");
 const { getLoginActivity } = require("../controllers/loginActivityController");
 const { getNotifications } = require("../controllers/notificationController");
+const {
+  getApiRequestLogs,
+  getErrorLogs,
+  getSystemAlerts,
+  getSystemHealth,
+  markSystemAlertRead,
+} = require("../controllers/monitoringController");
 const authMiddleware = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
@@ -29,6 +36,11 @@ router.use(authMiddleware, allowRoles("admin"));
 
 router.get("/summary", getSummary);
 router.get("/backups/status", getAdminBackupStatus);
+router.get("/system-health", getSystemHealth);
+router.get("/system-alerts", getSystemAlerts);
+router.patch("/system-alerts/:id/read", markSystemAlertRead);
+router.get("/error-logs", getErrorLogs);
+router.get("/api-request-logs", getApiRequestLogs);
 router.get("/audit-logs", getAuditLogs);
 router.get("/login-activity", getLoginActivity);
 router.get("/notifications", getNotifications);

@@ -29,6 +29,11 @@ const shopAuthRoutes = require("./routes/shopAuthRoutes");
 const staffRoutes = require("./routes/staffRoutes");
 const stockRoutes = require("./routes/stockRoutes");
 const supplierRoutes = require("./routes/supplierRoutes");
+const {
+  errorHandler,
+  notFoundHandler,
+  requestMonitoring,
+} = require("./middleware/requestMonitoring");
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
@@ -49,7 +54,7 @@ const corsOptions = {
 
     return callback(new Error("Not allowed by CORS"));
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 };
@@ -58,6 +63,7 @@ if (isProduction) {
   app.set("trust proxy", 1);
 }
 
+app.use(requestMonitoring);
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -115,5 +121,16 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/stock", stockRoutes);
 app.use("/api/suppliers", supplierRoutes);
+
+if (isTest) {
+  app.post("/api/test/monitoring-error", (req, res, next) => {
+    const error = new Error("Unexpected monitoring test error");
+    error.name = "MonitoringTestError";
+    next(error);
+  });
+}
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 module.exports = app;

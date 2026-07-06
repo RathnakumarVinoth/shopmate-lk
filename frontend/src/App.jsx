@@ -15,6 +15,7 @@ import AdminBackups from './pages/AdminBackups.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
 import AdminShopDetails from './pages/AdminShopDetails.jsx'
 import AdminShops from './pages/AdminShops.jsx'
+import AdminSystemHealth from './pages/AdminSystemHealth.jsx'
 import AuditLogs from './pages/AuditLogs.jsx'
 import BackupExport from './pages/BackupExport.jsx'
 import CreditBook from './pages/CreditBook.jsx'
@@ -235,6 +236,7 @@ function App() {
           <Route path="/admin/shops" element={<AdminShops />} />
           <Route path="/admin/shops/:id" element={<AdminShopDetails />} />
           <Route path="/admin/backups" element={<AdminBackups />} />
+          <Route path="/admin/system-health" element={<AdminSystemHealth />} />
           <Route path="/admin/audit-logs" element={<AuditLogs />} />
           <Route path="/admin/login-activity" element={<LoginActivity />} />
         </Route>

@@ -1,0 +1,63 @@
+CREATE TABLE IF NOT EXISTS error_logs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  shop_id INT NULL,
+  user_id INT NULL,
+  request_id VARCHAR(64) NULL,
+  error_type VARCHAR(100) NOT NULL,
+  message TEXT NOT NULL,
+  stack_trace LONGTEXT NULL,
+  method VARCHAR(10) NULL,
+  path VARCHAR(500) NULL,
+  status_code INT NOT NULL DEFAULT 500,
+  request_data TEXT NULL,
+  ip_address VARCHAR(100) NULL,
+  user_agent VARCHAR(500) NULL,
+  environment VARCHAR(30) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_error_logs_created (created_at),
+  INDEX idx_error_logs_status_created (status_code, created_at),
+  INDEX idx_error_logs_shop_created (shop_id, created_at),
+  INDEX idx_error_logs_request_id (request_id)
+);
+
+CREATE TABLE IF NOT EXISTS api_request_logs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  shop_id INT NULL,
+  user_id INT NULL,
+  request_id VARCHAR(64) NULL,
+  method VARCHAR(10) NOT NULL,
+  path VARCHAR(500) NOT NULL,
+  status_code INT NOT NULL,
+  response_time_ms INT NOT NULL DEFAULT 0,
+  request_data TEXT NULL,
+  ip_address VARCHAR(100) NULL,
+  user_agent VARCHAR(500) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_api_request_logs_created (created_at),
+  INDEX idx_api_request_logs_status_created (status_code, created_at),
+  INDEX idx_api_request_logs_shop_created (shop_id, created_at),
+  INDEX idx_api_request_logs_request_id (request_id)
+);
+
+CREATE TABLE IF NOT EXISTS admin_alerts (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  shop_id INT NULL,
+  alert_type VARCHAR(100) NOT NULL,
+  severity VARCHAR(20) NOT NULL DEFAULT 'medium',
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  source_type VARCHAR(100) NULL,
+  source_id BIGINT NULL,
+  dedupe_key VARCHAR(191) NULL,
+  occurrence_count INT NOT NULL DEFAULT 1,
+  status VARCHAR(20) NOT NULL DEFAULT 'unread',
+  read_by INT NULL,
+  read_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_admin_alert_dedupe (dedupe_key),
+  INDEX idx_admin_alerts_status_created (status, created_at),
+  INDEX idx_admin_alerts_type_created (alert_type, created_at),
+  INDEX idx_admin_alerts_shop_created (shop_id, created_at),
+  INDEX idx_admin_alerts_severity (severity)
+);

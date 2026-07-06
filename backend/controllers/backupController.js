@@ -8,6 +8,10 @@ const {
   restoreBackup,
 } = require("../utils/backupService");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
+const {
+  createAdminAlert,
+  syncOperationalAlerts,
+} = require("../utils/monitoringService");
 
 const isPositiveInteger = (value) =>
   Number.isInteger(Number(value)) && Number(value) > 0;
@@ -72,6 +76,22 @@ exports.createManualBackup = async (req, res) => {
     });
   } catch (error) {
     console.error("Create manual backup error:", error.message);
+    const synced = await syncOperationalAlerts({ shopId: req.user.shop_id });
+
+    if (synced.backup_failures === 0) {
+      await createAdminAlert({
+        shopId: req.user.shop_id,
+        alertType: "backup_failure",
+        severity: "high",
+        title: "Backup failed",
+        message: error.message,
+        sourceType: "backup",
+        dedupeKey: `backup-failure-untracked:${req.user.shop_id}:${Math.floor(
+          Date.now() / 3600000
+        )}`,
+        reopen: true,
+      });
+    }
 
     if (error.statusCode) {
       return res.status(error.statusCode).json({ message: error.message });
@@ -149,6 +169,22 @@ exports.restoreBackup = async (req, res) => {
         userId: req.user.id,
         sourceFileName,
         errorMessage: error.message,
+      });
+    }
+
+    const synced = await syncOperationalAlerts({ shopId: targetShopId });
+    if (synced.restore_failures === 0) {
+      await createAdminAlert({
+        shopId: targetShopId,
+        alertType: "restore_failure",
+        severity: "critical",
+        title: "Restore failed",
+        message: error.message,
+        sourceType: "restore",
+        dedupeKey: `restore-failure-untracked:${targetShopId}:${Math.floor(
+          Date.now() / 3600000
+        )}`,
+        reopen: true,
       });
     }
 
