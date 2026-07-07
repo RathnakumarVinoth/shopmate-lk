@@ -6,6 +6,7 @@
     "start": "node server.js",
     "start:test": "node -r ./test/helpers/loadTestEnv.js server.js",
     "dev": "nodemon server.js",
+    "migrate": "node scripts/migrate.js",
     "test": "node --test --test-concurrency=1 test/integration/*.test.js",
     "test:watch": "node --test --watch test/integration/*.test.js"
   },
