@@ -58,6 +58,7 @@ const withFilters = (filters) => ({
 })
 
 const asArray = (data) => (Array.isArray(data) ? data : [])
+const hasChartData = (data) => Array.isArray(data) && data.length > 0
 
 const normalizeNumberRows = (data, fields) =>
   asArray(data).map((row) => {
@@ -198,6 +199,13 @@ function Reports() {
     [expensesChart, monthlyComparison, paymentMethods, paymentSummary, profitChart, salesChart, summaryCards, topProducts],
   )
 
+  const hasSalesChartData = hasChartData(salesChart)
+  const hasProfitChartData = hasChartData(profitChart)
+  const hasExpensesChartData = hasChartData(expensesChart)
+  const hasTopProductsData = hasChartData(topProducts)
+  const hasPaymentMethodsData = hasChartData(paymentMethods)
+  const hasMonthlyComparisonData = hasChartData(monthlyComparison)
+
   const exportPdf = () => {
     const doc = new jsPDF()
     doc.setFontSize(16)
@@ -337,7 +345,7 @@ function Reports() {
               <div className="section-heading">
                 <h2>{t('Sales Over Time')}</h2>
               </div>
-              <ChartBody hasData={salesChart.length > 0} emptyMessage="No sales data for selected period">
+              <ChartBody hasData={hasSalesChartData} emptyMessage="No sales data for selected period">
                 <LineChart data={salesChart} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="period" tickFormatter={shortTick} />
@@ -353,7 +361,7 @@ function Reports() {
               <div className="section-heading">
                 <h2>{t('Profit Over Time')}</h2>
               </div>
-              <ChartBody hasData={profitChart.length > 0} emptyMessage="No sales data for selected period">
+              <ChartBody hasData={hasProfitChartData} emptyMessage="No profit data for selected period">
                 <BarChart data={profitChart} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="period" tickFormatter={shortTick} />
@@ -371,7 +379,7 @@ function Reports() {
               <div className="section-heading">
                 <h2>{t('Expenses By Category')}</h2>
               </div>
-              <ChartBody hasData={expensesChart.length > 0} emptyMessage="No expenses found">
+              <ChartBody hasData={hasExpensesChartData} emptyMessage="No expenses found">
                 <BarChart data={expensesChart} margin={{ top: 8, right: 16, left: 0, bottom: 18 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="category" tickFormatter={shortTick} />
@@ -386,7 +394,7 @@ function Reports() {
               <div className="section-heading">
                 <h2>{t('Top Products')}</h2>
               </div>
-              <ChartBody hasData={topProducts.length > 0} emptyMessage="No top products yet">
+              <ChartBody hasData={hasTopProductsData} emptyMessage="No top products yet">
                 <BarChart data={topProducts} margin={{ top: 8, right: 16, left: 0, bottom: 18 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="product_name" tickFormatter={shortTick} />
@@ -403,7 +411,7 @@ function Reports() {
               <div className="section-heading">
                 <h2>{t('Payment Methods')}</h2>
               </div>
-              <ChartBody hasData={paymentMethods.length > 0} emptyMessage="No payment data found.">
+              <ChartBody hasData={hasPaymentMethodsData} emptyMessage="No payment data available">
                 <PieChart margin={{ top: 8, right: 16, left: 16, bottom: 8 }}>
                   <Pie
                     data={paymentMethods}
@@ -426,7 +434,7 @@ function Reports() {
               <div className="section-heading">
                 <h2>{t('Monthly Sales Comparison')}</h2>
               </div>
-              <ChartBody hasData={monthlyComparison.length > 0} emptyMessage="No sales data for selected period">
+              <ChartBody hasData={hasMonthlyComparisonData} emptyMessage="No monthly comparison data yet">
                 <BarChart data={monthlyComparison} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="period" tickFormatter={shortTick} />
