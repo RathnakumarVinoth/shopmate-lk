@@ -157,10 +157,10 @@ async function resetTestDatabase(db) {
 
   await db.query(`
     CREATE TABLE unit_master (
-      code VARCHAR(20) PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
+      unit_code VARCHAR(20) PRIMARY KEY,
+      unit_name VARCHAR(100) NOT NULL,
       unit_type VARCHAR(40) NOT NULL DEFAULT 'count',
-      allows_decimal TINYINT(1) NOT NULL DEFAULT 0,
+      decimal_allowed TINYINT(1) NOT NULL DEFAULT 0,
       default_precision TINYINT UNSIGNED NOT NULL DEFAULT 0,
       is_active TINYINT(1) NOT NULL DEFAULT 1,
       sort_order INT NOT NULL DEFAULT 0,
@@ -190,7 +190,7 @@ async function resetTestDatabase(db) {
 
   await db.query(
     `INSERT INTO unit_master
-       (code, name, unit_type, allows_decimal, default_precision, is_active, sort_order)
+       (unit_code, unit_name, unit_type, decimal_allowed, default_precision, is_active, sort_order)
      VALUES ?`,
     [UNIT_MASTER_SEED.map((unit) => [...unit.slice(0, 5), 1, unit[5]])]
   );

@@ -141,13 +141,262 @@ const getUnitMasterSeed = () =>
     default_precision,
   }));
 
+const getColumnSet = async (connection, tableName) => {
+  const [columns] = await connection.query(`SHOW COLUMNS FROM ${tableName}`);
+  return new Set(columns.map((column) => column.Field));
+};
+
+const addColumnIfMissing = async (connection, columns, tableName, name, definition) => {
+  if (columns.has(name)) return;
+
+  await connection.query(`ALTER TABLE ${tableName} ADD COLUMN ${definition}`);
+  columns.add(name);
+};
+
+const ensureUnitMasterColumns = async (connection) => {
+  const columns = await getColumnSet(connection, "unit_master");
+
+  await addColumnIfMissing(
+    connection,
+    columns,
+    "unit_master",
+    "unit_code",
+    "unit_code VARCHAR(20) NULL"
+  );
+  await addColumnIfMissing(
+    connection,
+    columns,
+    "unit_master",
+    "unit_name",
+    "unit_name VARCHAR(100) NULL"
+  );
+  await addColumnIfMissing(
+    connection,
+    columns,
+    "unit_master",
+    "unit_type",
+    "unit_type VARCHAR(40) NOT NULL DEFAULT 'count'"
+  );
+  await addColumnIfMissing(
+    connection,
+    columns,
+    "unit_master",
+    "decimal_allowed",
+    "decimal_allowed TINYINT(1) NULL"
+  );
+  await addColumnIfMissing(
+    connection,
+    columns,
+    "unit_master",
+    "default_precision",
+    "default_precision TINYINT UNSIGNED NOT NULL DEFAULT 0"
+  );
+  await addColumnIfMissing(
+    connection,
+    columns,
+    "unit_master",
+    "is_active",
+    "is_active TINYINT(1) NOT NULL DEFAULT 1"
+  );
+  await addColumnIfMissing(
+    connection,
+    columns,
+    "unit_master",
+    "sort_order",
+    "sort_order INT NOT NULL DEFAULT 0"
+  );
+
+  if (columns.has("unit_code") && columns.has("code")) {
+    await connection.query(`
+      UPDATE unit_master
+      SET unit_code = UPPER(TRIM(code))
+      WHERE (unit_code IS NULL OR TRIM(unit_code) = '')
+        AND code IS NOT NULL
+        AND TRIM(code) <> ''
+    `);
+  }
+
+  if (columns.has("unit_name") && columns.has("name")) {
+    await connection.query(`
+      UPDATE unit_master
+      SET unit_name = name
+      WHERE (unit_name IS NULL OR TRIM(unit_name) = '')
+        AND name IS NOT NULL
+        AND TRIM(name) <> ''
+    `);
+  }
+
+  if (columns.has("decimal_allowed") && columns.has("allows_decimal")) {
+    await connection.query(`
+      UPDATE unit_master
+      SET decimal_allowed = allows_decimal
+      WHERE decimal_allowed IS NULL
+    `);
+  }
+
+  await connection.query(`
+    UPDATE unit_master
+    SET unit_code = UPPER(TRIM(unit_code)),
+        decimal_allowed = COALESCE(decimal_allowed, 0)
+    WHERE unit_code IS NOT NULL
+  `);
+
+  return columns;
+};
+
+const seedUnitMaster = async (connection, columns) => {
+  for (const unit of UNIT_MASTER_SEED) {
+    const [unitCode, unitName, unitType, decimalAllowed, defaultPrecision, sortOrder] = unit;
+    const assignments = [];
+    const values = [];
+
+    if (columns.has("unit_code")) {
+      assignments.push("unit_code = ?");
+      values.push(unitCode);
+    }
+
+    if (columns.has("unit_name")) {
+      assignments.push("unit_name = ?");
+      values.push(unitName);
+    }
+
+    if (columns.has("unit_type")) {
+      assignments.push("unit_type = ?");
+      values.push(unitType);
+    }
+
+    if (columns.has("decimal_allowed")) {
+      assignments.push("decimal_allowed = ?");
+      values.push(decimalAllowed);
+    }
+
+    if (columns.has("default_precision")) {
+      assignments.push("default_precision = ?");
+      values.push(defaultPrecision);
+    }
+
+    if (columns.has("is_active")) {
+      assignments.push("is_active = 1");
+    }
+
+    if (columns.has("sort_order")) {
+      assignments.push("sort_order = ?");
+      values.push(sortOrder);
+    }
+
+    if (columns.has("code")) {
+      assignments.push("code = ?");
+      values.push(unitCode);
+    }
+
+    if (columns.has("name")) {
+      assignments.push("name = ?");
+      values.push(unitName);
+    }
+
+    if (columns.has("allows_decimal")) {
+      assignments.push("allows_decimal = ?");
+      values.push(decimalAllowed);
+    }
+
+    const whereParts = [];
+    const whereValues = [];
+
+    if (columns.has("unit_code")) {
+      whereParts.push("unit_code = ?");
+      whereValues.push(unitCode);
+    }
+
+    if (columns.has("code")) {
+      whereParts.push("code = ?");
+      whereValues.push(unitCode);
+    }
+
+    const [existingRows] = await connection.query(
+      `SELECT 1 FROM unit_master
+       WHERE ${whereParts.join(" OR ")}
+       LIMIT 1`,
+      whereValues
+    );
+
+    if (existingRows.length > 0) {
+      await connection.query(
+        `UPDATE unit_master
+         SET ${assignments.join(", ")}
+         WHERE ${whereParts.join(" OR ")}`,
+        [...values, ...whereValues]
+      );
+      continue;
+    }
+
+    const insertColumns = [];
+    const insertValues = [];
+
+    if (columns.has("unit_code")) {
+      insertColumns.push("unit_code");
+      insertValues.push(unitCode);
+    }
+
+    if (columns.has("unit_name")) {
+      insertColumns.push("unit_name");
+      insertValues.push(unitName);
+    }
+
+    if (columns.has("unit_type")) {
+      insertColumns.push("unit_type");
+      insertValues.push(unitType);
+    }
+
+    if (columns.has("decimal_allowed")) {
+      insertColumns.push("decimal_allowed");
+      insertValues.push(decimalAllowed);
+    }
+
+    if (columns.has("default_precision")) {
+      insertColumns.push("default_precision");
+      insertValues.push(defaultPrecision);
+    }
+
+    if (columns.has("is_active")) {
+      insertColumns.push("is_active");
+      insertValues.push(1);
+    }
+
+    if (columns.has("sort_order")) {
+      insertColumns.push("sort_order");
+      insertValues.push(sortOrder);
+    }
+
+    if (columns.has("code")) {
+      insertColumns.push("code");
+      insertValues.push(unitCode);
+    }
+
+    if (columns.has("name")) {
+      insertColumns.push("name");
+      insertValues.push(unitName);
+    }
+
+    if (columns.has("allows_decimal")) {
+      insertColumns.push("allows_decimal");
+      insertValues.push(decimalAllowed);
+    }
+
+    await connection.query(
+      `INSERT INTO unit_master (${insertColumns.join(", ")})
+       VALUES (${insertColumns.map(() => "?").join(", ")})`,
+      insertValues
+    );
+  }
+};
+
 const createUnitTables = async (connection) => {
   await connection.query(`
     CREATE TABLE IF NOT EXISTS unit_master (
-      code VARCHAR(20) PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
+      unit_code VARCHAR(20) PRIMARY KEY,
+      unit_name VARCHAR(100) NOT NULL,
       unit_type VARCHAR(40) NOT NULL DEFAULT 'count',
-      allows_decimal TINYINT(1) NOT NULL DEFAULT 0,
+      decimal_allowed TINYINT(1) NOT NULL DEFAULT 0,
       default_precision TINYINT UNSIGNED NOT NULL DEFAULT 0,
       is_active TINYINT(1) NOT NULL DEFAULT 1,
       sort_order INT NOT NULL DEFAULT 0,
@@ -157,19 +406,8 @@ const createUnitTables = async (connection) => {
     )
   `);
 
-  await connection.query(
-    `INSERT INTO unit_master
-       (code, name, unit_type, allows_decimal, default_precision, is_active, sort_order)
-     VALUES ?
-     ON DUPLICATE KEY UPDATE
-       name = VALUES(name),
-       unit_type = VALUES(unit_type),
-       allows_decimal = VALUES(allows_decimal),
-       default_precision = VALUES(default_precision),
-       is_active = VALUES(is_active),
-       sort_order = VALUES(sort_order)`,
-    [UNIT_MASTER_SEED.map((unit) => [...unit.slice(0, 5), 1, unit[5]])]
-  );
+  const unitMasterColumns = await ensureUnitMasterColumns(connection);
+  await seedUnitMaster(connection, unitMasterColumns);
 
   await connection.query(`
     CREATE TABLE IF NOT EXISTS unit_conversions (
@@ -429,25 +667,25 @@ const ensureProductCatalogSchema = async () => {
     await connection.query(`
       UPDATE products
       LEFT JOIN unit_master AS selling_units
-        ON selling_units.code = products.default_selling_unit
+        ON selling_units.unit_code = products.default_selling_unit
       LEFT JOIN unit_master AS purchase_units
-        ON purchase_units.code = products.default_purchase_unit
+        ON purchase_units.unit_code = products.default_purchase_unit
       LEFT JOIN unit_master AS base_units
-        ON base_units.code = products.base_unit
-      SET products.default_selling_unit = COALESCE(selling_units.code, products.unit, 'PCS'),
-          products.default_purchase_unit = COALESCE(purchase_units.code, products.default_selling_unit, products.unit, 'PCS'),
-          products.base_unit = COALESCE(base_units.code, products.default_selling_unit, products.unit, 'PCS')
+        ON base_units.unit_code = products.base_unit
+      SET products.default_selling_unit = COALESCE(selling_units.unit_code, products.unit, 'PCS'),
+          products.default_purchase_unit = COALESCE(purchase_units.unit_code, products.default_selling_unit, products.unit, 'PCS'),
+          products.base_unit = COALESCE(base_units.unit_code, products.default_selling_unit, products.unit, 'PCS')
     `);
 
     await connection.query(`
       UPDATE products
-      INNER JOIN unit_master ON unit_master.code = products.default_selling_unit
+      INNER JOIN unit_master ON unit_master.unit_code = products.default_selling_unit
       SET products.allow_decimal_qty = CASE
-            WHEN unit_master.allows_decimal = 1 THEN 1
+            WHEN unit_master.decimal_allowed = 1 THEN 1
             ELSE COALESCE(products.allow_decimal_qty, 0)
           END,
           products.quantity_precision = CASE
-            WHEN unit_master.allows_decimal = 1
+            WHEN unit_master.decimal_allowed = 1
               THEN GREATEST(products.quantity_precision, unit_master.default_precision)
             ELSE 0
           END

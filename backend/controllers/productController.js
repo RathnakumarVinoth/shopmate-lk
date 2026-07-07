@@ -205,7 +205,7 @@ const validateProduct = async (body) => {
     .filter(Boolean);
   const [unitRows] = await db
     .promise()
-    .query("SELECT code FROM unit_master WHERE is_active = 1 AND code IN (?)", [
+    .query("SELECT unit_code AS code FROM unit_master WHERE is_active = 1 AND unit_code IN (?)", [
       normalizedUnitCodes.length > 0 ? normalizedUnitCodes : ["__none__"],
     ]);
   const validUnitCodes = new Set(unitRows.map((unit) => unit.code));

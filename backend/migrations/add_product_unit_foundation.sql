@@ -1,55 +1,122 @@
 CREATE TABLE IF NOT EXISTS unit_master (
-  code VARCHAR(20) PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
+  unit_code VARCHAR(20) PRIMARY KEY,
+  unit_name VARCHAR(100) NOT NULL,
   unit_type VARCHAR(40) NOT NULL DEFAULT 'count',
-  allows_decimal TINYINT(1) NOT NULL DEFAULT 0,
+  decimal_allowed TINYINT(1) NOT NULL DEFAULT 0,
   default_precision TINYINT UNSIGNED NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   sort_order INT NOT NULL DEFAULT 0,
+  code VARCHAR(20) NULL,
+  name VARCHAR(100) NULL,
+  allows_decimal TINYINT(1) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_unit_master_active_sort (is_active, sort_order)
 );
 
+ALTER TABLE unit_master
+  ADD COLUMN IF NOT EXISTS unit_code VARCHAR(20) NULL,
+  ADD COLUMN IF NOT EXISTS unit_name VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS unit_type VARCHAR(40) NOT NULL DEFAULT 'count',
+  ADD COLUMN IF NOT EXISTS decimal_allowed TINYINT(1) NULL,
+  ADD COLUMN IF NOT EXISTS default_precision TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS is_active TINYINT(1) NOT NULL DEFAULT 1,
+  ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS code VARCHAR(20) NULL,
+  ADD COLUMN IF NOT EXISTS name VARCHAR(100) NULL,
+  ADD COLUMN IF NOT EXISTS allows_decimal TINYINT(1) NULL;
+
+SET @has_legacy_code := (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'unit_master'
+    AND column_name = 'code'
+);
+SET @sql := IF(
+  @has_legacy_code > 0,
+  'UPDATE unit_master SET unit_code = UPPER(TRIM(code)) WHERE (unit_code IS NULL OR TRIM(unit_code) = '''') AND code IS NOT NULL AND TRIM(code) <> ''''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @has_legacy_name := (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'unit_master'
+    AND column_name = 'name'
+);
+SET @sql := IF(
+  @has_legacy_name > 0,
+  'UPDATE unit_master SET unit_name = name WHERE (unit_name IS NULL OR TRIM(unit_name) = '''') AND name IS NOT NULL AND TRIM(name) <> ''''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @has_legacy_decimal := (
+  SELECT COUNT(*)
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE()
+    AND table_name = 'unit_master'
+    AND column_name = 'allows_decimal'
+);
+SET @sql := IF(
+  @has_legacy_decimal > 0,
+  'UPDATE unit_master SET decimal_allowed = allows_decimal WHERE decimal_allowed IS NULL AND allows_decimal IS NOT NULL',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 INSERT INTO unit_master
-  (code, name, unit_type, allows_decimal, default_precision, is_active, sort_order)
+  (unit_code, unit_name, unit_type, decimal_allowed, default_precision, is_active, sort_order,
+   code, name, allows_decimal)
 VALUES
-  ('PCS', 'Pieces', 'count', 0, 0, 1, 10),
-  ('PACK', 'Pack', 'count', 0, 0, 1, 20),
-  ('BOX', 'Box', 'count', 0, 0, 1, 30),
-  ('CARTON', 'Carton', 'count', 0, 0, 1, 40),
-  ('DOZEN', 'Dozen', 'count', 0, 0, 1, 50),
-  ('PAIR', 'Pair', 'count', 0, 0, 1, 60),
-  ('SET', 'Set', 'count', 0, 0, 1, 70),
-  ('BUNDLE', 'Bundle', 'count', 0, 0, 1, 80),
-  ('ROLL', 'Roll', 'count', 0, 0, 1, 90),
-  ('BAG', 'Bag', 'count', 0, 0, 1, 100),
-  ('BOTTLE', 'Bottle', 'count', 0, 0, 1, 110),
-  ('CAN', 'Can', 'count', 0, 0, 1, 120),
-  ('SACHET', 'Sachet', 'count', 0, 0, 1, 130),
-  ('KG', 'Kilogram', 'weight', 1, 3, 1, 200),
-  ('G', 'Gram', 'weight', 1, 2, 1, 210),
-  ('L', 'Litre', 'volume', 1, 3, 1, 300),
-  ('ML', 'Millilitre', 'volume', 1, 2, 1, 310),
-  ('M', 'Metre', 'length', 1, 3, 1, 400),
-  ('CM', 'Centimetre', 'length', 1, 2, 1, 410),
-  ('FT', 'Feet', 'length', 1, 2, 1, 420),
-  ('IN', 'Inch', 'length', 1, 2, 1, 430),
-  ('SQFT', 'Square feet', 'area', 1, 2, 1, 500),
-  ('SQM', 'Square metre', 'area', 1, 3, 1, 510),
-  ('SHEET', 'Sheet', 'count', 0, 0, 1, 600),
-  ('BAR', 'Bar', 'count', 0, 0, 1, 610),
-  ('COIL', 'Coil', 'count', 0, 0, 1, 620),
-  ('SERVICE', 'Service', 'service', 0, 0, 1, 700),
-  ('HOUR', 'Hour', 'time', 1, 2, 1, 710),
-  ('JOB', 'Job', 'service', 0, 0, 1, 720)
+  ('PCS', 'Pieces', 'count', 0, 0, 1, 10, 'PCS', 'Pieces', 0),
+  ('PACK', 'Pack', 'count', 0, 0, 1, 20, 'PACK', 'Pack', 0),
+  ('BOX', 'Box', 'count', 0, 0, 1, 30, 'BOX', 'Box', 0),
+  ('CARTON', 'Carton', 'count', 0, 0, 1, 40, 'CARTON', 'Carton', 0),
+  ('DOZEN', 'Dozen', 'count', 0, 0, 1, 50, 'DOZEN', 'Dozen', 0),
+  ('PAIR', 'Pair', 'count', 0, 0, 1, 60, 'PAIR', 'Pair', 0),
+  ('SET', 'Set', 'count', 0, 0, 1, 70, 'SET', 'Set', 0),
+  ('BUNDLE', 'Bundle', 'count', 0, 0, 1, 80, 'BUNDLE', 'Bundle', 0),
+  ('ROLL', 'Roll', 'count', 0, 0, 1, 90, 'ROLL', 'Roll', 0),
+  ('BAG', 'Bag', 'count', 0, 0, 1, 100, 'BAG', 'Bag', 0),
+  ('BOTTLE', 'Bottle', 'count', 0, 0, 1, 110, 'BOTTLE', 'Bottle', 0),
+  ('CAN', 'Can', 'count', 0, 0, 1, 120, 'CAN', 'Can', 0),
+  ('SACHET', 'Sachet', 'count', 0, 0, 1, 130, 'SACHET', 'Sachet', 0),
+  ('KG', 'Kilogram', 'weight', 1, 3, 1, 200, 'KG', 'Kilogram', 1),
+  ('G', 'Gram', 'weight', 1, 2, 1, 210, 'G', 'Gram', 1),
+  ('L', 'Litre', 'volume', 1, 3, 1, 300, 'L', 'Litre', 1),
+  ('ML', 'Millilitre', 'volume', 1, 2, 1, 310, 'ML', 'Millilitre', 1),
+  ('M', 'Metre', 'length', 1, 3, 1, 400, 'M', 'Metre', 1),
+  ('CM', 'Centimetre', 'length', 1, 2, 1, 410, 'CM', 'Centimetre', 1),
+  ('FT', 'Feet', 'length', 1, 2, 1, 420, 'FT', 'Feet', 1),
+  ('IN', 'Inch', 'length', 1, 2, 1, 430, 'IN', 'Inch', 1),
+  ('SQFT', 'Square feet', 'area', 1, 2, 1, 500, 'SQFT', 'Square feet', 1),
+  ('SQM', 'Square metre', 'area', 1, 3, 1, 510, 'SQM', 'Square metre', 1),
+  ('SHEET', 'Sheet', 'count', 0, 0, 1, 600, 'SHEET', 'Sheet', 0),
+  ('BAR', 'Bar', 'count', 0, 0, 1, 610, 'BAR', 'Bar', 0),
+  ('COIL', 'Coil', 'count', 0, 0, 1, 620, 'COIL', 'Coil', 0),
+  ('SERVICE', 'Service', 'service', 0, 0, 1, 700, 'SERVICE', 'Service', 0),
+  ('HOUR', 'Hour', 'time', 1, 2, 1, 710, 'HOUR', 'Hour', 1),
+  ('JOB', 'Job', 'service', 0, 0, 1, 720, 'JOB', 'Job', 0)
 ON DUPLICATE KEY UPDATE
-  name = VALUES(name),
+  unit_name = VALUES(unit_name),
   unit_type = VALUES(unit_type),
-  allows_decimal = VALUES(allows_decimal),
+  decimal_allowed = VALUES(decimal_allowed),
   default_precision = VALUES(default_precision),
   is_active = VALUES(is_active),
-  sort_order = VALUES(sort_order);
+  sort_order = VALUES(sort_order),
+  code = VALUES(code),
+  name = VALUES(name),
+  allows_decimal = VALUES(allows_decimal);
 
 CREATE TABLE IF NOT EXISTS unit_conversions (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -167,13 +234,13 @@ SET default_selling_unit = CASE
 
 UPDATE products
 INNER JOIN unit_master
-  ON unit_master.code = products.default_selling_unit
+  ON unit_master.unit_code = products.default_selling_unit
 SET products.allow_decimal_qty = CASE
-      WHEN unit_master.allows_decimal = 1 THEN 1
+      WHEN unit_master.decimal_allowed = 1 THEN 1
       ELSE COALESCE(products.allow_decimal_qty, 0)
     END,
     products.quantity_precision = CASE
-      WHEN unit_master.allows_decimal = 1
+      WHEN unit_master.decimal_allowed = 1
         THEN GREATEST(products.quantity_precision, unit_master.default_precision)
       ELSE 0
     END;

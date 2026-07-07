@@ -38,11 +38,12 @@ exports.getUnits = async (req, res) => {
     await ensureProductCatalogSchema();
 
     const [units] = await db.promise().query(
-      `SELECT code, name, unit_type, allows_decimal, default_precision,
+      `SELECT unit_code AS code, unit_name AS name, unit_type,
+              decimal_allowed AS allows_decimal, default_precision,
               is_active, sort_order
        FROM unit_master
        WHERE is_active = 1
-       ORDER BY sort_order ASC, code ASC`
+       ORDER BY sort_order ASC, unit_code ASC`
     );
 
     return res.json({ units: units.map(formatUnit) });
@@ -62,15 +63,15 @@ exports.getUnitConversions = async (req, res) => {
     const shopId = Number(req.user?.shop_id || 0);
     const [conversions] = await db.promise().query(
       `SELECT unit_conversions.id, unit_conversions.shop_id,
-              unit_conversions.from_unit, from_units.name AS from_unit_name,
-              unit_conversions.to_unit, to_units.name AS to_unit_name,
+              unit_conversions.from_unit, from_units.unit_name AS from_unit_name,
+              unit_conversions.to_unit, to_units.unit_name AS to_unit_name,
               unit_conversions.factor, unit_conversions.description,
               unit_conversions.is_active, unit_conversions.created_at
        FROM unit_conversions
        INNER JOIN unit_master AS from_units
-         ON from_units.code = unit_conversions.from_unit
+         ON from_units.unit_code = unit_conversions.from_unit
        INNER JOIN unit_master AS to_units
-         ON to_units.code = unit_conversions.to_unit
+         ON to_units.unit_code = unit_conversions.to_unit
        WHERE unit_conversions.is_active = 1
          AND (unit_conversions.shop_id = 0 OR unit_conversions.shop_id = ?)
        ORDER BY unit_conversions.shop_id ASC, unit_conversions.from_unit ASC,
@@ -111,7 +112,7 @@ exports.addUnitConversion = async (req, res) => {
 
     const [units] = await db
       .promise()
-      .query("SELECT code FROM unit_master WHERE is_active = 1 AND code IN (?)", [
+      .query("SELECT unit_code AS code FROM unit_master WHERE is_active = 1 AND unit_code IN (?)", [
         [fromUnit, toUnit],
       ]);
 

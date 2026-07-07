@@ -170,10 +170,10 @@ const ensureCoreSchema = async (connection) => {
 
   await connection.query(`
     CREATE TABLE IF NOT EXISTS unit_master (
-      code VARCHAR(20) PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
+      unit_code VARCHAR(20) PRIMARY KEY,
+      unit_name VARCHAR(100) NOT NULL,
       unit_type VARCHAR(40) NOT NULL DEFAULT 'count',
-      allows_decimal TINYINT(1) NOT NULL DEFAULT 0,
+      decimal_allowed TINYINT(1) NOT NULL DEFAULT 0,
       default_precision TINYINT UNSIGNED NOT NULL DEFAULT 0,
       is_active TINYINT(1) NOT NULL DEFAULT 1,
       sort_order INT NOT NULL DEFAULT 0,
