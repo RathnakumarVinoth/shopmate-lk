@@ -3,6 +3,7 @@ const express = require("express");
 const {
   getSecuritySettings,
   getSettings,
+  updatePrinterSettings,
   updateSecuritySettings,
   updateSettings,
 } = require("../controllers/settingsController");
@@ -22,6 +23,12 @@ router.put(
   authMiddleware,
   allowRoles("owner"),
   updateSecuritySettings
+);
+router.put(
+  "/printer",
+  authMiddleware,
+  allowRoles("owner"),
+  updatePrinterSettings
 );
 
 router.get("/", authMiddleware, allowRoles("owner", "staff"), getSettings);

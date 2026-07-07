@@ -116,6 +116,7 @@ const ensureCoreSchema = async (connection) => {
       receipt_show_tax TINYINT(1) NOT NULL DEFAULT 1,
       receipt_show_discounts TINYINT(1) NOT NULL DEFAULT 1,
       receipt_show_cashier TINYINT(1) NOT NULL DEFAULT 1,
+      open_cash_drawer_after_print TINYINT(1) NOT NULL DEFAULT 0,
       language VARCHAR(20) DEFAULT 'en',
       currency VARCHAR(20) DEFAULT 'LKR',
       default_low_stock_limit INT DEFAULT 5,

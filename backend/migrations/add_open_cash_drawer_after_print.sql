@@ -1,0 +1,2 @@
+ALTER TABLE shops
+  ADD COLUMN IF NOT EXISTS open_cash_drawer_after_print TINYINT(1) NOT NULL DEFAULT 0;

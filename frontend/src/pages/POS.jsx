@@ -17,6 +17,7 @@ import {
   saveOfflineSale,
   syncPendingOfflineSales,
 } from '../utils/offlinePos'
+import { buildEscPosReceiptCommands } from '../utils/escPos'
 
 const getProductsFromResponse = (data) => {
   if (Array.isArray(data)) return data
@@ -155,6 +156,10 @@ const getReceiptDetails = (receipt) => {
     receipt?.receipt_show_cashier,
     normalizeReceiptFlag(settings.receipt_show_cashier),
   )
+  const openCashDrawerAfterPrint = normalizeReceiptFlag(
+    receipt?.open_cash_drawer_after_print,
+    normalizeReceiptFlag(settings.open_cash_drawer_after_print, false),
+  )
   const balanceLabel =
     paymentType === 'credit' ? t('creditBalance') : balanceAmount < 0 ? t('balanceDue') : t('change')
 
@@ -178,6 +183,7 @@ const getReceiptDetails = (receipt) => {
     showTax,
     showDiscounts,
     showCashier,
+    openCashDrawerAfterPrint,
     receiptFooter,
     defaultReceiptSize,
     currency,
@@ -404,6 +410,40 @@ const shareInvoiceWhatsApp = (receipt) => {
   window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
 }
 
+const buildEscPosReceiptText = (details) =>
+  [
+    details.shopName,
+    details.shopAddress,
+    details.shopPhone ? `Phone: ${details.shopPhone}` : '',
+    `Invoice: ${details.invoiceNo}`,
+    `Date: ${formatDateTime(details.createdAt)}`,
+    '',
+    ...(details.items || []).map(
+      (item) =>
+        `${item.product_name || 'Item'} x ${formatQuantity(item)} ${formatCurrency(
+          item.subtotal,
+          details.currency,
+        )}`,
+    ),
+    '',
+    `Total: ${formatCurrency(details.finalTotal, details.currency)}`,
+    `Paid: ${formatCurrency(details.paidAmount, details.currency)}`,
+    `${details.balanceLabel}: ${formatCurrency(
+      Math.abs(details.balanceAmount),
+      details.currency,
+    )}`,
+    '',
+    details.receiptFooter,
+  ]
+    .filter((line) => line !== undefined && line !== null)
+    .join('\n')
+
+const prepareEscPosReceiptCommands = (details) =>
+  buildEscPosReceiptCommands(buildEscPosReceiptText(details), {
+    openDrawer: details.openCashDrawerAfterPrint,
+    cutPaper: false,
+  })
+
 const printReceipt = (receipt) => {
   const details = getReceiptDetails(receipt)
   const rows = details.items
@@ -554,6 +594,14 @@ const printReceipt = (receipt) => {
 const thermalPrintReceipt = (receipt, receiptSize = '80mm') => {
   const details = getReceiptDetails(receipt)
   const width = normalizeReceiptSize(receiptSize || details.defaultReceiptSize)
+
+  if (details.openCashDrawerAfterPrint) {
+    const escPosCommands = prepareEscPosReceiptCommands(details)
+    console.info(
+      `Prepared ${escPosCommands.length} ESC/POS receipt bytes with cash drawer kick. No printer transport is configured, so the bytes were not sent.`,
+    )
+  }
+
   const rows = details.items
     .map(
       (item) => `
@@ -764,6 +812,7 @@ function POS() {
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [thermalReceiptSize, setThermalReceiptSize] = useState('80mm')
+  const [cashDrawerNotice, setCashDrawerNotice] = useState('')
   const [showSalesHistory, setShowSalesHistory] = useState(false)
   const [salesHistory, setSalesHistory] = useState([])
   const [loadingSalesHistory, setLoadingSalesHistory] = useState(false)
@@ -964,6 +1013,7 @@ function POS() {
   useEffect(() => {
     if (receipt) {
       setThermalReceiptSize(getReceiptDetails(receipt).defaultReceiptSize)
+      setCashDrawerNotice('')
     }
   }, [receipt])
 
@@ -1387,6 +1437,7 @@ function POS() {
       receipt_footer: settings.receipt_footer || 'Thank you for shopping with us.',
       currency: settings.currency || 'LKR',
       default_receipt_size: settings.default_receipt_size || '80mm',
+      open_cash_drawer_after_print: settings.open_cash_drawer_after_print === true,
       logo_url: settings.logo_url || '',
     }
 
@@ -1540,6 +1591,20 @@ function POS() {
     } finally {
       setSavingSale(false)
     }
+  }
+
+  const showCashDrawerTestNotice = () => {
+    if (receiptDetails) {
+      const escPosCommands = prepareEscPosReceiptCommands({
+        ...receiptDetails,
+        openCashDrawerAfterPrint: true,
+      })
+      console.info(
+        `Prepared ${escPosCommands.length} ESC/POS cash drawer test bytes. No printer transport is configured, so the bytes were not sent.`,
+      )
+    }
+
+    setCashDrawerNotice(t('Cash drawer test requires printer driver support or a local print bridge.'))
   }
 
   const renderOfflineSalesTable = (sales) => (
@@ -2220,6 +2285,11 @@ function POS() {
                 >
                   {t('Thermal Print')}
                 </button>
+                {receiptDetails.openCashDrawerAfterPrint && (
+                  <button type="button" className="ghost-button" onClick={showCashDrawerTestNotice}>
+                    {t('Cash Drawer Test')}
+                  </button>
+                )}
                 <button type="button" className="ghost-button" onClick={() => printReceipt(receipt)}>
                   {t('print')}
                 </button>
@@ -2228,6 +2298,12 @@ function POS() {
                 </button>
               </div>
             </div>
+
+            {receiptDetails.openCashDrawerAfterPrint && (
+              <div className="info-banner no-print">
+                {cashDrawerNotice || t('Cash drawer opening depends on printer driver settings.')}
+              </div>
+            )}
 
             <div className="receipt-print-area">
               <div className="receipt-header">

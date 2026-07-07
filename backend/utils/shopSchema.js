@@ -43,6 +43,14 @@ const ensureShopSettingsColumns = async () => {
     }
   }
 
+  if (!existingColumns.has("open_cash_drawer_after_print")) {
+    await db
+      .promise()
+      .query(
+        "ALTER TABLE shops ADD COLUMN open_cash_drawer_after_print TINYINT(1) NOT NULL DEFAULT 0"
+      );
+  }
+
   if (!existingColumns.has("default_low_stock_limit")) {
     await db
       .promise()

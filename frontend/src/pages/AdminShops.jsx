@@ -29,6 +29,7 @@ const initialCreateForm = {
   receipt_show_tax: true,
   receipt_show_discounts: true,
   receipt_show_cashier: true,
+  open_cash_drawer_after_print: false,
   subscription_plan: 'starter',
   subscription_status: 'trial',
   subscription_expiry_date: '',
@@ -525,6 +526,15 @@ function AdminShops() {
               <label className="checkbox-row">
                 <input name="receipt_show_cashier" type="checkbox" checked={createForm.receipt_show_cashier} onChange={updateCreateField} />
                 {t('Show Cashier on Receipt')}
+              </label>
+              <label className="checkbox-row">
+                <input name="open_cash_drawer_after_print" type="checkbox" checked={createForm.open_cash_drawer_after_print} onChange={updateCreateField} />
+                <span>
+                  {t('Open cash drawer after receipt print')}
+                  <small className="muted">
+                    {t('Works when your thermal printer driver or local print bridge supports cash drawer kick. Browser print alone may not open the drawer.')}
+                  </small>
+                </span>
               </label>
               <label>
                 {t('Plan')}

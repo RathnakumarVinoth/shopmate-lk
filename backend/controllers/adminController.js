@@ -85,6 +85,9 @@ const formatShop = (shop) => ({
   receipt_show_tax: Boolean(Number(shop.receipt_show_tax ?? 1)),
   receipt_show_discounts: Boolean(Number(shop.receipt_show_discounts ?? 1)),
   receipt_show_cashier: Boolean(Number(shop.receipt_show_cashier ?? 1)),
+  open_cash_drawer_after_print: Boolean(
+    Number(shop.open_cash_drawer_after_print ?? 0)
+  ),
   language: normalizeLanguage(shop.language),
   subscription_plan: shop.subscription_plan || null,
   subscription_status: shop.subscription_status || null,
@@ -118,6 +121,7 @@ const getShopById = async (shopId) => {
        shops.receipt_show_tax,
        shops.receipt_show_discounts,
        shops.receipt_show_cashier,
+       shops.open_cash_drawer_after_print,
        shops.language,
        shops.subscription_plan,
        shops.subscription_status,
@@ -162,6 +166,7 @@ exports.getShops = async (req, res) => {
          shops.receipt_show_tax,
          shops.receipt_show_discounts,
          shops.receipt_show_cashier,
+         shops.open_cash_drawer_after_print,
          shops.language,
          shops.subscription_plan,
          shops.subscription_status,
@@ -209,6 +214,7 @@ exports.createShop = async (req, res) => {
     receipt_show_tax,
     receipt_show_discounts,
     receipt_show_cashier,
+    open_cash_drawer_after_print,
     subscription_plan,
     subscription_status,
     subscription_start_date,
@@ -228,6 +234,7 @@ exports.createShop = async (req, res) => {
     receipt_show_tax,
     receipt_show_discounts,
     receipt_show_cashier,
+    open_cash_drawer_after_print,
   };
   for (const [name, value] of Object.entries(receiptFlagInputs)) {
     if (value !== undefined && toBooleanNumber(value) === null) {
@@ -267,11 +274,12 @@ exports.createShop = async (req, res) => {
         phone, email, address, receipt_footer, logo_url, language, currency,
         default_low_stock_limit, tax_percentage,
         default_receipt_size, receipt_show_logo, receipt_show_tax,
-        receipt_show_discounts, receipt_show_cashier, subscription_plan,
+        receipt_show_discounts, receipt_show_cashier, open_cash_drawer_after_print,
+        subscription_plan,
         subscription_status,
         subscription_start_date, subscription_expiry_date, monthly_fee,
         is_enabled, created_by_admin)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         optionalText(shop_name),
         optionalText(owner_name),
@@ -292,6 +300,7 @@ exports.createShop = async (req, res) => {
         toBooleanNumber(receipt_show_tax ?? true),
         toBooleanNumber(receipt_show_discounts ?? true),
         toBooleanNumber(receipt_show_cashier ?? true),
+        toBooleanNumber(open_cash_drawer_after_print ?? false),
         plan,
         status,
         optionalDate(subscription_start_date),
@@ -526,6 +535,7 @@ exports.updateShop = async (req, res) => {
     receipt_show_tax,
     receipt_show_discounts,
     receipt_show_cashier,
+    open_cash_drawer_after_print,
     subscription_plan,
     subscription_status,
     subscription_start_date,
@@ -550,6 +560,7 @@ exports.updateShop = async (req, res) => {
     receipt_show_tax,
     receipt_show_discounts,
     receipt_show_cashier,
+    open_cash_drawer_after_print,
   };
   for (const [name, value] of Object.entries(receiptFlagInputs)) {
     if (value !== undefined && toBooleanNumber(value) === null) {
@@ -570,6 +581,7 @@ exports.updateShop = async (req, res) => {
            receipt_show_tax = COALESCE(?, receipt_show_tax),
            receipt_show_discounts = COALESCE(?, receipt_show_discounts),
            receipt_show_cashier = COALESCE(?, receipt_show_cashier),
+           open_cash_drawer_after_print = COALESCE(?, open_cash_drawer_after_print),
            subscription_plan = ?,
            subscription_status = ?, subscription_start_date = ?,
            subscription_expiry_date = ?, monthly_fee = ?, is_enabled = ?
@@ -598,6 +610,9 @@ exports.updateShop = async (req, res) => {
         receipt_show_cashier === undefined
           ? null
           : toBooleanNumber(receipt_show_cashier),
+        open_cash_drawer_after_print === undefined
+          ? null
+          : toBooleanNumber(open_cash_drawer_after_print),
         allowedPlans.includes(subscription_plan) ? subscription_plan : "starter",
         allowedStatuses.includes(subscription_status) ? subscription_status : "trial",
         optionalDate(subscription_start_date),

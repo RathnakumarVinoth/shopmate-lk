@@ -23,6 +23,7 @@ const initialForm = {
   receipt_show_tax: true,
   receipt_show_discounts: true,
   receipt_show_cashier: true,
+  open_cash_drawer_after_print: false,
   language: 'en',
   idle_timeout_minutes: '15',
   background_logout_minutes: '3',
@@ -45,6 +46,7 @@ const settingsToForm = (settings) => ({
   receipt_show_tax: settings.receipt_show_tax !== false,
   receipt_show_discounts: settings.receipt_show_discounts !== false,
   receipt_show_cashier: settings.receipt_show_cashier !== false,
+  open_cash_drawer_after_print: settings.open_cash_drawer_after_print === true,
   language: languageOptions.some((language) => language.value === settings.language)
     ? settings.language
     : getLanguage(),
@@ -143,6 +145,32 @@ function Settings() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const savePrinterSettings = async (event) => {
+    event.preventDefault()
+    setSaving(true)
+    setMessage('')
+    setError('')
+
+    try {
+      const response = await api.put('/settings/printer', {
+        open_cash_drawer_after_print: form.open_cash_drawer_after_print,
+      })
+      const settings = response.data.settings || {}
+      saveStoredSettings({ ...getStoredSettings(), ...settings })
+      window.dispatchEvent(new Event('shopmate:settings-changed'))
+      setMessage(t('Printer settings updated successfully'))
+    } catch (err) {
+      setError(getApiMessage(err, 'Failed to update printer settings'))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const showCashDrawerTestNotice = () => {
+    setError('')
+    setMessage(t('Cash drawer test requires printer driver support or a local print bridge.'))
   }
 
   if (loading) {
@@ -253,6 +281,15 @@ function Settings() {
               />
               {t('Show Cashier on Receipt')}
             </label>
+            <label className="checkbox-row">
+              <input
+                name="open_cash_drawer_after_print"
+                type="checkbox"
+                checked={form.open_cash_drawer_after_print}
+                onChange={updateField}
+              />
+              {t('Open cash drawer after receipt print')}
+            </label>
           </div>
         </section>
 
@@ -306,6 +343,36 @@ function Settings() {
         </section>
 
       </fieldset>
+
+      {user.role === 'owner' && (
+        <section className="panel">
+          <div className="section-heading">
+            <h2>{t('Printer Settings')}</h2>
+          </div>
+          <form className="form-grid" onSubmit={savePrinterSettings}>
+            <label className="checkbox-row full-width">
+              <input
+                name="open_cash_drawer_after_print"
+                type="checkbox"
+                checked={form.open_cash_drawer_after_print}
+                onChange={updateField}
+              />
+              <span>
+                {t('Open cash drawer after receipt print')}
+                <small className="muted">
+                  {t('Works when your thermal printer driver or local print bridge supports cash drawer kick. Browser print alone may not open the drawer.')}
+                </small>
+              </span>
+            </label>
+            <button type="submit" disabled={saving}>
+              {saving ? t('Saving...') : t('Save Printer Settings')}
+            </button>
+            <button type="button" className="ghost-button" onClick={showCashDrawerTestNotice}>
+              {t('Cash Drawer Test')}
+            </button>
+          </form>
+        </section>
+      )}
 
       {user.role === 'owner' && (
         <section className="panel">

@@ -40,6 +40,7 @@ const shopToForm = (shop) => ({
   receipt_show_tax: shop?.receipt_show_tax !== false,
   receipt_show_discounts: shop?.receipt_show_discounts !== false,
   receipt_show_cashier: shop?.receipt_show_cashier !== false,
+  open_cash_drawer_after_print: shop?.open_cash_drawer_after_print === true,
   language: shop?.language || 'en',
   subscription_plan: shop?.subscription_plan || 'starter',
   subscription_status: shop?.subscription_status || 'trial',
@@ -490,6 +491,15 @@ function AdminShopDetails() {
           <label className="checkbox-row">
             <input name="receipt_show_cashier" type="checkbox" checked={shopForm.receipt_show_cashier} onChange={updateShopField} />
             {t('Show Cashier on Receipt')}
+          </label>
+          <label className="checkbox-row">
+            <input name="open_cash_drawer_after_print" type="checkbox" checked={shopForm.open_cash_drawer_after_print} onChange={updateShopField} />
+            <span>
+              {t('Open cash drawer after receipt print')}
+              <small className="muted">
+                {t('Works when your thermal printer driver or local print bridge supports cash drawer kick. Browser print alone may not open the drawer.')}
+              </small>
+            </span>
           </label>
           <label>
             {t('Plan')}

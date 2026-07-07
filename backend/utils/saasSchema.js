@@ -168,6 +168,13 @@ const ensureSaasSchema = async () => {
     connection,
     "shops",
     existingShopColumns,
+    "open_cash_drawer_after_print",
+    "open_cash_drawer_after_print TINYINT(1) NOT NULL DEFAULT 0"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
     "language",
     "language VARCHAR(10) DEFAULT 'en'"
   );

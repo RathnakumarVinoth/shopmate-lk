@@ -47,7 +47,8 @@ const getShopSettings = async (shopId) => {
     `SELECT shop_name, phone, email, address, receipt_footer, currency,
             default_low_stock_limit, tax_percentage, logo_url, default_receipt_size,
             receipt_show_logo, receipt_show_tax, receipt_show_discounts,
-            receipt_show_cashier, language, idle_timeout_minutes,
+            receipt_show_cashier, open_cash_drawer_after_print,
+            language, idle_timeout_minutes,
             background_logout_minutes
      FROM shops
      WHERE id = ?
@@ -78,6 +79,9 @@ exports.getSettings = async (req, res) => {
         Number(settings.receipt_show_discounts ?? 1)
       ),
       receipt_show_cashier: Boolean(Number(settings.receipt_show_cashier ?? 1)),
+      open_cash_drawer_after_print: Boolean(
+        Number(settings.open_cash_drawer_after_print ?? 0)
+      ),
       language: normalizeLanguage(settings.language),
       idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
       background_logout_minutes: Number(settings.background_logout_minutes || 3),
@@ -166,6 +170,51 @@ exports.updateSecuritySettings = async (req, res) => {
   }
 };
 
+exports.updatePrinterSettings = async (req, res) => {
+  const { open_cash_drawer_after_print } = req.body;
+  const nextOpenDrawer = toBooleanNumber(open_cash_drawer_after_print);
+
+  if (nextOpenDrawer === null) {
+    return res.status(400).json({
+      message: "open_cash_drawer_after_print must be a boolean",
+    });
+  }
+
+  try {
+    await ensureShopSettingsColumns();
+
+    const [result] = await db.promise().query(
+      `UPDATE shops
+       SET open_cash_drawer_after_print = ?
+       WHERE id = ?`,
+      [nextOpenDrawer, req.user.shop_id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Shop settings not found" });
+    }
+
+    await createAuditLogFromRequest(req, {
+      action: "printer_settings_update",
+      entity_type: "settings",
+      entity_id: req.user.shop_id,
+      description: "Updated printer and cash drawer settings",
+    });
+
+    return res.json({
+      message: "Printer settings updated successfully",
+      settings: {
+        open_cash_drawer_after_print: Boolean(nextOpenDrawer),
+      },
+    });
+  } catch (error) {
+    console.error("Update printer settings error:", error.message);
+    return res
+      .status(500)
+      .json({ message: "Server error while updating printer settings" });
+  }
+};
+
 exports.updateSettings = async (req, res) => {
   if (req.user.role !== "admin") {
     return res.status(403).json({
@@ -196,6 +245,7 @@ exports.updateSettings = async (req, res) => {
     receipt_show_tax,
     receipt_show_discounts,
     receipt_show_cashier,
+    open_cash_drawer_after_print,
     language,
     idle_timeout_minutes,
     background_logout_minutes,
@@ -242,6 +292,7 @@ exports.updateSettings = async (req, res) => {
     receipt_show_tax,
     receipt_show_discounts,
     receipt_show_cashier,
+    open_cash_drawer_after_print,
   };
 
   for (const [name, value] of Object.entries(receiptFlagInputs)) {
@@ -274,6 +325,10 @@ exports.updateSettings = async (req, res) => {
     receipt_show_cashier === undefined
       ? null
       : toBooleanNumber(receipt_show_cashier);
+  const nextOpenDrawer =
+    open_cash_drawer_after_print === undefined
+      ? null
+      : toBooleanNumber(open_cash_drawer_after_print);
   const nextIdleTimeout =
     idle_timeout_minutes !== undefined ? Number(idle_timeout_minutes) : null;
   const nextBackgroundTimeout =
@@ -291,6 +346,7 @@ exports.updateSettings = async (req, res) => {
            receipt_show_tax = COALESCE(?, receipt_show_tax),
            receipt_show_discounts = COALESCE(?, receipt_show_discounts),
            receipt_show_cashier = COALESCE(?, receipt_show_cashier),
+           open_cash_drawer_after_print = COALESCE(?, open_cash_drawer_after_print),
            language = COALESCE(?, language),
            idle_timeout_minutes = COALESCE(?, idle_timeout_minutes),
            background_logout_minutes = COALESCE(?, background_logout_minutes)
@@ -310,6 +366,7 @@ exports.updateSettings = async (req, res) => {
         nextReceiptShowTax,
         nextReceiptShowDiscounts,
         nextReceiptShowCashier,
+        nextOpenDrawer,
         nextLanguage,
         nextIdleTimeout,
         nextBackgroundTimeout,
@@ -344,6 +401,9 @@ exports.updateSettings = async (req, res) => {
           Number(settings.receipt_show_discounts ?? 1)
         ),
         receipt_show_cashier: Boolean(Number(settings.receipt_show_cashier ?? 1)),
+        open_cash_drawer_after_print: Boolean(
+          Number(settings.open_cash_drawer_after_print ?? 0)
+        ),
         language: normalizeLanguage(settings.language),
         idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
         background_logout_minutes: Number(settings.background_logout_minutes || 3),

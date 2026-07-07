@@ -258,6 +258,9 @@ const buildReceipt = ({ sale, shop, customer, items }) => {
       Number(shop?.receipt_show_discounts ?? 1)
     ),
     receipt_show_cashier: Boolean(Number(shop?.receipt_show_cashier ?? 1)),
+    open_cash_drawer_after_print: Boolean(
+      Number(shop?.open_cash_drawer_after_print ?? 0)
+    ),
     items: receiptItems.map((item) => ({
       product_id: item.product_id,
       product_name: item.product_name,
@@ -356,7 +359,8 @@ exports.createSale = async (req, res) => {
     const [shops] = await connection.query(
       `SELECT shop_name, phone, email, address, receipt_footer, currency, logo_url,
               default_receipt_size, receipt_show_logo, receipt_show_tax,
-              receipt_show_discounts, receipt_show_cashier, tax_percentage
+              receipt_show_discounts, receipt_show_cashier,
+              open_cash_drawer_after_print, tax_percentage
        FROM shops
        WHERE id = ?
        LIMIT 1`,
@@ -789,6 +793,7 @@ exports.getSaleById = async (req, res) => {
               shops.default_receipt_size,
               shops.receipt_show_logo, shops.receipt_show_tax,
               shops.receipt_show_discounts, shops.receipt_show_cashier,
+              shops.open_cash_drawer_after_print,
               sales.cashier_name,
               customers.customer_name, customers.phone AS customer_phone,
               customers.address AS customer_address
