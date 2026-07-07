@@ -780,6 +780,7 @@ function POS() {
   )
   const [offlineSales, setOfflineSales] = useState([])
   const [syncingOffline, setSyncingOffline] = useState(false)
+  const [showSyncedOfflineSales, setShowSyncedOfflineSales] = useState(false)
   const codeInputRef = useRef(null)
 
   const loadProducts = useCallback(async () => {
@@ -1094,9 +1095,15 @@ function POS() {
   const creditBalance = Math.max(total - paid, 0)
   const saleBalance = paymentType === 'credit' ? creditBalance : balance
   const isOffline = !isOnline
-  const pendingOfflineCount = offlineSales.filter((sale) =>
-    ['pending', 'syncing', 'failed'].includes(sale.sync_status),
-  ).length
+  const pendingOfflineSales = useMemo(
+    () => offlineSales.filter((sale) => ['pending', 'syncing', 'failed'].includes(sale.sync_status)),
+    [offlineSales],
+  )
+  const syncedOfflineSales = useMemo(
+    () => offlineSales.filter((sale) => sale.sync_status === 'synced'),
+    [offlineSales],
+  )
+  const pendingOfflineCount = pendingOfflineSales.length
 
   const filteredCustomers = useMemo(() => {
     const term = customerSearch.trim().toLowerCase()
@@ -1535,6 +1542,37 @@ function POS() {
     }
   }
 
+  const renderOfflineSalesTable = (sales) => (
+    <div className="table-wrap compact-table">
+      <table>
+        <thead>
+          <tr>
+            <th>{t('Invoice')}</th>
+            <th>{t('total')}</th>
+            <th>{t('Date')}</th>
+            <th>{t('Status')}</th>
+            <th>{t('Message')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sales.slice(0, 5).map((sale) => (
+            <tr key={sale.local_offline_id}>
+              <td>{sale.real_invoice_no || sale.temporary_invoice_no}</td>
+              <td>{formatMoney(sale.total_amount, sale.currency)}</td>
+              <td>{formatDateTime(sale.created_at)}</td>
+              <td>
+                <span className={`status ${sale.sync_status}`}>
+                  {sale.sync_status}
+                </span>
+              </td>
+              <td>{sale.sync_error || '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+
   return (
     <section className="pos-layout pro-pos">
       <section className="panel">
@@ -1549,58 +1587,75 @@ function POS() {
             >
               {t('Sales History')}
             </button>
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={syncOfflineSales}
-              disabled={syncingOffline || !isOnline || pendingOfflineCount === 0}
-            >
-              {syncingOffline ? t('Syncing...') : t('Sync Offline Sales')}
-            </button>
+            {pendingOfflineCount > 0 && (
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={syncOfflineSales}
+                disabled={syncingOffline || !isOnline}
+              >
+                {syncingOffline ? t('Syncing...') : t('Sync Offline Sales')}
+              </button>
+            )}
             <button type="button" className="ghost-button" onClick={loadProducts} disabled={loadingProducts}>
               {loadingProducts ? t('refreshing') : t('refresh')}
             </button>
           </div>
         </div>
 
-        <section className="offline-sync-panel">
-          <div className="section-heading">
-            <h3>{t('Offline Sales / Pending Sync')}</h3>
-            <span className="status pending">{pendingOfflineCount} {t('pending')}</span>
-          </div>
-          {offlineSales.length > 0 ? (
-            <div className="table-wrap compact-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t('Invoice')}</th>
-                    <th>{t('total')}</th>
-                    <th>{t('Date')}</th>
-                    <th>{t('Status')}</th>
-                    <th>{t('Message')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {offlineSales.slice(0, 5).map((sale) => (
-                    <tr key={sale.local_offline_id}>
-                      <td>{sale.real_invoice_no || sale.temporary_invoice_no}</td>
-                      <td>{formatMoney(sale.total_amount, sale.currency)}</td>
-                      <td>{formatDateTime(sale.created_at)}</td>
-                      <td>
-                        <span className={`status ${sale.sync_status}`}>
-                          {sale.sync_status}
-                        </span>
-                      </td>
-                      <td>{sale.sync_error || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {(pendingOfflineCount > 0 || syncedOfflineSales.length > 0) && (
+          <section className={`offline-sync-panel ${pendingOfflineCount === 0 ? 'offline-sync-panel--compact' : ''}`}>
+            <div className="section-heading">
+              <div>
+                <h3>{t('Offline Sales / Pending Sync')}</h3>
+                <p className="muted">
+                  {pendingOfflineCount > 0
+                    ? t('Offline sales need syncing before they appear in reports.')
+                    : t('All offline sales synced.')}
+                </p>
+              </div>
+              <div className="table-actions">
+                {pendingOfflineCount > 0 && (
+                  <span className="status pending">{pendingOfflineCount} {t('pending')}</span>
+                )}
+                {syncedOfflineSales.length > 0 && (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => setShowSyncedOfflineSales((current) => !current)}
+                  >
+                    {showSyncedOfflineSales ? t('Hide synced offline sales') : t('View synced offline sales')}
+                  </button>
+                )}
+              </div>
             </div>
-          ) : (
-            <p className="muted">{t('No offline sales pending sync.')}</p>
-          )}
-        </section>
+
+            {pendingOfflineCount > 0 && (
+              <>
+                <div className="offline-sync-actions">
+                  <button
+                    type="button"
+                    onClick={syncOfflineSales}
+                    disabled={syncingOffline || !isOnline}
+                  >
+                    {syncingOffline ? t('Syncing...') : t('Sync Offline Sales')}
+                  </button>
+                </div>
+                {renderOfflineSalesTable(pendingOfflineSales)}
+              </>
+            )}
+
+            {showSyncedOfflineSales && syncedOfflineSales.length > 0 && (
+              <div className="offline-history-panel">
+                <div className="section-heading">
+                  <h3>{t('Synced offline sales')}</h3>
+                  <span className="status synced">{syncedOfflineSales.length} {t('synced')}</span>
+                </div>
+                {renderOfflineSalesTable(syncedOfflineSales)}
+              </div>
+            )}
+          </section>
+        )}
 
         <section className="barcode-scanner">
           <label>

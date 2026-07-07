@@ -618,6 +618,53 @@ th {
   padding: 7px 11px;
 }
 
+.offline-sync-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #f2d7a9;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fffaf1;
+}
+
+.offline-sync-panel--compact {
+  border-color: #b9e6d0;
+  padding: 10px 12px;
+  background: #f0fdf4;
+}
+
+.offline-sync-panel .section-heading {
+  margin: 0;
+  align-items: flex-start;
+}
+
+.offline-sync-panel h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.offline-sync-panel .muted {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.offline-sync-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.offline-history-panel {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e5eaf1;
+  padding-top: 12px;
+}
+
+.compact-table table {
+  min-width: 620px;
+}
+
 .low-stock-row td {
   background: #fff8e6;
 }
@@ -1145,9 +1192,19 @@ th {
   background: #dcfce7;
 }
 
+.status.synced {
+  color: #166534;
+  background: #dcfce7;
+}
+
 .status.pending {
   color: #854d0e;
   background: #fef3c7;
+}
+
+.status.syncing {
+  color: #1d4ed8;
+  background: #dbeafe;
 }
 
 .status.failed {
@@ -1289,6 +1346,28 @@ th {
   max-width: 100%;
 }
 
+.chart-empty-state {
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 16px;
+  color: #64748b;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.chart-empty-state strong {
+  color: #334155;
+  font-size: 14px;
+}
+
+.chart-empty-state span {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
 .report-table {
   min-width: 520px;
 }
@@ -1398,6 +1477,36 @@ th {
   padding: 12px;
   color: #17212b;
   background: #f8fafc;
+}
+
+.backup-loading-panel {
+  min-height: 120px;
+}
+
+.backup-guidance {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.backup-guidance article {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #dbe5ec;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.backup-guidance strong {
+  color: #17212b;
+  font-size: 14px;
+}
+
+.backup-guidance span {
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .settings-actions {
@@ -1530,7 +1639,8 @@ th {
   .page-grid,
   .pos-layout,
   .report-grid,
-  .export-grid {
+  .export-grid,
+  .backup-guidance {
     grid-template-columns: 1fr;
   }
 
@@ -1947,6 +2057,7 @@ th {
   .alert-summary-grid,
   .report-grid,
   .export-grid,
+  .backup-guidance,
   .pos-layout,
   .pro-pos,
   .product-list {
@@ -1958,6 +2069,7 @@ th {
   .page-grid,
   .report-grid,
   .export-grid,
+  .backup-guidance,
   .metric-grid,
   .alert-summary-grid,
   .form-grid,

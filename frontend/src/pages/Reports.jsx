@@ -22,6 +22,17 @@ import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 
 const chartColors = ['#0f766e', '#2563eb', '#c2413d', '#7c3aed', '#ca8a04', '#0f172a']
+const salesNumberFields = [
+  'total_sales',
+  'total_profit',
+  'total_discounts',
+  'total_tax',
+  'total_bills',
+]
+const topProductNumberFields = ['total_quantity_sold', 'total_sales_amount', 'total_profit']
+const paymentMethodNumberFields = ['total_amount', 'bill_count']
+const expensesNumberFields = ['total_amount']
+const monthlyNumberFields = ['total_sales', 'total_profit', 'total_expenses', 'net_profit']
 
 const getMonthRange = () => {
   const now = new Date()
@@ -47,6 +58,33 @@ const withFilters = (filters) => ({
 })
 
 const asArray = (data) => (Array.isArray(data) ? data : [])
+
+const normalizeNumberRows = (data, fields) =>
+  asArray(data).map((row) => {
+    const nextRow = { ...row }
+    fields.forEach((field) => {
+      nextRow[field] = Number(nextRow[field] || 0)
+    })
+    return nextRow
+  })
+
+const shortTick = (value) => {
+  const text = String(value || '')
+  return text.length > 16 ? `${text.slice(0, 15)}...` : text
+}
+
+const ChartBody = ({ hasData, emptyMessage, children }) => (
+  hasData ? (
+    <ResponsiveContainer width="100%" height={280}>
+      {children}
+    </ResponsiveContainer>
+  ) : (
+    <div className="chart-empty-state">
+      <strong>{t(emptyMessage)}</strong>
+      <span>{t('Try changing the date filter.')}</span>
+    </div>
+  )
+)
 
 function Reports() {
   const [filters, setFilters] = useState(getMonthRange)
@@ -85,12 +123,12 @@ function Reports() {
       ])
 
       setSummary(overviewResponse.data || {})
-      setSalesChart(asArray(salesResponse.data))
-      setProfitChart(asArray(profitResponse.data))
-      setTopProducts(asArray(productsResponse.data))
-      setPaymentMethods(asArray(paymentsResponse.data))
-      setExpensesChart(asArray(expensesResponse.data))
-      setMonthlyComparison(asArray(monthlyResponse.data))
+      setSalesChart(normalizeNumberRows(salesResponse.data, salesNumberFields))
+      setProfitChart(normalizeNumberRows(profitResponse.data, salesNumberFields))
+      setTopProducts(normalizeNumberRows(productsResponse.data, topProductNumberFields))
+      setPaymentMethods(normalizeNumberRows(paymentsResponse.data, paymentMethodNumberFields))
+      setExpensesChart(normalizeNumberRows(expensesResponse.data, expensesNumberFields))
+      setMonthlyComparison(normalizeNumberRows(monthlyResponse.data, monthlyNumberFields))
     } catch (err) {
       console.error('Failed to load report API calls:', err.response?.data || err)
       setError(getApiMessage(err, 'Failed to load reports'))
@@ -105,6 +143,13 @@ function Reports() {
 
   const applyFilters = (event) => {
     event.preventDefault()
+
+    if (filters.start_date && filters.end_date && filters.start_date > filters.end_date) {
+      setError(t('From date must be before to date.'))
+      return
+    }
+
+    setError('')
     setAppliedFilters(filters)
   }
 
@@ -112,6 +157,7 @@ function Reports() {
     const nextFilters = getMonthRange()
     setFilters(nextFilters)
     setAppliedFilters(nextFilters)
+    setError('')
   }
 
   const summaryCards = useMemo(
@@ -225,6 +271,7 @@ function Reports() {
             <input
               type="date"
               value={filters.start_date}
+              max={filters.end_date || undefined}
               onChange={(event) => setFilters({ ...filters, start_date: event.target.value })}
               required
             />
@@ -234,6 +281,7 @@ function Reports() {
             <input
               type="date"
               value={filters.end_date}
+              min={filters.start_date || undefined}
               onChange={(event) => setFilters({ ...filters, end_date: event.target.value })}
               required
             />
@@ -289,32 +337,32 @@ function Reports() {
               <div className="section-heading">
                 <h2>{t('Sales Over Time')}</h2>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <LineChart data={salesChart}>
+              <ChartBody hasData={salesChart.length > 0} emptyMessage="No sales data for selected period">
+                <LineChart data={salesChart} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
+                  <XAxis dataKey="period" tickFormatter={shortTick} />
                   <YAxis />
                   <Tooltip formatter={(value) => formatMoney(value)} />
                   <Legend />
                   <Line type="monotone" dataKey="total_sales" name={t('Total Sales')} stroke="#0f766e" strokeWidth={2} />
                 </LineChart>
-              </ResponsiveContainer>
+              </ChartBody>
             </section>
 
             <section className="panel chart-panel">
               <div className="section-heading">
                 <h2>{t('Profit Over Time')}</h2>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={profitChart}>
+              <ChartBody hasData={profitChart.length > 0} emptyMessage="No sales data for selected period">
+                <BarChart data={profitChart} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
+                  <XAxis dataKey="period" tickFormatter={shortTick} />
                   <YAxis />
                   <Tooltip formatter={(value) => formatMoney(value)} />
                   <Legend />
                   <Bar dataKey="total_profit" name={t('Total Profit')} fill="#2563eb" />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartBody>
             </section>
           </section>
 
@@ -323,30 +371,30 @@ function Reports() {
               <div className="section-heading">
                 <h2>{t('Expenses By Category')}</h2>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={expensesChart}>
+              <ChartBody hasData={expensesChart.length > 0} emptyMessage="No expenses found">
+                <BarChart data={expensesChart} margin={{ top: 8, right: 16, left: 0, bottom: 18 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="category" />
+                  <XAxis dataKey="category" tickFormatter={shortTick} />
                   <YAxis />
                   <Tooltip formatter={(value) => formatMoney(value)} />
                   <Bar dataKey="total_amount" name={t('Total Expenses')} fill="#c2413d" />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartBody>
             </section>
 
             <section className="panel chart-panel">
               <div className="section-heading">
                 <h2>{t('Top Products')}</h2>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={topProducts}>
+              <ChartBody hasData={topProducts.length > 0} emptyMessage="No top products yet">
+                <BarChart data={topProducts} margin={{ top: 8, right: 16, left: 0, bottom: 18 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="product_name" />
+                  <XAxis dataKey="product_name" tickFormatter={shortTick} />
                   <YAxis />
                   <Tooltip formatter={(value) => formatMoney(value)} />
                   <Bar dataKey="total_sales_amount" name={t('Total Sales')} fill="#7c3aed" />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartBody>
             </section>
           </section>
 
@@ -355,8 +403,8 @@ function Reports() {
               <div className="section-heading">
                 <h2>{t('Payment Methods')}</h2>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
+              <ChartBody hasData={paymentMethods.length > 0} emptyMessage="No payment data found.">
+                <PieChart margin={{ top: 8, right: 16, left: 16, bottom: 8 }}>
                   <Pie
                     data={paymentMethods}
                     dataKey="total_amount"
@@ -371,24 +419,24 @@ function Reports() {
                   <Tooltip formatter={(value) => formatMoney(value)} />
                   <Legend />
                 </PieChart>
-              </ResponsiveContainer>
+              </ChartBody>
             </section>
 
             <section className="panel chart-panel">
               <div className="section-heading">
                 <h2>{t('Monthly Sales Comparison')}</h2>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={monthlyComparison}>
+              <ChartBody hasData={monthlyComparison.length > 0} emptyMessage="No sales data for selected period">
+                <BarChart data={monthlyComparison} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
+                  <XAxis dataKey="period" tickFormatter={shortTick} />
                   <YAxis />
                   <Tooltip formatter={(value) => formatMoney(value)} />
                   <Legend />
                   <Bar dataKey="total_sales" name={t('Total Sales')} fill="#0f766e" />
                   <Bar dataKey="total_expenses" name={t('Total Expenses')} fill="#c2413d" />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartBody>
             </section>
           </section>
 

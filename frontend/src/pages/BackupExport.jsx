@@ -317,46 +317,52 @@ function BackupExport() {
             {backupLoading ? t('Refreshing...') : t('Refresh')}
           </button>
         </div>
-        <div className="metric-grid report-metrics">
-          <article className="metric-card">
-            <div className="metric-card-heading">
-              <span>{t('Last Backup')}</span>
-              <i aria-hidden="true">B</i>
+        {backupLoading ? (
+          <div className="loading-panel backup-loading-panel">{t('Loading backup status...')}</div>
+        ) : (
+          <>
+            <div className="metric-grid report-metrics">
+              <article className="metric-card">
+                <div className="metric-card-heading">
+                  <span>{t('Last Backup')}</span>
+                  <i aria-hidden="true">B</i>
+                </div>
+                <strong>{latestBackup?.status || t('No records found')}</strong>
+                <span>{latestBackup?.completed_at || latestBackup?.created_at || '-'}</span>
+              </article>
+              <article className="metric-card">
+                <div className="metric-card-heading">
+                  <span>{t('Last Restore')}</span>
+                  <i aria-hidden="true">R</i>
+                </div>
+                <strong>{latestRestore?.status || t('No records found')}</strong>
+                <span>{latestRestore?.completed_at || latestRestore?.created_at || '-'}</span>
+              </article>
+              <article className="metric-card">
+                <div className="metric-card-heading">
+                  <span>{t('Failed Backups')}</span>
+                  <i aria-hidden="true">!</i>
+                </div>
+                <strong>{backupStatus?.failed_backup_count || 0}</strong>
+              </article>
             </div>
-            <strong>{latestBackup?.status || t('No records found')}</strong>
-            <span>{latestBackup?.completed_at || latestBackup?.created_at || '-'}</span>
-          </article>
-          <article className="metric-card">
-            <div className="metric-card-heading">
-              <span>{t('Last Restore')}</span>
-              <i aria-hidden="true">R</i>
+            <div className="topbar-actions">
+              <button type="button" onClick={createManualBackup} disabled={Boolean(backupBusy)}>
+                {backupBusy === 'manual' ? t('Saving...') : t('Create Manual Backup')}
+              </button>
+              {latestBackup?.id && (
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => downloadBackup(latestBackup)}
+                  disabled={Boolean(backupBusy)}
+                >
+                  {backupBusy === `download-${latestBackup.id}` ? t('Downloading...') : t('Download Latest Backup')}
+                </button>
+              )}
             </div>
-            <strong>{latestRestore?.status || t('No records found')}</strong>
-            <span>{latestRestore?.completed_at || latestRestore?.created_at || '-'}</span>
-          </article>
-          <article className="metric-card">
-            <div className="metric-card-heading">
-              <span>{t('Failed Backups')}</span>
-              <i aria-hidden="true">!</i>
-            </div>
-            <strong>{backupStatus?.failed_backup_count || 0}</strong>
-          </article>
-        </div>
-        <div className="topbar-actions">
-          <button type="button" onClick={createManualBackup} disabled={Boolean(backupBusy)}>
-            {backupBusy === 'manual' ? t('Saving...') : t('Create Manual Backup')}
-          </button>
-          {latestBackup?.id && (
-            <button
-              type="button"
-              className="ghost-button"
-              onClick={() => downloadBackup(latestBackup)}
-              disabled={Boolean(backupBusy)}
-            >
-              {backupBusy === `download-${latestBackup.id}` ? t('Downloading...') : t('Download Latest Backup')}
-            </button>
-          )}
-        </div>
+          </>
+        )}
       </section>
 
       <section className="panel">
@@ -526,17 +532,21 @@ function BackupExport() {
 
       <section className="panel">
         <div className="section-heading">
-          <h2>{t('Database Backup Guide')}</h2>
+          <h2>{t('Backup Guidance')}</h2>
         </div>
-        <div className="backup-guide">
-          <div>
-            <span>{t('Backup command')}</span>
-            <code>mysqldump -u root -p shopmate_lk &gt; shopmate_lk_backup.sql</code>
-          </div>
-          <div>
-            <span>{t('Restore command')}</span>
-            <code>mysql -u root -p shopmate_lk &lt; shopmate_lk_backup.sql</code>
-          </div>
+        <div className="backup-guidance">
+          <article>
+            <strong>{t('Use Manual Backup to download your shop backup')}</strong>
+            <span>{t('Keep the downloaded backup file somewhere safe and private.')}</span>
+          </article>
+          <article>
+            <strong>{t('Restore should only be used carefully')}</strong>
+            <span>{t('Restore can replace current shop business data. Check the file before continuing.')}</span>
+          </article>
+          <article>
+            <strong>{t('For full server database backup, contact admin')}</strong>
+            <span>{t('Technical server backup and migration steps are handled outside this owner screen.')}</span>
+          </article>
         </div>
       </section>
     </section>
