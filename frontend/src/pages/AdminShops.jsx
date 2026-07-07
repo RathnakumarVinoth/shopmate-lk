@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
+import {
+  getDefaultModulesForShopType,
+  moduleOptions,
+  shopTypeOptions,
+} from '../utils/shopModules'
 
 const plans = ['starter', 'business', 'pro']
 const statuses = ['trial', 'active', 'expired', 'suspended']
@@ -15,6 +20,8 @@ const initialCreateForm = {
   login_password: '',
   owner_username: '',
   owner_password: '',
+  shop_type: 'grocery',
+  enabled_modules: getDefaultModulesForShopType('grocery'),
   phone: '',
   email: '',
   address: '',
@@ -100,10 +107,38 @@ function AdminShops() {
 
   const updateCreateField = (event) => {
     const { name, value, checked, type } = event.target
+
+    if (name === 'shop_type') {
+      setCreateForm((current) => ({
+        ...current,
+        shop_type: value,
+        enabled_modules: getDefaultModulesForShopType(value),
+      }))
+      return
+    }
+
     setCreateForm((current) => ({
       ...current,
       [name]: type === 'checkbox' ? checked : value,
     }))
+  }
+
+  const toggleCreateModule = (moduleKey) => {
+    setCreateForm((current) => {
+      const nextModules = new Set(current.enabled_modules || [])
+
+      if (nextModules.has(moduleKey)) {
+        nextModules.delete(moduleKey)
+      } else {
+        nextModules.add(moduleKey)
+      }
+
+      return {
+        ...current,
+        shop_type: current.shop_type || 'custom',
+        enabled_modules: [...nextModules],
+      }
+    })
   }
 
   const createShop = async (event) => {
@@ -244,6 +279,7 @@ function AdminShops() {
             <thead>
               <tr>
                 <th>{t('Shop Name')}</th>
+                <th>{t('Shop Type')}</th>
                 <th>{t('Owner')}</th>
                 <th>{t('Email')}</th>
                 <th>{t('Shop Login')}</th>
@@ -261,6 +297,7 @@ function AdminShops() {
                   <td>
                     <strong>{shop.shop_name}</strong>
                   </td>
+                  <td>{shop.shop_type || 'custom'}</td>
                   <td>{shop.owner_name || '-'}</td>
                   <td>{shop.owner_email || '-'}</td>
                   <td>{shop.login_email || '-'}</td>
@@ -314,7 +351,7 @@ function AdminShops() {
               ))}
               {shops.length === 0 && (
                 <tr>
-                  <td colSpan="10" className="empty-cell">
+                  <td colSpan="11" className="empty-cell">
                     {t('No shops found.')}
                   </td>
                 </tr>
@@ -446,6 +483,16 @@ function AdminShops() {
                 <input name="shop_name" value={createForm.shop_name} onChange={updateCreateField} required />
               </label>
               <label>
+                {t('Shop Type')}
+                <select name="shop_type" value={createForm.shop_type} onChange={updateCreateField}>
+                  {shopTypeOptions.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
                 {t('Owner Name')}
                 <input name="owner_name" value={createForm.owner_name} onChange={updateCreateField} required />
               </label>
@@ -536,6 +583,26 @@ function AdminShops() {
                   </small>
                 </span>
               </label>
+              <div className="full-width">
+                <div className="section-heading compact-heading">
+                  <h3>{t('Enabled Modules')}</h3>
+                </div>
+                <div className="permission-grid">
+                  {moduleOptions.map((moduleOption) => (
+                    <label className="checkbox-row" key={moduleOption.value}>
+                      <input
+                        type="checkbox"
+                        checked={(createForm.enabled_modules || []).includes(moduleOption.value)}
+                        onChange={() => toggleCreateModule(moduleOption.value)}
+                      />
+                      {moduleOption.label}
+                    </label>
+                  ))}
+                </div>
+                <small className="muted">
+                  {t('Module enabled controls shop access. User permissions still apply separately.')}
+                </small>
+              </div>
               <label>
                 {t('Plan')}
                 <select name="subscription_plan" value={createForm.subscription_plan} onChange={updateCreateField}>

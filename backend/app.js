@@ -29,6 +29,7 @@ const shopAuthRoutes = require("./routes/shopAuthRoutes");
 const staffRoutes = require("./routes/staffRoutes");
 const stockRoutes = require("./routes/stockRoutes");
 const supplierRoutes = require("./routes/supplierRoutes");
+const unitRoutes = require("./routes/unitRoutes");
 const {
   errorHandler,
   notFoundHandler,
@@ -121,6 +122,7 @@ app.use("/api/settings", settingsRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/stock", stockRoutes);
 app.use("/api/suppliers", supplierRoutes);
+app.use("/api/units", unitRoutes);
 
 if (isTest) {
   app.post("/api/test/monitoring-error", (req, res, next) => {

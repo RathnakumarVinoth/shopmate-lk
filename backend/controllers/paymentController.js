@@ -5,6 +5,7 @@ const {
   ensureStockMovementsTable,
 } = require("../utils/paymentSchema");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
+const { ensureProductCatalogSchema } = require("../utils/productCatalogSchema");
 
 const verifiablePaymentTypes = ["card", "bank_transfer", "qr"];
 
@@ -43,6 +44,11 @@ const formatPayment = (payment) => {
     card_last4: payment.card_last_four || null,
   };
 };
+
+const isStockTrackedProduct = (item) =>
+  item.item_type !== "service" &&
+  item.item_type !== "non_stock" &&
+  item.tracking_method !== "SERVICE_ONLY";
 
 const validateVerificationFields = (body) => {
   const errors = [];
@@ -96,7 +102,8 @@ const restoreStockForFailedSale = async (connection, sale, shopId, userId) => {
 
   const [saleItems] = await connection.query(
     `SELECT sale_items.product_id, sale_items.quantity,
-            products.product_name, products.stock_quantity, products.buying_price
+            products.product_name, products.stock_quantity, products.buying_price,
+            products.item_type, products.tracking_method
      FROM sale_items
      LEFT JOIN products
        ON products.id = sale_items.product_id
@@ -107,6 +114,8 @@ const restoreStockForFailedSale = async (connection, sale, shopId, userId) => {
   );
 
   const restoreByProduct = saleItems.reduce((map, item) => {
+    if (!isStockTrackedProduct(item)) return map;
+
     if (!map[item.product_id]) {
       map[item.product_id] = {
         product_id: item.product_id,
@@ -411,6 +420,7 @@ exports.failPayment = async (req, res) => {
   try {
     await ensureSalesPaymentColumns();
     await ensurePaymentVerificationTable();
+    await ensureProductCatalogSchema();
     await ensureStockMovementsTable();
     await connection.beginTransaction();
 

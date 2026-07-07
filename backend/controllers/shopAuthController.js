@@ -5,6 +5,7 @@ const db = require("../config/db");
 const { createLoginActivity, ensureSecurityTables } = require("../utils/security");
 const { ensureSaasSchema } = require("../utils/saasSchema");
 const { getShopAccessError } = require("../utils/shopAccess");
+const { normalizeEnabledModules, normalizeShopType } = require("../utils/shopModules");
 
 const SHOP_SESSION_SECONDS = 30 * 60;
 
@@ -46,7 +47,8 @@ exports.shopLogin = async (req, res) => {
 
     const [shops] = await db.promise().query(
       `SELECT id, shop_name, shop_code, login_email, login_password_hash,
-              is_enabled, subscription_status, subscription_expiry_date
+              is_enabled, subscription_status, subscription_expiry_date,
+              shop_type, enabled_modules
        FROM shops
        WHERE login_email = ?
        LIMIT 1`,
@@ -108,6 +110,8 @@ exports.shopLogin = async (req, res) => {
       shop_id: shop.id,
       shop_name: shop.shop_name,
       shop_code: shop.shop_code || null,
+      shop_type: normalizeShopType(shop.shop_type),
+      enabled_modules: normalizeEnabledModules(shop.enabled_modules, shop.shop_type),
       shop_login_email: shop.login_email || null,
     };
 

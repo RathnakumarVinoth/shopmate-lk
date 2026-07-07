@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { serializeEnabledModules } = require("./shopModules");
 
 let ensuredShopSettingsColumns = false;
 
@@ -51,6 +52,18 @@ const ensureShopSettingsColumns = async () => {
       );
   }
 
+  if (!existingColumns.has("shop_type")) {
+    await db
+      .promise()
+      .query("ALTER TABLE shops ADD COLUMN shop_type VARCHAR(50) NOT NULL DEFAULT 'custom'");
+  }
+
+  if (!existingColumns.has("enabled_modules")) {
+    await db
+      .promise()
+      .query("ALTER TABLE shops ADD COLUMN enabled_modules TEXT NULL");
+  }
+
   if (!existingColumns.has("default_low_stock_limit")) {
     await db
       .promise()
@@ -80,6 +93,17 @@ const ensureShopSettingsColumns = async () => {
         "ALTER TABLE shops ADD COLUMN background_logout_minutes INT NOT NULL DEFAULT 3"
       );
   }
+
+  await db.promise().query(
+    `UPDATE shops
+     SET shop_type = COALESCE(NULLIF(shop_type, ''), 'custom'),
+         enabled_modules = COALESCE(NULLIF(enabled_modules, ''), ?)
+     WHERE shop_type IS NULL
+        OR shop_type = ''
+        OR enabled_modules IS NULL
+        OR enabled_modules = ''`,
+    [serializeEnabledModules(undefined, "custom")]
+  );
 
   ensuredShopSettingsColumns = true;
 };

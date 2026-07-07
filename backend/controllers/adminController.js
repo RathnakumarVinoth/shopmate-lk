@@ -10,6 +10,12 @@ const {
 } = require("../utils/permissions");
 const { ensureSaasSchema } = require("../utils/saasSchema");
 const { validateStrongPassword } = require("../utils/security");
+const {
+  isValidShopType,
+  normalizeEnabledModules,
+  normalizeShopType,
+  serializeEnabledModules,
+} = require("../utils/shopModules");
 
 const allowedPlans = ["starter", "business", "pro"];
 const allowedStatuses = ["trial", "active", "expired", "suspended"];
@@ -69,6 +75,8 @@ const formatShop = (shop) => ({
   shop_id: shop.id,
   shop_name: shop.shop_name,
   shop_code: shop.shop_code || null,
+  shop_type: normalizeShopType(shop.shop_type),
+  enabled_modules: normalizeEnabledModules(shop.enabled_modules, shop.shop_type),
   login_email: shop.login_email || null,
   owner_name: shop.owner_name || null,
   owner_email: shop.owner_email || null,
@@ -107,6 +115,8 @@ const getShopById = async (shopId) => {
        shops.shop_name,
        shops.shop_code,
        shops.login_email,
+       shops.shop_type,
+       shops.enabled_modules,
        shops.owner_name AS stored_owner_name,
        shops.phone,
        shops.email,
@@ -153,6 +163,8 @@ exports.getShops = async (req, res) => {
          shops.shop_name,
          shops.shop_code,
          shops.login_email,
+         shops.shop_type,
+         shops.enabled_modules,
          shops.phone,
          shops.email,
          shops.address,
@@ -200,6 +212,8 @@ exports.createShop = async (req, res) => {
     login_password,
     owner_username,
     owner_password,
+    shop_type,
+    enabled_modules,
     phone,
     email,
     address,
@@ -228,6 +242,9 @@ exports.createShop = async (req, res) => {
   if (!optionalText(owner_name)) errors.push("owner_name is required");
   if (!optionalText(login_email)) errors.push("shop login email is required");
   if (!optionalText(owner_username)) errors.push("owner username is required");
+  if (shop_type !== undefined && !isValidShopType(shop_type)) {
+    errors.push("shop_type must be grocery, hardware, mobile_repair, clothing, or custom");
+  }
 
   const receiptFlagInputs = {
     receipt_show_logo,
@@ -253,6 +270,8 @@ exports.createShop = async (req, res) => {
   const plan = allowedPlans.includes(subscription_plan) ? subscription_plan : "starter";
   const status = allowedStatuses.includes(subscription_status) ? subscription_status : "trial";
   const enabledValue = toBooleanNumber(is_enabled === undefined ? true : is_enabled);
+  const nextShopType = normalizeShopType(shop_type);
+  const nextEnabledModules = serializeEnabledModules(enabled_modules, nextShopType);
 
   if (errors.length > 0) {
     return res.status(400).json({ message: "Validation failed", errors });
@@ -271,6 +290,7 @@ exports.createShop = async (req, res) => {
     const [shopResult] = await connection.query(
       `INSERT INTO shops
        (shop_name, owner_name, login_email, login_password_hash, shop_code,
+        shop_type, enabled_modules,
         phone, email, address, receipt_footer, logo_url, language, currency,
         default_low_stock_limit, tax_percentage,
         default_receipt_size, receipt_show_logo, receipt_show_tax,
@@ -279,13 +299,15 @@ exports.createShop = async (req, res) => {
         subscription_status,
         subscription_start_date, subscription_expiry_date, monthly_fee,
         is_enabled, created_by_admin)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         optionalText(shop_name),
         optionalText(owner_name),
         optionalText(login_email).toLowerCase(),
         shopPasswordHash,
         shopCode,
+        nextShopType,
+        nextEnabledModules,
         optionalText(phone),
         optionalText(email),
         optionalText(address),
@@ -521,6 +543,8 @@ exports.updateShop = async (req, res) => {
     shop_name,
     owner_name,
     login_email,
+    shop_type,
+    enabled_modules,
     phone,
     email,
     address,
@@ -553,8 +577,20 @@ exports.updateShop = async (req, res) => {
       .status(400)
       .json({ message: "shop_name, owner_name, and login_email are required" });
   }
+  if (shop_type !== undefined && !isValidShopType(shop_type)) {
+    return res.status(400).json({
+      message: "shop_type must be grocery, hardware, mobile_repair, clothing, or custom",
+    });
+  }
 
   const enabledValue = toBooleanNumber(is_enabled === undefined ? true : is_enabled);
+  const nextShopType = shop_type === undefined ? null : normalizeShopType(shop_type);
+  const nextEnabledModules =
+    enabled_modules !== undefined
+      ? serializeEnabledModules(enabled_modules, nextShopType || "custom")
+      : nextShopType
+        ? serializeEnabledModules(undefined, nextShopType)
+        : null;
   const receiptFlagInputs = {
     receipt_show_logo,
     receipt_show_tax,
@@ -576,6 +612,8 @@ exports.updateShop = async (req, res) => {
        SET shop_name = ?, owner_name = ?, login_email = ?, phone = ?, email = ?,
            address = ?, receipt_footer = ?, logo_url = ?, language = ?, currency = ?,
            default_low_stock_limit = ?, tax_percentage = ?,
+           shop_type = COALESCE(?, shop_type),
+           enabled_modules = COALESCE(?, enabled_modules),
            default_receipt_size = ?,
            receipt_show_logo = COALESCE(?, receipt_show_logo),
            receipt_show_tax = COALESCE(?, receipt_show_tax),
@@ -599,6 +637,8 @@ exports.updateShop = async (req, res) => {
         optionalText(currency) || "LKR",
         Number(default_low_stock_limit || 5),
         Number(tax_percentage || 0),
+        nextShopType,
+        nextEnabledModules,
         normalizeReceiptSize(default_receipt_size),
         receipt_show_logo === undefined
           ? null

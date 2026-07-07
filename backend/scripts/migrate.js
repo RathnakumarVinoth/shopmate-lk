@@ -107,6 +107,8 @@ const ensureCoreSchema = async (connection) => {
       login_password_hash VARCHAR(255) NULL,
       owner_id INT NULL,
       owner_name VARCHAR(255) NULL,
+      shop_type VARCHAR(50) NOT NULL DEFAULT 'custom',
+      enabled_modules TEXT NULL,
       phone VARCHAR(50) NULL,
       email VARCHAR(255) NULL,
       address TEXT NULL,
@@ -167,6 +169,39 @@ const ensureCoreSchema = async (connection) => {
   `);
 
   await connection.query(`
+    CREATE TABLE IF NOT EXISTS unit_master (
+      code VARCHAR(20) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      unit_type VARCHAR(40) NOT NULL DEFAULT 'count',
+      allows_decimal TINYINT(1) NOT NULL DEFAULT 0,
+      default_precision TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_unit_master_active_sort (is_active, sort_order)
+    )
+  `);
+
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS unit_conversions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      shop_id INT NULL,
+      from_unit VARCHAR(20) NOT NULL,
+      to_unit VARCHAR(20) NOT NULL,
+      factor DECIMAL(18,6) NOT NULL,
+      description VARCHAR(255) NULL,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_by INT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_unit_conversion_scope (shop_id, from_unit, to_unit),
+      INDEX idx_unit_conversions_scope (shop_id, is_active),
+      INDEX idx_unit_conversions_units (from_unit, to_unit)
+    )
+  `);
+
+  await connection.query(`
     CREATE TABLE IF NOT EXISTS products (
       id INT AUTO_INCREMENT PRIMARY KEY,
       shop_id INT NOT NULL,
@@ -175,13 +210,20 @@ const ensureCoreSchema = async (connection) => {
       barcode VARCHAR(100) NULL,
       category VARCHAR(255) NULL,
       category_id INT NULL,
-      unit VARCHAR(50) DEFAULT 'pcs',
+      unit VARCHAR(50) DEFAULT 'PCS',
       buying_price DECIMAL(10,2) DEFAULT 0,
       wholesale_price DECIMAL(10,2) DEFAULT 0,
       selling_price DECIMAL(10,2) DEFAULT 0,
-      stock_quantity INT DEFAULT 0,
-      low_stock_limit INT DEFAULT 5,
+      stock_quantity DECIMAL(14,4) DEFAULT 0,
+      low_stock_limit DECIMAL(14,4) DEFAULT 5,
       image_url TEXT NULL,
+      item_type VARCHAR(20) NOT NULL DEFAULT 'product',
+      default_selling_unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
+      default_purchase_unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
+      base_unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
+      allow_decimal_qty TINYINT(1) NOT NULL DEFAULT 0,
+      quantity_precision TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      tracking_method VARCHAR(30) NOT NULL DEFAULT 'SIMPLE_STOCK',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE KEY unique_product_code_shop (shop_id, product_code),
       UNIQUE KEY unique_barcode_shop (shop_id, barcode),
@@ -255,7 +297,7 @@ const ensureCoreSchema = async (connection) => {
       id INT AUTO_INCREMENT PRIMARY KEY,
       sale_id INT NOT NULL,
       product_id INT NOT NULL,
-      quantity INT NOT NULL,
+      quantity DECIMAL(14,4) NOT NULL,
       buying_price DECIMAL(10,2) DEFAULT 0,
       selling_price DECIMAL(10,2) DEFAULT 0,
       unit_price DECIMAL(10,2) DEFAULT 0,
@@ -335,7 +377,7 @@ const ensureCoreSchema = async (connection) => {
       return_id INT NOT NULL,
       sale_item_id INT NOT NULL,
       product_id INT NOT NULL,
-      quantity INT NOT NULL,
+      quantity DECIMAL(14,4) NOT NULL,
       refund_amount DECIMAL(10,2) DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX idx_sales_return_items_return (return_id)

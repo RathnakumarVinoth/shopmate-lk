@@ -16,13 +16,15 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 const { requirePermission } = require("../middleware/permissionMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
+const { requireModule } = require("../middleware/moduleMiddleware");
 
 const router = express.Router();
 
 router.use(
   authMiddleware,
   allowRoles("owner", "staff"),
-  requirePermission("purchasing_access")
+  requirePermission("purchasing_access"),
+  requireModule("purchasing")
 );
 
 router.get("/purchase-orders", getPurchaseOrders);
@@ -40,10 +42,10 @@ router.post(
   cancelPurchaseOrder
 );
 
-router.get("/grns", getGrns);
-router.post("/grns", requirePermission("purchasing_manage"), createGrn);
-router.get("/grns/:id", getGrnById);
-router.post("/grns/:id/post", requirePermission("purchasing_manage"), postGrn);
+router.get("/grns", requireModule("grn"), getGrns);
+router.post("/grns", requireModule("grn"), requirePermission("purchasing_manage"), createGrn);
+router.get("/grns/:id", requireModule("grn"), getGrnById);
+router.post("/grns/:id/post", requireModule("grn"), requirePermission("purchasing_manage"), postGrn);
 
 router.get("/products/:productId/batches", getProductBatches);
 

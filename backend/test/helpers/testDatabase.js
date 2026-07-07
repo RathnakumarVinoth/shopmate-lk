@@ -1,5 +1,7 @@
 const mysql = require("mysql2/promise");
 const bcrypt = require("bcryptjs");
+const { serializeEnabledModules } = require("../../utils/shopModules");
+const { UNIT_MASTER_SEED } = require("../../utils/productCatalogSchema");
 
 function assertTestDatabase() {
   if (!process.env.DB_NAME || !process.env.DB_NAME.endsWith("_test")) {
@@ -65,6 +67,8 @@ async function resetTestDatabase(db) {
     "supplier_transactions",
     "expenses",
     "products",
+    "unit_conversions",
+    "unit_master",
     "product_categories",
     "customers",
     "suppliers",
@@ -88,6 +92,8 @@ async function resetTestDatabase(db) {
       login_password_hash VARCHAR(255) NOT NULL,
       owner_id INT NULL,
       owner_name VARCHAR(255) NULL,
+      shop_type VARCHAR(50) NOT NULL DEFAULT 'custom',
+      enabled_modules TEXT NULL,
       phone VARCHAR(50) NULL,
       email VARCHAR(255) NULL,
       address TEXT NULL,
@@ -150,6 +156,60 @@ async function resetTestDatabase(db) {
   `);
 
   await db.query(`
+    CREATE TABLE unit_master (
+      code VARCHAR(20) PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      unit_type VARCHAR(40) NOT NULL DEFAULT 'count',
+      allows_decimal TINYINT(1) NOT NULL DEFAULT 0,
+      default_precision TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_unit_master_active_sort (is_active, sort_order)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE unit_conversions (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      shop_id INT NULL,
+      from_unit VARCHAR(20) NOT NULL,
+      to_unit VARCHAR(20) NOT NULL,
+      factor DECIMAL(18,6) NOT NULL,
+      description VARCHAR(255) NULL,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      created_by INT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_unit_conversion_scope (shop_id, from_unit, to_unit),
+      INDEX idx_unit_conversions_scope (shop_id, is_active),
+      INDEX idx_unit_conversions_units (from_unit, to_unit)
+    )
+  `);
+
+  await db.query(
+    `INSERT INTO unit_master
+       (code, name, unit_type, allows_decimal, default_precision, is_active, sort_order)
+     VALUES ?`,
+    [UNIT_MASTER_SEED.map((unit) => [...unit.slice(0, 5), 1, unit[5]])]
+  );
+
+  await db.query(
+    `INSERT INTO unit_conversions
+       (shop_id, from_unit, to_unit, factor, description, is_active)
+     VALUES ?`,
+    [
+      [
+        [0, "KG", "G", 1000, "1 KG = 1000 G", 1],
+        [0, "G", "KG", 0.001, "1 G = 0.001 KG", 1],
+        [0, "L", "ML", 1000, "1 L = 1000 ML", 1],
+        [0, "ML", "L", 0.001, "1 ML = 0.001 L", 1],
+      ],
+    ]
+  );
+
+  await db.query(`
     CREATE TABLE products (
       id INT PRIMARY KEY AUTO_INCREMENT,
       shop_id INT NOT NULL,
@@ -158,13 +218,20 @@ async function resetTestDatabase(db) {
       barcode VARCHAR(100) NULL,
       category VARCHAR(255) NULL,
       category_id INT NULL,
-      unit VARCHAR(50) DEFAULT 'pcs',
+      unit VARCHAR(50) DEFAULT 'PCS',
       buying_price DECIMAL(10,2) DEFAULT 0,
       wholesale_price DECIMAL(10,2) DEFAULT 0,
       selling_price DECIMAL(10,2) DEFAULT 0,
-      stock_quantity INT DEFAULT 0,
-      low_stock_limit INT DEFAULT 5,
+      stock_quantity DECIMAL(14,4) DEFAULT 0,
+      low_stock_limit DECIMAL(14,4) DEFAULT 5,
       image_url TEXT NULL,
+      item_type VARCHAR(20) NOT NULL DEFAULT 'product',
+      default_selling_unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
+      default_purchase_unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
+      base_unit VARCHAR(20) NOT NULL DEFAULT 'PCS',
+      allow_decimal_qty TINYINT(1) NOT NULL DEFAULT 0,
+      quantity_precision TINYINT UNSIGNED NOT NULL DEFAULT 0,
+      tracking_method VARCHAR(30) NOT NULL DEFAULT 'SIMPLE_STOCK',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE KEY unique_product_code_shop (shop_id, product_code),
       UNIQUE KEY unique_barcode_shop (shop_id, barcode),
@@ -238,7 +305,7 @@ async function resetTestDatabase(db) {
       id INT PRIMARY KEY AUTO_INCREMENT,
       sale_id INT NOT NULL,
       product_id INT NOT NULL,
-      quantity INT NOT NULL,
+      quantity DECIMAL(14,4) NOT NULL,
       buying_price DECIMAL(10,2) DEFAULT 0,
       selling_price DECIMAL(10,2) DEFAULT 0,
       unit_price DECIMAL(10,2) DEFAULT 0,
@@ -286,9 +353,9 @@ async function resetTestDatabase(db) {
       user_id INT NULL,
       supplier_id INT NULL,
       movement_type VARCHAR(100) NOT NULL,
-      quantity INT NOT NULL,
-      previous_stock INT NOT NULL DEFAULT 0,
-      new_stock INT NOT NULL DEFAULT 0,
+      quantity DECIMAL(14,4) NOT NULL,
+      previous_stock DECIMAL(14,4) NOT NULL DEFAULT 0,
+      new_stock DECIMAL(14,4) NOT NULL DEFAULT 0,
       buying_price DECIMAL(10,2) NULL,
       total_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
       note TEXT NULL,
@@ -558,7 +625,7 @@ async function resetTestDatabase(db) {
       return_id INT NOT NULL,
       sale_item_id INT NOT NULL,
       product_id INT NOT NULL,
-      quantity INT NOT NULL,
+      quantity DECIMAL(14,4) NOT NULL,
       refund_amount DECIMAL(10,2) DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT fk_sales_return_items_return FOREIGN KEY (return_id) REFERENCES sales_returns(id)
@@ -855,14 +922,21 @@ async function seedTestData(db) {
   await db.query(
     `INSERT INTO shops (
       id, shop_name, shop_code, login_email, login_password_hash, owner_name,
-      phone, email, address, subscription_status, subscription_expiry_date,
+      shop_type, enabled_modules, phone, email, address, subscription_status, subscription_expiry_date,
       is_enabled
     ) VALUES
       (101, 'Shop A', 'SHOP-A', 'shop-a@test.lk', ?, 'Owner A',
+       'custom', ?,
        '0710000001', 'owner-a@test.lk', 'Colombo', 'active', DATE_ADD(CURDATE(), INTERVAL 30 DAY), 1),
       (202, 'Shop B', 'SHOP-B', 'shop-b@test.lk', ?, 'Owner B',
+       'custom', ?,
        '0710000002', 'owner-b@test.lk', 'Kandy', 'active', DATE_ADD(CURDATE(), INTERVAL 30 DAY), 1)`,
-    [shopAHash, shopBHash]
+    [
+      shopAHash,
+      serializeEnabledModules(undefined, "custom"),
+      shopBHash,
+      serializeEnabledModules(undefined, "custom"),
+    ]
   );
 
   await db.query(
@@ -950,7 +1024,7 @@ async function getProductStock(db, productId) {
     "SELECT stock_quantity FROM products WHERE id = ?",
     [productId]
   );
-  return rows[0]?.stock_quantity;
+  return rows[0] ? Number(rows[0].stock_quantity) : undefined;
 }
 
 async function getBatchRemaining(db, batchId) {

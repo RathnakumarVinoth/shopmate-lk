@@ -4,6 +4,13 @@ import { t } from '../i18n/translations'
 import api from '../services/api'
 import { formatMoney, getApiMessage } from '../utils/formatters'
 import { permissions, rolePermissions } from '../utils/permissions'
+import {
+  getDefaultModulesForShopType,
+  moduleOptions,
+  normalizeEnabledModules,
+  normalizeShopType,
+  shopTypeOptions,
+} from '../utils/shopModules'
 
 const formatDate = (value) => {
   if (!value) return '-'
@@ -25,6 +32,8 @@ const initialUserForm = {
 
 const shopToForm = (shop) => ({
   shop_name: shop?.shop_name || '',
+  shop_type: normalizeShopType(shop?.shop_type),
+  enabled_modules: normalizeEnabledModules(shop?.enabled_modules, shop?.shop_type),
   owner_name: shop?.owner_name || '',
   login_email: shop?.login_email || '',
   phone: shop?.phone || '',
@@ -132,10 +141,38 @@ function AdminShopDetails() {
 
   const updateShopField = (event) => {
     const { name, value, checked, type } = event.target
+
+    if (name === 'shop_type') {
+      setShopForm((current) => ({
+        ...current,
+        shop_type: value,
+        enabled_modules: getDefaultModulesForShopType(value),
+      }))
+      return
+    }
+
     setShopForm((current) => ({
       ...current,
       [name]: type === 'checkbox' ? checked : value,
     }))
+  }
+
+  const toggleShopModule = (moduleKey) => {
+    setShopForm((current) => {
+      const nextModules = new Set(current.enabled_modules || [])
+
+      if (nextModules.has(moduleKey)) {
+        nextModules.delete(moduleKey)
+      } else {
+        nextModules.add(moduleKey)
+      }
+
+      return {
+        ...current,
+        shop_type: current.shop_type || 'custom',
+        enabled_modules: [...nextModules],
+      }
+    })
   }
 
   const saveShop = async (event) => {
@@ -316,6 +353,10 @@ function AdminShopDetails() {
         </div>
         <div className="summary-box admin-detail-grid">
           <div>
+            <span>{t('Shop Type')}</span>
+            <strong>{shop.shop_type || 'custom'}</strong>
+          </div>
+          <div>
             <span>{t('Shop Login')}</span>
             <strong>{shop.login_email || '-'}</strong>
           </div>
@@ -422,6 +463,16 @@ function AdminShopDetails() {
             <input name="shop_name" value={shopForm.shop_name} onChange={updateShopField} required />
           </label>
           <label>
+            {t('Shop Type')}
+            <select name="shop_type" value={shopForm.shop_type} onChange={updateShopField}>
+              {shopTypeOptions.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
             {t('Owner Name')}
             <input name="owner_name" value={shopForm.owner_name} onChange={updateShopField} required />
           </label>
@@ -501,6 +552,26 @@ function AdminShopDetails() {
               </small>
             </span>
           </label>
+          <div className="full-width">
+            <div className="section-heading compact-heading">
+              <h3>{t('Enabled Modules')}</h3>
+            </div>
+            <div className="permission-grid">
+              {moduleOptions.map((moduleOption) => (
+                <label className="checkbox-row" key={moduleOption.value}>
+                  <input
+                    type="checkbox"
+                    checked={(shopForm.enabled_modules || []).includes(moduleOption.value)}
+                    onChange={() => toggleShopModule(moduleOption.value)}
+                  />
+                  {moduleOption.label}
+                </label>
+              ))}
+            </div>
+            <small className="muted">
+              {t('Module enabled controls shop access. User permissions still apply separately.')}
+            </small>
+          </div>
           <label>
             {t('Plan')}
             <select name="subscription_plan" value={shopForm.subscription_plan} onChange={updateShopField}>

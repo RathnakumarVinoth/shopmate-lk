@@ -18,6 +18,13 @@ const toNumber = (value) => Number(value);
 const isPositiveInteger = (value) =>
   Number.isInteger(Number(value)) && Number(value) > 0;
 
+const isPositiveNumber = (value) =>
+  value !== "" &&
+  value !== null &&
+  value !== undefined &&
+  !Number.isNaN(Number(value)) &&
+  Number(value) > 0;
+
 const isNonNegativeNumber = (value) =>
   value !== "" &&
   value !== null &&
@@ -26,6 +33,26 @@ const isNonNegativeNumber = (value) =>
   Number(value) >= 0;
 
 const formatMoney = (value) => Number(Number(value).toFixed(2));
+
+const hasDecimalPart = (value) => Math.abs(Number(value) % 1) > Number.EPSILON;
+
+const getDecimalPlaces = (value) => {
+  const text = String(value);
+
+  if (!text.includes(".")) return 0;
+
+  return text.split(".")[1].replace(/0+$/, "").length;
+};
+
+const formatQuantityNumber = (value) => {
+  const number = Number(value || 0);
+  return Number.isInteger(number) ? number : Number(number.toFixed(4));
+};
+
+const isStockTrackedProduct = (product) =>
+  product.item_type !== "service" &&
+  product.item_type !== "non_stock" &&
+  product.tracking_method !== "SERVICE_ONLY";
 
 const optionalText = (value) => {
   if (value === undefined || value === null || String(value).trim() === "") {
@@ -74,7 +101,7 @@ const validateSaleRequest = (body) => {
       errors.push(`items[${index}].product_id must be a positive integer`);
     }
 
-    if (!isPositiveInteger(item.quantity)) {
+    if (!isPositiveNumber(item.quantity)) {
       errors.push(`items[${index}].quantity must be greater than 0`);
     }
 
@@ -186,6 +213,7 @@ const formatSale = (sale) => ({
 
 const formatSaleItem = (item) => ({
   ...item,
+  quantity: formatQuantityNumber(item.quantity),
   buying_price: Number(item.buying_price),
   selling_price: Number(item.selling_price),
   unit_price: Number(item.unit_price ?? item.selling_price),
@@ -266,6 +294,7 @@ const buildReceipt = ({ sale, shop, customer, items }) => {
       product_name: item.product_name,
       unit: item.unit || null,
       quantity: item.quantity,
+      quantity_precision: Number(item.quantity_precision || 0),
       unit_price: item.unit_price,
       selling_price: item.selling_price,
       item_discount: item.item_discount,
@@ -396,7 +425,9 @@ exports.createSale = async (req, res) => {
     }
 
     const [products] = await connection.query(
-      `SELECT id, product_name, unit, buying_price,
+      `SELECT id, product_name, unit, default_selling_unit,
+              allow_decimal_qty, quantity_precision, item_type, tracking_method,
+              buying_price,
               COALESCE(wholesale_price, buying_price) AS wholesale_price,
               selling_price, stock_quantity
        FROM products
@@ -416,16 +447,40 @@ exports.createSale = async (req, res) => {
       return map;
     }, {});
 
+    for (const item of items) {
+      const product = productMap[item.product_id];
+      const quantityPrecision = Number(product.quantity_precision || 0);
+
+      if (!Number(product.allow_decimal_qty) && hasDecimalPart(item.quantity)) {
+        await connection.rollback();
+        return res.status(400).json({
+          message: `Decimal quantity is not allowed for ${product.product_name}`,
+          product_id: product.id,
+        });
+      }
+
+      if (getDecimalPlaces(item.quantity) > quantityPrecision) {
+        await connection.rollback();
+        return res.status(400).json({
+          message: `Quantity for ${product.product_name} cannot have more than ${quantityPrecision} decimal places`,
+          product_id: product.id,
+        });
+      }
+    }
+
     for (const productId of productIds) {
       const product = productMap[productId];
       const requestedQuantity = quantityByProduct[productId];
 
-      if (product.stock_quantity < requestedQuantity) {
+      if (
+        isStockTrackedProduct(product) &&
+        Number(product.stock_quantity) < requestedQuantity
+      ) {
         await connection.rollback();
         return res.status(400).json({
           message: `Not enough stock for ${product.product_name}`,
           product_id: product.id,
-          available_stock: product.stock_quantity,
+          available_stock: Number(product.stock_quantity),
           requested_quantity: requestedQuantity,
         });
       }
@@ -456,8 +511,9 @@ exports.createSale = async (req, res) => {
       return {
         product_id: item.product_id,
         product_name: product.product_name,
-        unit: product.unit || null,
+        unit: product.default_selling_unit || product.unit || null,
         quantity: item.quantity,
+        quantity_precision: Number(product.quantity_precision || 0),
         buying_price: buyingPrice,
         unit_price: sellingPrice,
         selling_price: sellingPrice,
@@ -640,6 +696,12 @@ exports.createSale = async (req, res) => {
     );
 
     for (const productId of productIds) {
+      const product = productMap[productId];
+
+      if (!isStockTrackedProduct(product)) {
+        continue;
+      }
+
       await connection.query(
         "UPDATE products SET stock_quantity = stock_quantity - ? WHERE id = ? AND shop_id = ?",
         [quantityByProduct[productId], productId, shopId]
@@ -816,7 +878,10 @@ exports.getSaleById = async (req, res) => {
 
     const [items] = await db.promise().query(
       `SELECT sale_items.id, sale_items.sale_id, sale_items.product_id,
-              products.product_name, products.unit, sale_items.quantity,
+              products.product_name,
+              COALESCE(products.default_selling_unit, products.unit) AS unit,
+              products.quantity_precision,
+              sale_items.quantity,
               sale_items.buying_price, sale_items.selling_price,
               sale_items.unit_price, sale_items.item_discount,
               sale_items.item_discount_type, sale_items.tax_percentage,

@@ -17,6 +17,7 @@ const {
   validateStrongPassword,
 } = require("../utils/security");
 const { getShopAccessError } = require("../utils/shopAccess");
+const { normalizeEnabledModules, normalizeShopType } = require("../utils/shopModules");
 
 const MAX_JWT_LIFETIME_SECONDS = 8 * 60 * 60;
 
@@ -293,7 +294,7 @@ exports.roleLogin = async (req, res) => {
 
     const [shops] = await db.promise().query(
       `SELECT id, shop_name, shop_code, is_enabled, subscription_status,
-              subscription_expiry_date
+              subscription_expiry_date, shop_type, enabled_modules
        FROM shops
        WHERE id = ?
        LIMIT 1`,
@@ -402,6 +403,8 @@ exports.roleLogin = async (req, res) => {
         shop_id: shop.id,
         shop_name: shop.shop_name,
         shop_code: shop.shop_code || null,
+        shop_type: normalizeShopType(shop.shop_type),
+        enabled_modules: normalizeEnabledModules(shop.enabled_modules, shop.shop_type),
       },
     });
   } catch (error) {

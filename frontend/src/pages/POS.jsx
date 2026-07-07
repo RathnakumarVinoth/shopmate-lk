@@ -98,9 +98,49 @@ const createOfflineInvoiceNo = (date = new Date()) => `OFFLINE-${formatCompactDa
 const createLocalOfflineId = () =>
   `offline-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
+const isStockTrackedProduct = (product) =>
+  product?.item_type !== 'service' &&
+  product?.item_type !== 'non_stock' &&
+  product?.tracking_method !== 'SERVICE_ONLY'
+
+const getQuantityPrecision = (item) => {
+  const precision = Number(item?.quantity_precision ?? 0)
+  return Number.isInteger(precision) && precision >= 0 ? Math.min(precision, 4) : 0
+}
+
+const allowsDecimalQuantity = (item) => Boolean(Number(item?.allow_decimal_qty || 0))
+
+const getQuantityStep = (item) => {
+  const precision = getQuantityPrecision(item)
+  return allowsDecimalQuantity(item) && precision > 0
+    ? `0.${'0'.repeat(Math.max(precision - 1, 0))}1`
+    : '1'
+}
+
+const roundQuantity = (value, precision) => Number(Number(value || 0).toFixed(precision))
+
+const normalizeCartQuantity = (item, value) => {
+  const rawQuantity = Math.max(0, Number(value || 0))
+  const precision = getQuantityPrecision(item)
+  const roundedQuantity = allowsDecimalQuantity(item)
+    ? roundQuantity(rawQuantity, precision)
+    : Math.floor(rawQuantity)
+  const positiveQuantity = Math.max(roundedQuantity, 1)
+
+  if (!isStockTrackedProduct(item)) return positiveQuantity
+
+  return Math.min(positiveQuantity, Number(item.stock_quantity || 0))
+}
+
 const formatQuantity = (item) => {
   const quantity = Number(item.quantity || 0)
-  return item.unit ? `${quantity} ${item.unit}` : String(quantity)
+  const precision = getQuantityPrecision(item)
+  const formatted = quantity.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: precision,
+  })
+
+  return item.unit ? `${formatted} ${item.unit}` : formatted
 }
 
 const roundMoney = (value) => Number(Number(value || 0).toFixed(2))
@@ -1037,7 +1077,7 @@ function POS() {
         !term ||
         `${product.product_name} ${product.product_code || ''} ${product.barcode || ''} ${
           product.category || ''
-        } ${product.unit || ''}`
+        } ${product.default_selling_unit || product.unit || ''}`
           .toLowerCase()
           .includes(term)
 
@@ -1196,23 +1236,29 @@ function POS() {
     setMessage('')
     setError('')
 
-    if (Number(product.stock_quantity) <= 0) {
+    if (isStockTrackedProduct(product) && Number(product.stock_quantity) <= 0) {
       setError(`${product.product_name} is out of stock`)
       return
     }
 
     setCart((currentCart) => {
       const current = currentCart[product.id]
-      const nextQuantity = Math.min(
-        Number(product.stock_quantity),
+      const nextQuantity = normalizeCartQuantity(
+        product,
         current ? current.quantity + 1 : 1,
       )
 
       return {
-        ...currentCart,
-        [product.id]: current
+          ...currentCart,
+          [product.id]: current
           ? { ...current, quantity: nextQuantity }
-          : { ...product, quantity: nextQuantity, item_discount: '', item_discount_type: 'fixed' },
+          : {
+              ...product,
+              unit: product.default_selling_unit || product.unit,
+              quantity: nextQuantity,
+              item_discount: '',
+              item_discount_type: 'fixed',
+            },
       }
     })
   }
@@ -1221,13 +1267,13 @@ function POS() {
     const stock = Number(product.stock_quantity)
     const current = cart[product.id]
 
-    if (stock <= 0) {
+    if (isStockTrackedProduct(product) && stock <= 0) {
       setError('Product out of stock')
       codeInputRef.current?.focus()
       return false
     }
 
-    if (current && current.quantity >= stock) {
+    if (isStockTrackedProduct(product) && current && current.quantity >= stock) {
       setError(`Stock limit reached for ${product.product_name}`)
       codeInputRef.current?.focus()
       return false
@@ -1238,9 +1284,18 @@ function POS() {
       [product.id]: currentCart[product.id]
         ? {
             ...currentCart[product.id],
-            quantity: currentCart[product.id].quantity + 1,
+            quantity: normalizeCartQuantity(
+              product,
+              currentCart[product.id].quantity + 1,
+            ),
           }
-        : { ...product, quantity: 1, item_discount: '', item_discount_type: 'fixed' },
+        : {
+            ...product,
+            unit: product.default_selling_unit || product.unit,
+            quantity: 1,
+            item_discount: '',
+            item_discount_type: 'fixed',
+          },
     }))
 
     setMessage(`${product.product_name} added to cart`)
@@ -1300,17 +1355,16 @@ function POS() {
   }
 
   const setQuantity = (productId, value) => {
-    const quantity = Math.max(1, Number(value || 1))
-
     setCart((currentCart) => {
       const item = currentCart[productId]
       if (!item) return currentCart
+      const quantity = normalizeCartQuantity(item, value)
 
       return {
         ...currentCart,
         [productId]: {
           ...item,
-          quantity: Math.min(quantity, Number(item.stock_quantity)),
+          quantity,
         },
       }
     })
@@ -1333,7 +1387,7 @@ function POS() {
         ...currentCart,
         [productId]: {
           ...item,
-          quantity: Math.min(nextQuantity, Number(item.stock_quantity)),
+          quantity: normalizeCartQuantity(item, nextQuantity),
         },
       }
     })
@@ -1389,6 +1443,7 @@ function POS() {
       product_id: item.id,
       product_name: item.product_name,
       unit: item.unit || null,
+      quantity_precision: getQuantityPrecision(item),
       quantity: item.quantity,
       selling_price: Number(item.selling_price || 0),
       unit_price: Number(item.selling_price || 0),
@@ -1445,7 +1500,7 @@ function POS() {
 
     const nextProducts = products.map((product) => {
       const soldItem = cartItems.find((item) => Number(item.id) === Number(product.id))
-      if (!soldItem) return product
+      if (!soldItem || !isStockTrackedProduct(product)) return product
 
       return {
         ...product,
@@ -1489,6 +1544,15 @@ function POS() {
 
     if (itemDiscountInvalid) {
       setError('Item discount cannot be greater than item total')
+      return
+    }
+
+    const invalidDecimalItem = cartItems.find(
+      (item) => !allowsDecimalQuantity(item) && Math.abs(Number(item.quantity || 0) % 1) > Number.EPSILON,
+    )
+
+    if (invalidDecimalItem) {
+      setError(`Decimal quantity is not allowed for ${invalidDecimalItem.product_name}`)
       return
     }
 
@@ -1882,7 +1946,8 @@ function POS() {
           <div className="product-list pos-product-list">
             {filteredProducts.map((product) => {
               const stock = Number(product.stock_quantity)
-              const lowStock = stock <= Number(product.low_stock_limit)
+              const tracksStock = isStockTrackedProduct(product)
+              const lowStock = tracksStock && stock <= Number(product.low_stock_limit)
 
               return (
                 <button
@@ -1890,7 +1955,7 @@ function POS() {
                   className={`product-tile ${lowStock ? 'low-stock-tile' : ''}`}
                   key={product.id}
                   onClick={() => addToCart(product)}
-                  disabled={stock <= 0}
+                  disabled={tracksStock && stock <= 0}
                 >
                   <div className="product-card-media">
                     {product.image_url ? (
@@ -1901,9 +1966,9 @@ function POS() {
                   </div>
                   <div className="product-card-body">
                     <strong>{product.product_name}</strong>
-                    <span>{formatMoney(product.selling_price)} / {product.unit || 'pcs'}</span>
+                    <span>{formatMoney(product.selling_price)} / {product.default_selling_unit || product.unit || 'PCS'}</span>
                     <small>
-                      {product.category || t('Uncategorized')} | {product.unit || 'pcs'}
+                      {product.category || t('Uncategorized')} | {product.default_selling_unit || product.unit || 'PCS'}
                     </small>
                   </div>
                   {(product.product_code || product.barcode) && (
@@ -1914,7 +1979,7 @@ function POS() {
                     </small>
                   )}
                   <small className={lowStock ? 'stock-warning' : ''}>
-                    {t('Stock')} {stock}
+                    {tracksStock ? `${t('Stock')} ${stock}` : t('Service')}
                     {lowStock ? ` - ${t('Low stock')}` : ''}
                   </small>
                   <span className="product-add-pill">{t('Add')}</span>
@@ -1967,7 +2032,11 @@ function POS() {
                   <span>
                     {formatMoney(item.selling_price)} x {formatQuantity(item)} = {formatMoney(item.subtotal)}
                   </span>
-                  <small className="muted">{t('Available')} {t('Stock').toLowerCase()} {item.stock_quantity}</small>
+                  {isStockTrackedProduct(item) ? (
+                    <small className="muted">{t('Available')} {t('Stock').toLowerCase()} {item.stock_quantity}</small>
+                  ) : (
+                    <small className="muted">{t('Service')}</small>
+                  )}
                 </div>
                 <div className="quantity-control">
                   <button type="button" aria-label={t('Decrease quantity')} onClick={() => changeQuantity(item.id, -1)}>
@@ -1975,9 +2044,10 @@ function POS() {
                   </button>
                   <input
                     type="number"
-                    inputMode="numeric"
+                    inputMode={allowsDecimalQuantity(item) ? 'decimal' : 'numeric'}
                     min="1"
-                    max={item.stock_quantity}
+                    max={isStockTrackedProduct(item) ? item.stock_quantity : undefined}
+                    step={getQuantityStep(item)}
                     value={item.quantity}
                     onChange={(event) => setQuantity(item.id, event.target.value)}
                   />

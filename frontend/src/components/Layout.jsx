@@ -9,6 +9,7 @@ import {
   getSessionUser,
   saveStoredSettings,
 } from '../utils/session'
+import { isModuleEnabled } from '../utils/shopModules'
 import BrandLogo from './BrandLogo.jsx'
 import LanguageSelector from './LanguageSelector.jsx'
 import Notifications from './Notifications.jsx'
@@ -21,6 +22,7 @@ function Layout() {
   const settings = getStoredSettings()
   const shopSession = getShopSession()
   const shopName = settings.shop_name || shopSession?.shop?.shop_name || 'ShopMate LK'
+  const showNotifications = isModuleEnabled('notifications')
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -90,7 +92,7 @@ function Layout() {
         </div>
         <div className="mobile-header-actions">
           <LanguageSelector compact />
-          <Notifications />
+          {showNotifications && <Notifications />}
           <div className="user-pill">
             <span>{user?.role || 'owner'}</span>
           </div>
@@ -115,7 +117,7 @@ function Layout() {
           </div>
           <div className="topbar-actions">
             <LanguageSelector />
-            <Notifications />
+            {showNotifications && <Notifications />}
             <div className="user-pill">
               <span>{user?.role || 'owner'}</span>
             </div>

@@ -147,6 +147,8 @@ test("admin updates receipt settings and owner reads only own shop settings", as
       receipt_show_discounts: false,
       receipt_show_cashier: false,
       open_cash_drawer_after_print: true,
+      shop_type: "hardware",
+      enabled_modules: ["pos", "products", "backup"],
       language: "en",
     },
   });
@@ -163,6 +165,14 @@ test("admin updates receipt settings and owner reads only own shop settings", as
   assert.equal(settingsA.body.receipt_show_discounts, false);
   assert.equal(settingsA.body.receipt_show_cashier, false);
   assert.equal(settingsA.body.open_cash_drawer_after_print, true);
+  assert.equal(settingsA.body.shop_type, "hardware");
+  assert.deepEqual(settingsA.body.enabled_modules, ["pos", "products", "backup"]);
+
+  const blockedReports = await request("GET", "/api/reports/overview", {
+    token: ownerA.token,
+  });
+  expectStatus(blockedReports, 403);
+  assert.equal(blockedReports.body.message, "Module not enabled for this shop.");
 
   const ownerUpdate = await request("PUT", "/api/settings/printer", {
     token: ownerA.token,
@@ -188,6 +198,8 @@ test("admin updates receipt settings and owner reads only own shop settings", as
   assert.equal(settingsB.body.default_receipt_size, "80mm");
   assert.equal(settingsB.body.receipt_show_tax, true);
   assert.equal(settingsB.body.open_cash_drawer_after_print, false);
+  assert.equal(settingsB.body.shop_type, "custom");
+  assert.ok(settingsB.body.enabled_modules.includes("reports"));
 });
 
 test("admin shop create and edit preserve receipt display preferences", async () => {
@@ -208,12 +220,21 @@ test("admin shop create and edit preserve receipt display preferences", async ()
       receipt_show_discounts: true,
       receipt_show_cashier: true,
       open_cash_drawer_after_print: true,
+      shop_type: "mobile_repair",
+      enabled_modules: ["pos", "products", "repair_jobs", "reports"],
     },
   });
   expectStatus(created, 201);
   assert.equal(created.body.shop.receipt_show_logo, false);
   assert.equal(created.body.shop.receipt_show_tax, false);
   assert.equal(created.body.shop.open_cash_drawer_after_print, true);
+  assert.equal(created.body.shop.shop_type, "mobile_repair");
+  assert.deepEqual(created.body.shop.enabled_modules, [
+    "pos",
+    "products",
+    "repair_jobs",
+    "reports",
+  ]);
 
   const shop = created.body.shop;
   const updated = await request("PUT", `/api/admin/shops/${shop.id}`, {
@@ -227,6 +248,8 @@ test("admin shop create and edit preserve receipt display preferences", async ()
       receipt_show_discounts: false,
       receipt_show_cashier: false,
       open_cash_drawer_after_print: false,
+      shop_type: "clothing",
+      enabled_modules: ["pos", "products", "returns_exchange", "reports"],
       is_enabled: true,
     },
   });
@@ -236,6 +259,13 @@ test("admin shop create and edit preserve receipt display preferences", async ()
   assert.equal(updated.body.shop.receipt_show_discounts, false);
   assert.equal(updated.body.shop.receipt_show_cashier, false);
   assert.equal(updated.body.shop.open_cash_drawer_after_print, false);
+  assert.equal(updated.body.shop.shop_type, "clothing");
+  assert.deepEqual(updated.body.shop.enabled_modules, [
+    "pos",
+    "products",
+    "returns_exchange",
+    "reports",
+  ]);
 });
 
 test("sale detail returns complete shop-scoped receipt data", async () => {

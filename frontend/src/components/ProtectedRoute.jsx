@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import { hasPermission, roleAllowed } from '../utils/permissions'
+import { isModuleEnabled } from '../utils/shopModules'
 import {
   clearSession,
   getShopSession,
@@ -10,7 +11,7 @@ import {
   isTokenExpired,
 } from '../utils/session'
 
-function ProtectedRoute({ children, roles, permission }) {
+function ProtectedRoute({ children, roles, permission, module }) {
   const token = getSessionToken()
   const shopSession = getShopSession()
   const shopSessionId = getShopSessionId(shopSession)
@@ -64,6 +65,14 @@ function ProtectedRoute({ children, roles, permission }) {
     return (
       <div className="panel">
         <div className="alert">{t('You do not have permission to access this page.')}</div>
+      </div>
+    )
+  }
+
+  if (!isModuleEnabled(module)) {
+    return (
+      <div className="panel">
+        <div className="alert">{t('Module not enabled for this shop.')}</div>
       </div>
     )
   }

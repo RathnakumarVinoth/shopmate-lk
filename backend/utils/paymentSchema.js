@@ -106,17 +106,17 @@ const stockMovementColumns = [
   {
     name: "quantity",
     definition:
-      "ALTER TABLE stock_movements ADD COLUMN quantity INT NOT NULL DEFAULT 0",
+      "ALTER TABLE stock_movements ADD COLUMN quantity DECIMAL(14,4) NOT NULL DEFAULT 0",
   },
   {
     name: "previous_stock",
     definition:
-      "ALTER TABLE stock_movements ADD COLUMN previous_stock INT NOT NULL DEFAULT 0",
+      "ALTER TABLE stock_movements ADD COLUMN previous_stock DECIMAL(14,4) NOT NULL DEFAULT 0",
   },
   {
     name: "new_stock",
     definition:
-      "ALTER TABLE stock_movements ADD COLUMN new_stock INT NOT NULL DEFAULT 0",
+      "ALTER TABLE stock_movements ADD COLUMN new_stock DECIMAL(14,4) NOT NULL DEFAULT 0",
   },
   {
     name: "buying_price",
@@ -261,6 +261,12 @@ const ensureSalesPaymentColumns = async () => {
       saleItemColumnsResult.map((column) => column.Field)
     );
 
+    if (existingSaleItemColumns.has("quantity")) {
+      await connection.query(
+        "ALTER TABLE sale_items MODIFY COLUMN quantity DECIMAL(14,4) NOT NULL"
+      );
+    }
+
     for (const column of saleItemColumns) {
       if (!existingSaleItemColumns.has(column.name)) {
         await connection.query(column.definition);
@@ -348,9 +354,9 @@ const ensureStockMovementsTable = async () => {
       user_id INT NULL,
       supplier_id INT NULL,
       movement_type VARCHAR(50) NOT NULL,
-      quantity INT NOT NULL DEFAULT 0,
-      previous_stock INT NOT NULL DEFAULT 0,
-      new_stock INT NOT NULL DEFAULT 0,
+      quantity DECIMAL(14,4) NOT NULL DEFAULT 0,
+      previous_stock DECIMAL(14,4) NOT NULL DEFAULT 0,
+      new_stock DECIMAL(14,4) NOT NULL DEFAULT 0,
       buying_price DECIMAL(10,2) NULL,
       total_cost DECIMAL(10,2) NOT NULL DEFAULT 0,
       note TEXT NULL,
@@ -363,6 +369,24 @@ const ensureStockMovementsTable = async () => {
 
   const [columns] = await connection.query("SHOW COLUMNS FROM stock_movements");
   const existingColumns = new Set(columns.map((column) => column.Field));
+
+  if (existingColumns.has("quantity")) {
+    await connection.query(
+      "ALTER TABLE stock_movements MODIFY COLUMN quantity DECIMAL(14,4) NOT NULL DEFAULT 0"
+    );
+  }
+
+  if (existingColumns.has("previous_stock")) {
+    await connection.query(
+      "ALTER TABLE stock_movements MODIFY COLUMN previous_stock DECIMAL(14,4) NOT NULL DEFAULT 0"
+    );
+  }
+
+  if (existingColumns.has("new_stock")) {
+    await connection.query(
+      "ALTER TABLE stock_movements MODIFY COLUMN new_stock DECIMAL(14,4) NOT NULL DEFAULT 0"
+    );
+  }
 
   for (const column of stockMovementColumns) {
     if (!existingColumns.has(column.name)) {

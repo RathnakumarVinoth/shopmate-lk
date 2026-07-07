@@ -12,10 +12,11 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 const { requirePermission } = require("../middleware/permissionMiddleware");
+const { requireModule } = require("../middleware/moduleMiddleware");
 
 const router = express.Router();
 
-router.use(authMiddleware, allowRoles("owner", "staff"), requirePermission("credit_book_access"));
+router.use(authMiddleware, allowRoles("owner", "staff"), requirePermission("credit_book_access"), requireModule("credit_book"));
 
 router.post("/customers", addCustomer);
 router.get("/customers", getCustomers);

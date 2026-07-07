@@ -87,7 +87,7 @@ function App() {
           <Route
             path="/products"
             element={
-              <ProtectedRoute permission="products_view">
+              <ProtectedRoute permission="products_view" module="products">
                 <Products />
               </ProtectedRoute>
             }
@@ -95,7 +95,7 @@ function App() {
           <Route
             path="/pos"
             element={
-              <ProtectedRoute permission="pos_access">
+              <ProtectedRoute permission="pos_access" module="pos">
                 <POS />
               </ProtectedRoute>
             }
@@ -103,7 +103,7 @@ function App() {
           <Route
             path="/payment-verification"
             element={
-              <ProtectedRoute roles={['owner']} permission="payment_verification_access">
+              <ProtectedRoute roles={['owner']} permission="payment_verification_access" module="pos">
                 <PaymentVerification />
               </ProtectedRoute>
             }
@@ -111,7 +111,7 @@ function App() {
           <Route
             path="/credits"
             element={
-              <ProtectedRoute permission="credit_book_access">
+              <ProtectedRoute permission="credit_book_access" module="credit_book">
                 <CreditBook />
               </ProtectedRoute>
             }
@@ -119,7 +119,7 @@ function App() {
           <Route
             path="/credit-book"
             element={
-              <ProtectedRoute permission="credit_book_access">
+              <ProtectedRoute permission="credit_book_access" module="credit_book">
                 <CreditBook />
               </ProtectedRoute>
             }
@@ -127,7 +127,7 @@ function App() {
           <Route
             path="/suppliers"
             element={
-              <ProtectedRoute permission="suppliers_access">
+              <ProtectedRoute permission="suppliers_access" module="suppliers">
                 <Suppliers />
               </ProtectedRoute>
             }
@@ -141,6 +141,7 @@ function App() {
                   'stock_adjustments_manage',
                   'stock_reconciliation_manage',
                 ]}
+                module="stock"
               >
                 <Stock />
               </ProtectedRoute>
@@ -149,7 +150,7 @@ function App() {
           <Route
             path="/purchasing"
             element={
-              <ProtectedRoute permission="purchasing_access">
+              <ProtectedRoute permission="purchasing_access" module="purchasing">
                 <Purchasing />
               </ProtectedRoute>
             }
@@ -157,7 +158,7 @@ function App() {
           <Route
             path="/purchase-suggestions"
             element={
-              <ProtectedRoute permission="purchase_suggestions_access">
+              <ProtectedRoute permission="purchase_suggestions_access" module="low_stock">
                 <PurchaseSuggestions />
               </ProtectedRoute>
             }
@@ -165,7 +166,7 @@ function App() {
           <Route
             path="/expenses"
             element={
-              <ProtectedRoute permission="expenses_access">
+              <ProtectedRoute permission="expenses_access" module="expenses">
                 <Expenses />
               </ProtectedRoute>
             }
@@ -173,7 +174,7 @@ function App() {
           <Route
             path="/staff"
             element={
-              <ProtectedRoute permission="staff_manage">
+              <ProtectedRoute permission="staff_manage" module="staff">
                 <Staff />
               </ProtectedRoute>
             }
@@ -181,7 +182,7 @@ function App() {
           <Route
             path="/returns"
             element={
-              <ProtectedRoute permission="returns_access">
+              <ProtectedRoute permission="returns_access" module="returns_exchange">
                 <Returns />
               </ProtectedRoute>
             }
@@ -189,7 +190,7 @@ function App() {
           <Route
             path="/reports"
             element={
-              <ProtectedRoute permission="reports_access">
+              <ProtectedRoute permission="reports_access" module="reports">
                 <Reports />
               </ProtectedRoute>
             }
@@ -197,7 +198,7 @@ function App() {
           <Route
             path="/notification-preferences"
             element={
-              <ProtectedRoute roles={['owner']} permission="notifications_access">
+              <ProtectedRoute roles={['owner']} permission="notifications_access" module="notifications">
                 <NotificationPreferences />
               </ProtectedRoute>
             }
@@ -213,7 +214,7 @@ function App() {
           <Route
             path="/backup-export"
             element={
-              <ProtectedRoute permission="backup_export_access">
+              <ProtectedRoute permission="backup_export_access" module="backup">
                 <BackupExport />
               </ProtectedRoute>
             }

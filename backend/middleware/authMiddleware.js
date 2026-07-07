@@ -3,6 +3,7 @@ const db = require("../config/db");
 const { getEffectivePermissions } = require("../utils/permissions");
 const { ensureSaasSchema } = require("../utils/saasSchema");
 const { getShopAccessError } = require("../utils/shopAccess");
+const { normalizeEnabledModules, normalizeShopType } = require("../utils/shopModules");
 
 const normalizeUser = (user, shop = null) => ({
   id: user.id,
@@ -22,6 +23,8 @@ const normalizeShop = (shop) =>
         shop_id: shop.id,
         shop_name: shop.shop_name,
         shop_code: shop.shop_code || null,
+        shop_type: normalizeShopType(shop.shop_type),
+        enabled_modules: normalizeEnabledModules(shop.enabled_modules, shop.shop_type),
         is_enabled: shop.is_enabled,
         subscription_status: shop.subscription_status || null,
         subscription_expiry_date: shop.subscription_expiry_date || null,
@@ -92,7 +95,7 @@ module.exports = async (req, res, next) => {
 
     const [shops] = await db.promise().query(
       `SELECT id, shop_name, shop_code, is_enabled, subscription_status,
-              subscription_expiry_date
+              subscription_expiry_date, shop_type, enabled_modules
        FROM shops
        WHERE id = ?
        LIMIT 1`,

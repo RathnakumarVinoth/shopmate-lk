@@ -1,3 +1,5 @@
+import { isModuleEnabled } from './shopModules'
+
 export const permissions = [
   { value: 'dashboard_view', label: 'Dashboard' },
   { value: 'products_view', label: 'View Products' },
@@ -77,29 +79,32 @@ export const roleAllowed = (role, roles = []) => {
 
 const permissionHomePaths = [
   ['dashboard_view', '/dashboard'],
-  ['pos_access', '/pos'],
-  ['products_view', '/products'],
-  ['payment_verification_access', '/payment-verification'],
-  ['stock_access', '/stock'],
-  ['stock_adjustments_manage', '/stock'],
-  ['stock_reconciliation_manage', '/stock'],
-  ['purchasing_access', '/purchasing'],
-  ['purchase_suggestions_access', '/purchase-suggestions'],
-  ['reports_access', '/reports'],
-  ['expenses_access', '/expenses'],
-  ['suppliers_access', '/suppliers'],
-  ['credit_book_access', '/credits'],
-  ['returns_access', '/returns'],
-  ['notifications_access', '/notification-preferences'],
+  ['pos_access', '/pos', 'pos'],
+  ['products_view', '/products', 'products'],
+  ['payment_verification_access', '/payment-verification', 'pos'],
+  ['stock_access', '/stock', 'stock'],
+  ['stock_adjustments_manage', '/stock', 'stock'],
+  ['stock_reconciliation_manage', '/stock', 'stock'],
+  ['purchasing_access', '/purchasing', 'purchasing'],
+  ['purchase_suggestions_access', '/purchase-suggestions', 'low_stock'],
+  ['reports_access', '/reports', 'reports'],
+  ['expenses_access', '/expenses', 'expenses'],
+  ['suppliers_access', '/suppliers', 'suppliers'],
+  ['credit_book_access', '/credits', 'credit_book'],
+  ['returns_access', '/returns', 'returns_exchange'],
+  ['notifications_access', '/notification-preferences', 'notifications'],
   ['audit_logs_access', '/audit-logs'],
-  ['backup_export_access', '/backup-export'],
+  ['backup_export_access', '/backup-export', 'backup'],
   ['settings_access', '/settings'],
-  ['staff_manage', '/staff'],
+  ['staff_manage', '/staff', 'staff'],
 ]
 
 export const getHomePath = (user = {}) => {
   if (user.role === 'admin') return '/admin/dashboard'
 
-  const match = permissionHomePaths.find(([permission]) => hasPermission(user, permission))
+  const match = permissionHomePaths.find(
+    ([permission, , moduleKey]) =>
+      hasPermission(user, permission) && isModuleEnabled(moduleKey),
+  )
   return match ? match[1] : '/dashboard'
 }

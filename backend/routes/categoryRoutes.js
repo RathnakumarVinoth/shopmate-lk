@@ -4,6 +4,7 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 const { requirePermission } = require("../middleware/permissionMiddleware");
+const { requireModule } = require("../middleware/moduleMiddleware");
 
 const {
   addCategory,
@@ -12,9 +13,9 @@ const {
   updateCategory,
 } = require("../controllers/categoryController");
 
-router.get("/", authMiddleware, allowRoles("owner", "staff"), requirePermission("products_view"), getCategories);
-router.post("/", authMiddleware, allowRoles("owner"), requirePermission("products_manage"), addCategory);
-router.put("/:id", authMiddleware, allowRoles("owner"), requirePermission("products_manage"), updateCategory);
-router.delete("/:id", authMiddleware, allowRoles("owner"), requirePermission("products_manage"), deleteCategory);
+router.get("/", authMiddleware, allowRoles("owner", "staff"), requirePermission("products_view"), requireModule("products"), getCategories);
+router.post("/", authMiddleware, allowRoles("owner"), requirePermission("products_manage"), requireModule("products"), addCategory);
+router.put("/:id", authMiddleware, allowRoles("owner"), requirePermission("products_manage"), requireModule("products"), updateCategory);
+router.delete("/:id", authMiddleware, allowRoles("owner"), requirePermission("products_manage"), requireModule("products"), deleteCategory);
 
 module.exports = router;

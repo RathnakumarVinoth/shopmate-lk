@@ -3,6 +3,7 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
 const { requirePermission } = require("../middleware/permissionMiddleware");
+const { requireModule } = require("../middleware/moduleMiddleware");
 
 const {
   getAuditLogsExport,
@@ -20,7 +21,7 @@ const {
   getStockMovementsExport,
 } = require("../controllers/exportController");
 
-router.use(authMiddleware, requirePermission("backup_export_access"));
+router.use(authMiddleware, requirePermission("backup_export_access"), requireModule("backup"));
 
 router.get("/products", getProductsExport);
 router.get("/categories", getCategoriesExport);

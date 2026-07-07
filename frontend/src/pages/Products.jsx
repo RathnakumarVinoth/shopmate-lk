@@ -11,7 +11,14 @@ const initialForm = {
   product_code: '',
   barcode: '',
   category_id: '',
-  unit: 'pcs',
+  unit: 'PCS',
+  item_type: 'product',
+  default_selling_unit: 'PCS',
+  default_purchase_unit: 'PCS',
+  base_unit: 'PCS',
+  allow_decimal_qty: false,
+  quantity_precision: '0',
+  tracking_method: 'SIMPLE_STOCK',
   buying_price: '',
   wholesale_price: '',
   selling_price: '',
@@ -26,7 +33,37 @@ const initialCategoryForm = {
   is_active: true,
 }
 
-const unitOptions = ['pcs', 'kg', 'g', 'L', 'ml', 'packet', 'bottle', 'box']
+const fallbackUnits = [
+  { code: 'PCS', name: 'Pieces', allows_decimal: false, default_precision: 0 },
+  { code: 'KG', name: 'Kilogram', allows_decimal: true, default_precision: 3 },
+  { code: 'G', name: 'Gram', allows_decimal: true, default_precision: 2 },
+  { code: 'L', name: 'Litre', allows_decimal: true, default_precision: 3 },
+  { code: 'ML', name: 'Millilitre', allows_decimal: true, default_precision: 2 },
+  { code: 'PACK', name: 'Pack', allows_decimal: false, default_precision: 0 },
+  { code: 'BOX', name: 'Box', allows_decimal: false, default_precision: 0 },
+  { code: 'SERVICE', name: 'Service', allows_decimal: false, default_precision: 0 },
+  { code: 'HOUR', name: 'Hour', allows_decimal: true, default_precision: 2 },
+  { code: 'JOB', name: 'Job', allows_decimal: false, default_precision: 0 },
+]
+
+const itemTypeOptions = [
+  { value: 'product', label: 'Product' },
+  { value: 'service', label: 'Service' },
+  { value: 'bundle', label: 'Bundle' },
+  { value: 'non_stock', label: 'Non-stock' },
+]
+
+const trackingMethodOptions = [
+  'SIMPLE_STOCK',
+  'VARIANT_STOCK',
+  'BATCH_STOCK',
+  'SERIAL_STOCK',
+  'WEIGHT_STOCK',
+  'LENGTH_STOCK',
+  'AREA_STOCK',
+  'SERVICE_ONLY',
+  'BUNDLE_KIT',
+]
 
 const getProductsFromResponse = (data) => {
   if (Array.isArray(data)) return data
@@ -38,7 +75,15 @@ const productToForm = (product) => ({
   product_code: product.product_code ?? '',
   barcode: product.barcode ?? '',
   category_id: product.category_id ? String(product.category_id) : '',
-  unit: product.unit || 'pcs',
+  unit: product.default_selling_unit || product.unit || 'PCS',
+  item_type: product.item_type || 'product',
+  default_selling_unit: product.default_selling_unit || product.unit || 'PCS',
+  default_purchase_unit:
+    product.default_purchase_unit || product.default_selling_unit || product.unit || 'PCS',
+  base_unit: product.base_unit || product.default_selling_unit || product.unit || 'PCS',
+  allow_decimal_qty: Boolean(Number(product.allow_decimal_qty || 0)),
+  quantity_precision: String(product.quantity_precision ?? 0),
+  tracking_method: product.tracking_method || 'SIMPLE_STOCK',
   buying_price: product.buying_price ?? product.wholesale_price ?? '',
   wholesale_price: product.wholesale_price ?? product.buying_price ?? '',
   selling_price: product.selling_price ?? '',
@@ -55,7 +100,7 @@ const optionalText = (value) => {
 const toFormValue = (value) =>
   value === undefined || value === null ? '' : String(value)
 
-const parseScannedValue = (rawValue) => {
+const parseScannedValue = (rawValue, unitCodes = fallbackUnits.map((unit) => unit.code)) => {
   const raw = String(rawValue || '').trim()
   const looksLikeJson = raw.startsWith('{')
 
@@ -82,7 +127,7 @@ const parseScannedValue = (rawValue) => {
   }
 
   const scannedUnit = toFormValue(data.unit)
-  const matchedUnit = unitOptions.find(
+  const matchedUnit = unitCodes.find(
     (unit) => unit.toLowerCase() === scannedUnit.toLowerCase(),
   )
   const draft = {
@@ -90,7 +135,8 @@ const parseScannedValue = (rawValue) => {
     barcode: toFormValue(data.barcode),
     product_code: toFormValue(data.product_code ?? data.sku),
     category_name: toFormValue(data.category ?? data.category_name),
-    unit: matchedUnit || (scannedUnit ? 'pcs' : ''),
+    unit: matchedUnit || (scannedUnit ? 'PCS' : ''),
+    default_selling_unit: matchedUnit || (scannedUnit ? 'PCS' : ''),
     wholesale_price: toFormValue(
       data.wholesale_price ?? data.buying_price ?? data.cost_price,
     ),
@@ -121,10 +167,12 @@ function Products() {
   const defaultLowStockLimit = Number(shopSettings.default_low_stock_limit ?? 5)
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
+  const [units, setUnits] = useState(fallbackUnits)
   const [form, setForm] = useState(initialForm)
   const [categoryForm, setCategoryForm] = useState(initialCategoryForm)
   const [editingCategoryId, setEditingCategoryId] = useState(null)
   const [editingId, setEditingId] = useState(null)
+  const [showAdvancedUnits, setShowAdvancedUnits] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [categoryMessage, setCategoryMessage] = useState('')
@@ -141,6 +189,12 @@ function Products() {
   const [scanPreview, setScanPreview] = useState(null)
   const [createMissingCategory, setCreateMissingCategory] = useState(false)
   const productFormRef = useRef(null)
+  const unitCodes = units.map((unit) => unit.code)
+
+  const getUnitMeta = (unitCode) =>
+    units.find((unit) => unit.code === unitCode) ||
+    fallbackUnits.find((unit) => unit.code === unitCode) ||
+    fallbackUnits[0]
 
   const loadProducts = async () => {
     setLoading(true)
@@ -157,6 +211,14 @@ function Products() {
     }
 
     try {
+      const unitsResponse = await api.get('/units')
+      const nextUnits = unitsResponse.data.units || []
+      setUnits(nextUnits.length > 0 ? nextUnits : fallbackUnits)
+    } catch {
+      setUnits(fallbackUnits)
+    }
+
+    try {
       const categoriesResponse = await api.get('/categories')
       setCategories(categoriesResponse.data.categories || [])
     } catch (err) {
@@ -170,7 +232,51 @@ function Products() {
   }, [])
 
   const updateField = (event) => {
-    setForm({ ...form, [event.target.name]: event.target.value })
+    const { checked, name, type, value } = event.target
+
+    setForm((current) => {
+      if (name === 'default_selling_unit' || name === 'unit') {
+        const unitMeta = getUnitMeta(value)
+        const nextForm = {
+          ...current,
+          unit: value,
+          default_selling_unit: value,
+          allow_decimal_qty: Boolean(unitMeta.allows_decimal),
+          quantity_precision: String(unitMeta.default_precision ?? 0),
+        }
+
+        if (!showAdvancedUnits) {
+          nextForm.default_purchase_unit = value
+          nextForm.base_unit = value
+        }
+
+        return nextForm
+      }
+
+      if (name === 'item_type') {
+        const serviceOnly = value === 'service' || value === 'non_stock'
+        return {
+          ...current,
+          item_type: value,
+          tracking_method: serviceOnly ? 'SERVICE_ONLY' : current.tracking_method,
+        }
+      }
+
+      if (name === 'allow_decimal_qty') {
+        return {
+          ...current,
+          allow_decimal_qty: checked,
+          quantity_precision: checked
+            ? current.quantity_precision || String(getUnitMeta(current.default_selling_unit).default_precision ?? 0)
+            : '0',
+        }
+      }
+
+      return {
+        ...current,
+        [name]: type === 'checkbox' ? checked : value,
+      }
+    })
   }
 
   const updateCategoryField = (event) => {
@@ -184,6 +290,7 @@ function Products() {
   const resetForm = () => {
     setForm(initialForm)
     setEditingId(null)
+    setShowAdvancedUnits(false)
   }
 
   const resetCategoryForm = () => {
@@ -202,7 +309,14 @@ function Products() {
       product_code: optionalText(form.product_code),
       barcode: optionalText(form.barcode),
       category_id: form.category_id ? Number(form.category_id) : null,
-      unit: form.unit || 'pcs',
+      unit: form.default_selling_unit || form.unit || 'PCS',
+      item_type: form.item_type || 'product',
+      default_selling_unit: form.default_selling_unit || form.unit || 'PCS',
+      default_purchase_unit: form.default_purchase_unit || form.default_selling_unit || 'PCS',
+      base_unit: form.base_unit || form.default_selling_unit || 'PCS',
+      allow_decimal_qty: Boolean(form.allow_decimal_qty),
+      quantity_precision: Number(form.quantity_precision || 0),
+      tracking_method: form.tracking_method || 'SIMPLE_STOCK',
       buying_price: Number(form.wholesale_price || form.buying_price),
       wholesale_price: Number(form.wholesale_price || form.buying_price),
       selling_price: Number(form.selling_price),
@@ -235,6 +349,18 @@ function Products() {
     setError('')
     setEditingId(product.id)
     setForm(productToForm(product))
+    setShowAdvancedUnits(
+      Boolean(
+        product.default_purchase_unit &&
+          product.default_selling_unit &&
+          product.default_purchase_unit !== product.default_selling_unit,
+      ) ||
+        Boolean(
+          product.base_unit &&
+            product.default_selling_unit &&
+            product.base_unit !== product.default_selling_unit,
+        ),
+    )
   }
 
   const openScanner = () => {
@@ -273,7 +399,7 @@ function Products() {
     setCreateMissingCategory(false)
 
     try {
-      const parsed = parseScannedValue(rawValue)
+      const parsed = parseScannedValue(rawValue, unitCodes)
       const existingProduct = await findProductByCode(parsed.lookupCodes)
       const matchingCategory = parsed.categoryName
         ? categories.find(
@@ -338,6 +464,15 @@ function Products() {
           nextForm[field] = value
         }
       })
+
+      if (nextForm.default_selling_unit) {
+        const unitMeta = getUnitMeta(nextForm.default_selling_unit)
+        nextForm.unit = nextForm.default_selling_unit
+        nextForm.default_purchase_unit = nextForm.default_purchase_unit || nextForm.default_selling_unit
+        nextForm.base_unit = nextForm.base_unit || nextForm.default_selling_unit
+        nextForm.allow_decimal_qty = Boolean(unitMeta.allows_decimal)
+        nextForm.quantity_precision = String(unitMeta.default_precision ?? 0)
+      }
 
       if (categoryId) {
         nextForm.category_id = categoryId
@@ -445,6 +580,12 @@ function Products() {
     }
   }
 
+  const precision = Number(form.quantity_precision || 0)
+  const quantityStep =
+    form.allow_decimal_qty && precision > 0
+      ? `0.${'0'.repeat(Math.max(precision - 1, 0))}1`
+      : '1'
+
   return (
     <>
       <section className={canManageProducts ? 'page-grid' : 'page-stack'}>
@@ -492,15 +633,90 @@ function Products() {
               </select>
             </label>
             <label>
-              {t('Unit')}
-              <select name="unit" value={form.unit} onChange={updateField}>
-                {unitOptions.map((unit) => (
-                  <option key={unit} value={unit}>
-                    {unit}
+              {t('Item Type')}
+              <select name="item_type" value={form.item_type} onChange={updateField}>
+                {itemTypeOptions.map((itemType) => (
+                  <option key={itemType.value} value={itemType.value}>
+                    {t(itemType.label)}
                   </option>
                 ))}
               </select>
             </label>
+            <label>
+              {t('Selling Unit')}
+              <select name="default_selling_unit" value={form.default_selling_unit} onChange={updateField}>
+                {units.map((unit) => (
+                  <option key={unit.code} value={unit.code}>
+                    {unit.code} - {unit.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="checkbox-row">
+              <input
+                name="allow_decimal_qty"
+                type="checkbox"
+                checked={Boolean(form.allow_decimal_qty)}
+                onChange={updateField}
+              />
+              {t('Allow decimal quantity')}
+            </label>
+            <label>
+              {t('Quantity Precision')}
+              <input
+                name="quantity_precision"
+                type="number"
+                min="0"
+                max="4"
+                step="1"
+                value={form.quantity_precision}
+                onChange={updateField}
+                disabled={!form.allow_decimal_qty}
+              />
+            </label>
+            <label>
+              {t('Tracking Method')}
+              <select name="tracking_method" value={form.tracking_method} onChange={updateField}>
+                {trackingMethodOptions.map((trackingMethod) => (
+                  <option key={trackingMethod} value={trackingMethod}>
+                    {trackingMethod}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="full-width">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => setShowAdvancedUnits((current) => !current)}
+              >
+                {showAdvancedUnits ? t('Hide advanced units') : t('Advanced units')}
+              </button>
+            </div>
+            {showAdvancedUnits && (
+              <>
+                <label>
+                  {t('Purchase Unit')}
+                  <select name="default_purchase_unit" value={form.default_purchase_unit} onChange={updateField}>
+                    {units.map((unit) => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.code} - {unit.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  {t('Base Unit')}
+                  <select name="base_unit" value={form.base_unit} onChange={updateField}>
+                    {units.map((unit) => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.code} - {unit.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
             <label>
               {t('Wholesale Price')}
               <input
@@ -531,6 +747,7 @@ function Products() {
                 name="stock_quantity"
                 type="number"
                 min="0"
+                step={quantityStep}
                 value={form.stock_quantity}
                 onChange={updateField}
               />
@@ -541,6 +758,7 @@ function Products() {
                 name="low_stock_limit"
                 type="number"
                 min="0"
+                step={quantityStep}
                 value={form.low_stock_limit}
                 onChange={updateField}
                 placeholder={`Default ${defaultLowStockLimit}`}
@@ -655,6 +873,8 @@ function Products() {
                   <th>{t('Barcode')}</th>
                   <th>{t('Category')}</th>
                   <th>{t('Unit')}</th>
+                  <th>{t('Type')}</th>
+                  <th>{t('Tracking')}</th>
                   <th>{t('Wholesale')}</th>
                   <th>{t('Retail')}</th>
                   <th>{t('Stock')}</th>
@@ -664,8 +884,12 @@ function Products() {
               </thead>
               <tbody>
                 {products.map((product) => {
+                  const tracksStock =
+                    product.item_type !== 'service' &&
+                    product.item_type !== 'non_stock' &&
+                    product.tracking_method !== 'SERVICE_ONLY'
                   const isLowStock =
-                    Number(product.stock_quantity) <= Number(product.low_stock_limit)
+                    tracksStock && Number(product.stock_quantity) <= Number(product.low_stock_limit)
 
                   return (
                     <tr key={product.id} className={isLowStock ? 'low-stock-row' : ''}>
@@ -685,10 +909,12 @@ function Products() {
                       <td>{product.product_code || '-'}</td>
                       <td>{product.barcode || '-'}</td>
                       <td>{product.category || '-'}</td>
-                      <td>{product.unit || 'pcs'}</td>
+                      <td>{product.default_selling_unit || product.unit || 'PCS'}</td>
+                      <td>{product.item_type || 'product'}</td>
+                      <td>{product.tracking_method || 'SIMPLE_STOCK'}</td>
                       <td>{formatMoney(product.wholesale_price ?? product.buying_price)}</td>
                       <td>{formatMoney(product.selling_price)}</td>
-                      <td>{product.stock_quantity}</td>
+                      <td>{tracksStock ? Number(product.stock_quantity) : '-'}</td>
                       <td>{product.low_stock_limit}</td>
                       {canManageProducts && (
                         <td>
@@ -712,7 +938,7 @@ function Products() {
                 })}
                 {products.length === 0 && (
                   <tr>
-                    <td colSpan={canManageProducts ? 11 : 10} className="empty-cell">
+                    <td colSpan={canManageProducts ? 13 : 12} className="empty-cell">
                       <div className="empty-copy">
                         <strong>{t('No products found.')}</strong>
                         <span>

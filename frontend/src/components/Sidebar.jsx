@@ -1,44 +1,50 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { t } from '../i18n/translations'
 import { hasPermission, roleAllowed } from '../utils/permissions'
+import { isModuleEnabled } from '../utils/shopModules'
 import { clearSession, getSessionUser } from '../utils/session'
 import BrandLogo from './BrandLogo.jsx'
 
 const ownerLinks = [
   { to: '/dashboard', labelKey: 'dashboard', permission: 'dashboard_view' },
-  { to: '/products', labelKey: 'products', permission: 'products_view' },
-  { to: '/pos', labelKey: 'posBilling', permission: 'pos_access' },
+  { to: '/products', labelKey: 'products', permission: 'products_view', module: 'products' },
+  { to: '/pos', labelKey: 'posBilling', permission: 'pos_access', module: 'pos' },
   {
     to: '/payment-verification',
     labelKey: 'paymentVerification',
     permission: 'payment_verification_access',
     roles: ['owner'],
+    module: 'pos',
   },
-  { to: '/credits', labelKey: 'creditBook', permission: 'credit_book_access' },
-  { to: '/suppliers', labelKey: 'suppliers', permission: 'suppliers_access' },
-  { to: '/stock', labelKey: 'stock', permission: 'stock_access' },
-  { to: '/purchasing', labelKey: 'purchasing', permission: 'purchasing_access' },
-  { to: '/purchase-suggestions', labelKey: 'Purchase Suggestions', permission: 'purchase_suggestions_access' },
-  { to: '/returns', labelKey: 'Returns', permission: 'returns_access' },
-  { to: '/expenses', labelKey: 'Expenses', permission: 'expenses_access' },
-  { to: '/reports', labelKey: 'reports', permission: 'reports_access' },
+  { to: '/credits', labelKey: 'creditBook', permission: 'credit_book_access', module: 'credit_book' },
+  { to: '/suppliers', labelKey: 'suppliers', permission: 'suppliers_access', module: 'suppliers' },
+  { to: '/stock', labelKey: 'stock', permission: 'stock_access', module: 'stock' },
+  { to: '/purchasing', labelKey: 'purchasing', permission: 'purchasing_access', module: 'purchasing' },
+  { to: '/purchase-suggestions', labelKey: 'Purchase Suggestions', permission: 'purchase_suggestions_access', module: 'low_stock' },
+  { to: '/returns', labelKey: 'Returns', permission: 'returns_access', module: 'returns_exchange' },
+  { to: '/expenses', labelKey: 'Expenses', permission: 'expenses_access', module: 'expenses' },
+  { to: '/reports', labelKey: 'reports', permission: 'reports_access', module: 'reports' },
   {
     to: '/notification-preferences',
     labelKey: 'Notifications',
     permission: 'notifications_access',
     roles: ['owner'],
+    module: 'notifications',
   },
   { to: '/audit-logs', labelKey: 'auditLogs', permission: 'audit_logs_access' },
-  { to: '/backup-export', labelKey: 'backupExport', permission: 'backup_export_access' },
+  { to: '/backup-export', labelKey: 'backupExport', permission: 'backup_export_access', module: 'backup' },
   { to: '/settings', labelKey: 'settings', permission: 'settings_access' },
-  { to: '/staff', labelKey: 'staff', permission: 'staff_manage' },
+  { to: '/staff', labelKey: 'staff', permission: 'staff_manage', module: 'staff' },
 ]
 
 function Sidebar({ shopName = 'ShopMate LK', onNavigate, onClose }) {
   const navigate = useNavigate()
   const user = getSessionUser()
   const visibleLinks = ownerLinks.filter(
-    (link) => hasPermission(user, link.permission) && roleAllowed(user.role, link.roles),
+    (link) =>
+      hasPermission(user, link.permission) &&
+      roleAllowed(user.role, link.roles) &&
+      isModuleEnabled(link.module),
   )
 
   const userLogout = () => {

@@ -1,6 +1,12 @@
 const db = require("../config/db");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
 const { ensureShopSettingsColumns } = require("../utils/shopSchema");
+const {
+  isValidShopType,
+  normalizeEnabledModules,
+  normalizeShopType,
+  serializeEnabledModules,
+} = require("../utils/shopModules");
 
 const isMissing = (value) =>
   value === undefined || value === null || String(value).trim() === "";
@@ -44,7 +50,7 @@ const getShopSettings = async (shopId) => {
   await ensureShopSettingsColumns();
 
   const [shops] = await db.promise().query(
-    `SELECT shop_name, phone, email, address, receipt_footer, currency,
+    `SELECT shop_name, shop_type, enabled_modules, phone, email, address, receipt_footer, currency,
             default_low_stock_limit, tax_percentage, logo_url, default_receipt_size,
             receipt_show_logo, receipt_show_tax, receipt_show_discounts,
             receipt_show_cashier, open_cash_drawer_after_print,
@@ -59,6 +65,26 @@ const getShopSettings = async (shopId) => {
   return shops[0] || null;
 };
 
+const formatSettings = (settings) => ({
+  ...settings,
+  shop_type: normalizeShopType(settings.shop_type),
+  enabled_modules: normalizeEnabledModules(settings.enabled_modules, settings.shop_type),
+  currency: settings.currency || "LKR",
+  default_low_stock_limit: Number(settings.default_low_stock_limit || 0),
+  tax_percentage: Number(settings.tax_percentage || 0),
+  default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
+  receipt_show_logo: Boolean(Number(settings.receipt_show_logo ?? 1)),
+  receipt_show_tax: Boolean(Number(settings.receipt_show_tax ?? 1)),
+  receipt_show_discounts: Boolean(Number(settings.receipt_show_discounts ?? 1)),
+  receipt_show_cashier: Boolean(Number(settings.receipt_show_cashier ?? 1)),
+  open_cash_drawer_after_print: Boolean(
+    Number(settings.open_cash_drawer_after_print ?? 0)
+  ),
+  language: normalizeLanguage(settings.language),
+  idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
+  background_logout_minutes: Number(settings.background_logout_minutes || 3),
+});
+
 exports.getSettings = async (req, res) => {
   try {
     const settings = await getShopSettings(req.user.shop_id);
@@ -67,25 +93,7 @@ exports.getSettings = async (req, res) => {
       return res.status(404).json({ message: "Shop settings not found" });
     }
 
-    return res.json({
-      ...settings,
-      currency: settings.currency || "LKR",
-      default_low_stock_limit: Number(settings.default_low_stock_limit || 0),
-      tax_percentage: Number(settings.tax_percentage || 0),
-      default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
-      receipt_show_logo: Boolean(Number(settings.receipt_show_logo ?? 1)),
-      receipt_show_tax: Boolean(Number(settings.receipt_show_tax ?? 1)),
-      receipt_show_discounts: Boolean(
-        Number(settings.receipt_show_discounts ?? 1)
-      ),
-      receipt_show_cashier: Boolean(Number(settings.receipt_show_cashier ?? 1)),
-      open_cash_drawer_after_print: Boolean(
-        Number(settings.open_cash_drawer_after_print ?? 0)
-      ),
-      language: normalizeLanguage(settings.language),
-      idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
-      background_logout_minutes: Number(settings.background_logout_minutes || 3),
-    });
+    return res.json(formatSettings(settings));
   } catch (error) {
     console.error("Get settings error:", error.message);
     return res.status(500).json({ message: "Server error while fetching settings" });
@@ -232,6 +240,8 @@ exports.updateSettings = async (req, res) => {
 
   const {
     shop_name,
+    shop_type,
+    enabled_modules,
     phone,
     email,
     address,
@@ -253,6 +263,12 @@ exports.updateSettings = async (req, res) => {
 
   if (isMissing(shop_name)) {
     return res.status(400).json({ message: "shop_name is required" });
+  }
+
+  if (shop_type !== undefined && !isValidShopType(shop_type)) {
+    return res.status(400).json({
+      message: "shop_type must be grocery, hardware, mobile_repair, clothing, or custom",
+    });
   }
 
   if (!isNonNegativeNumber(default_low_stock_limit ?? 0)) {
@@ -329,6 +345,13 @@ exports.updateSettings = async (req, res) => {
     open_cash_drawer_after_print === undefined
       ? null
       : toBooleanNumber(open_cash_drawer_after_print);
+  const nextShopType = shop_type === undefined ? null : normalizeShopType(shop_type);
+  const nextEnabledModules =
+    enabled_modules !== undefined
+      ? serializeEnabledModules(enabled_modules, nextShopType || "custom")
+      : nextShopType
+        ? serializeEnabledModules(undefined, nextShopType)
+        : null;
   const nextIdleTimeout =
     idle_timeout_minutes !== undefined ? Number(idle_timeout_minutes) : null;
   const nextBackgroundTimeout =
@@ -341,6 +364,8 @@ exports.updateSettings = async (req, res) => {
       `UPDATE shops
        SET shop_name = ?, phone = ?, email = ?, address = ?, receipt_footer = ?,
            currency = ?, default_low_stock_limit = ?, tax_percentage = ?, logo_url = ?,
+           shop_type = COALESCE(?, shop_type),
+           enabled_modules = COALESCE(?, enabled_modules),
            default_receipt_size = COALESCE(?, default_receipt_size),
            receipt_show_logo = COALESCE(?, receipt_show_logo),
            receipt_show_tax = COALESCE(?, receipt_show_tax),
@@ -361,6 +386,8 @@ exports.updateSettings = async (req, res) => {
         Number(default_low_stock_limit || 0),
         Number(tax_percentage || 0),
         optionalText(logo_url),
+        nextShopType,
+        nextEnabledModules,
         nextReceiptSize,
         nextReceiptShowLogo,
         nextReceiptShowTax,
@@ -389,25 +416,7 @@ exports.updateSettings = async (req, res) => {
 
     return res.json({
       message: "Settings updated successfully",
-      settings: {
-        ...settings,
-        currency: settings.currency || "LKR",
-        default_low_stock_limit: Number(settings.default_low_stock_limit || 0),
-        tax_percentage: Number(settings.tax_percentage || 0),
-        default_receipt_size: normalizeReceiptSize(settings.default_receipt_size),
-        receipt_show_logo: Boolean(Number(settings.receipt_show_logo ?? 1)),
-        receipt_show_tax: Boolean(Number(settings.receipt_show_tax ?? 1)),
-        receipt_show_discounts: Boolean(
-          Number(settings.receipt_show_discounts ?? 1)
-        ),
-        receipt_show_cashier: Boolean(Number(settings.receipt_show_cashier ?? 1)),
-        open_cash_drawer_after_print: Boolean(
-          Number(settings.open_cash_drawer_after_print ?? 0)
-        ),
-        language: normalizeLanguage(settings.language),
-        idle_timeout_minutes: Number(settings.idle_timeout_minutes || 15),
-        background_logout_minutes: Number(settings.background_logout_minutes || 3),
-      },
+      settings: formatSettings(settings),
     });
   } catch (error) {
     console.error("Update settings error:", error.message);

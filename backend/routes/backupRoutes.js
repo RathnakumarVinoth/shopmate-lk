@@ -10,6 +10,7 @@ const {
 const authMiddleware = require("../middleware/authMiddleware");
 const { requirePermission } = require("../middleware/permissionMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
+const { requireModule } = require("../middleware/moduleMiddleware");
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ router.get(
   authMiddleware,
   allowRoles("owner"),
   requirePermission("backup_export_access"),
+  requireModule("backup"),
   getStatus
 );
 router.get(
@@ -25,6 +27,7 @@ router.get(
   authMiddleware,
   allowRoles("owner"),
   requirePermission("backup_export_access"),
+  requireModule("backup"),
   getHistory
 );
 router.post(
@@ -32,6 +35,7 @@ router.post(
   authMiddleware,
   allowRoles("owner"),
   requirePermission("backup_export_access"),
+  requireModule("backup"),
   createManualBackup
 );
 router.post(
@@ -39,6 +43,7 @@ router.post(
   authMiddleware,
   allowRoles("owner", "admin"),
   requirePermission("backup_export_access"),
+  requireModule("backup"),
   restoreBackup
 );
 router.get(
@@ -46,6 +51,7 @@ router.get(
   authMiddleware,
   allowRoles("owner"),
   requirePermission("backup_export_access"),
+  requireModule("backup"),
   downloadBackup
 );
 

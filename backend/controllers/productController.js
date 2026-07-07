@@ -1,8 +1,12 @@
 const db = require("../config/db");
 const { createAuditLogFromRequest } = require("../utils/auditLog");
-const { ensureProductCatalogSchema } = require("../utils/productCatalogSchema");
-
-const allowedUnits = ["pcs", "kg", "g", "L", "ml", "packet", "bottle", "box"];
+const {
+  ITEM_TYPES,
+  TRACKING_METHODS,
+  getUnitDefaults,
+  normalizeUnitCode,
+  ensureProductCatalogSchema,
+} = require("../utils/productCatalogSchema");
 
 const productSelect = `
   products.id,
@@ -13,6 +17,13 @@ const productSelect = `
   products.category_id,
   COALESCE(categories.name, products.category) AS category,
   products.unit,
+  products.item_type,
+  products.default_selling_unit,
+  products.default_purchase_unit,
+  products.base_unit,
+  products.allow_decimal_qty,
+  products.quantity_precision,
+  products.tracking_method,
   products.buying_price,
   COALESCE(products.wholesale_price, products.buying_price) AS wholesale_price,
   products.selling_price,
@@ -42,15 +53,97 @@ const isNonNegativeNumber = (value) =>
 const isNonNegativeInteger = (value) =>
   Number.isInteger(Number(value)) && Number(value) >= 0;
 
+const isNonNegativeQuantity = (value) =>
+  value !== "" &&
+  value !== null &&
+  value !== undefined &&
+  !Number.isNaN(Number(value)) &&
+  Number(value) >= 0;
+
+const hasDecimalPart = (value) => Math.abs(Number(value) % 1) > Number.EPSILON;
+
+const getDecimalPlaces = (value) => {
+  const text = String(value);
+
+  if (!text.includes(".")) return 0;
+
+  return text.split(".")[1].replace(/0+$/, "").length;
+};
+
+const normalizeUnitBoolean = (value, defaultValue = false) => {
+  if (value === undefined || value === null || value === "") {
+    return defaultValue ? 1 : 0;
+  }
+
+  if (value === true || value === 1 || value === "1" || value === "true") {
+    return 1;
+  }
+
+  return 0;
+};
+
+const normalizeItemType = (value) => {
+  const normalized = String(value || "product").trim().toLowerCase();
+  return ITEM_TYPES.includes(normalized) ? normalized : null;
+};
+
+const normalizeTrackingMethod = (value, itemType = "product") => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return itemType === "service" ? "SERVICE_ONLY" : "SIMPLE_STOCK";
+  }
+
+  const normalized = String(value).trim().toUpperCase();
+  return TRACKING_METHODS.includes(normalized) ? normalized : null;
+};
+
+const validateQuantityByPrecision = ({
+  value,
+  fieldName,
+  allowDecimalQty,
+  quantityPrecision,
+  errors,
+}) => {
+  if (value === undefined || value === null || value === "") return;
+
+  if (!isNonNegativeQuantity(value)) {
+    errors.push(`${fieldName} must be a non-negative number`);
+    return;
+  }
+
+  if (!allowDecimalQty && hasDecimalPart(value)) {
+    errors.push(`${fieldName} must be a whole number`);
+    return;
+  }
+
+  if (getDecimalPlaces(value) > quantityPrecision) {
+    errors.push(`${fieldName} cannot have more than ${quantityPrecision} decimal places`);
+  }
+};
+
 const normalizeBoolean = (value, defaultValue = true) => {
   if (value === undefined) return defaultValue ? 1 : 0;
   if (value === false || value === 0 || value === "0" || value === "false") return 0;
   return 1;
 };
 
-const validateProduct = (body) => {
+const validateProduct = async (body) => {
   const errors = [];
   const costPrice = body.wholesale_price ?? body.buying_price;
+  const itemType = normalizeItemType(body.item_type);
+  const trackingMethod = normalizeTrackingMethod(body.tracking_method, itemType || "product");
+  const requestedSellingUnit =
+    body.default_selling_unit || body.selling_unit || body.unit || "PCS";
+  const defaultSellingUnit = normalizeUnitCode(requestedSellingUnit);
+  const unitDefaults = getUnitDefaults(defaultSellingUnit);
+  const allowDecimalQty =
+    unitDefaults.allow_decimal_qty === 1 ||
+    normalizeUnitBoolean(body.allow_decimal_qty, unitDefaults.allow_decimal_qty === 1) === 1;
+  const quantityPrecision =
+    body.quantity_precision === undefined ||
+    body.quantity_precision === null ||
+    body.quantity_precision === ""
+      ? unitDefaults.quantity_precision
+      : Number(body.quantity_precision);
 
   if (isMissing(body.product_name)) {
     errors.push("product_name is required");
@@ -64,27 +157,108 @@ const validateProduct = (body) => {
     errors.push("selling_price is required and must be a non-negative number");
   }
 
-  if (
-    body.stock_quantity !== undefined &&
-    !isNonNegativeInteger(body.stock_quantity)
-  ) {
-    errors.push("stock_quantity must be a non-negative integer");
+  if (!itemType) {
+    errors.push(`item_type must be one of ${ITEM_TYPES.join(", ")}`);
   }
+
+  if (!trackingMethod) {
+    errors.push(`tracking_method must be one of ${TRACKING_METHODS.join(", ")}`);
+  }
+
+  if (!Number.isInteger(quantityPrecision) || quantityPrecision < 0 || quantityPrecision > 4) {
+    errors.push("quantity_precision must be an integer from 0 to 4");
+  }
+
+  validateQuantityByPrecision({
+    value: body.stock_quantity,
+    fieldName: "stock_quantity",
+    allowDecimalQty,
+    quantityPrecision: Number.isInteger(quantityPrecision) ? quantityPrecision : 0,
+    errors,
+  });
+
+  validateQuantityByPrecision({
+    value: body.low_stock_limit,
+    fieldName: "low_stock_limit",
+    allowDecimalQty,
+    quantityPrecision: Number.isInteger(quantityPrecision) ? quantityPrecision : 0,
+    errors,
+  });
 
   if (
     body.low_stock_limit !== undefined &&
     body.low_stock_limit !== "" &&
     body.low_stock_limit !== null &&
-    !isNonNegativeInteger(body.low_stock_limit)
+    !isNonNegativeQuantity(body.low_stock_limit)
   ) {
-    errors.push("low_stock_limit must be a non-negative integer");
+    errors.push("low_stock_limit must be a non-negative number");
   }
 
-  if (body.unit !== undefined && body.unit !== "" && !allowedUnits.includes(body.unit)) {
-    errors.push(`unit must be one of ${allowedUnits.join(", ")}`);
+  const unitCodes = [
+    requestedSellingUnit,
+    body.default_purchase_unit,
+    body.purchase_unit,
+    body.base_unit,
+  ].filter((unit) => unit !== undefined && unit !== null && String(unit).trim() !== "");
+  const normalizedUnitCodes = unitCodes
+    .map((unit) => normalizeUnitCode(unit, null))
+    .filter(Boolean);
+  const [unitRows] = await db
+    .promise()
+    .query("SELECT code FROM unit_master WHERE is_active = 1 AND code IN (?)", [
+      normalizedUnitCodes.length > 0 ? normalizedUnitCodes : ["__none__"],
+    ]);
+  const validUnitCodes = new Set(unitRows.map((unit) => unit.code));
+
+  for (const unit of unitCodes) {
+    const normalizedUnit = normalizeUnitCode(unit, null);
+    if (!validUnitCodes.has(normalizedUnit)) {
+      errors.push(`${unit} is not an active unit`);
+    }
   }
 
   return errors;
+};
+
+const buildProductFoundation = (body) => {
+  const itemType = normalizeItemType(body.item_type) || "product";
+  const defaultSellingUnit = normalizeUnitCode(
+    body.default_selling_unit || body.selling_unit || body.unit || "PCS"
+  );
+  const defaultPurchaseUnit = normalizeUnitCode(
+    body.default_purchase_unit || body.purchase_unit || defaultSellingUnit
+  );
+  const baseUnit = normalizeUnitCode(body.base_unit || defaultSellingUnit);
+  const unitDefaults = getUnitDefaults(defaultSellingUnit);
+  const allowDecimalQty =
+    unitDefaults.allow_decimal_qty === 1 ||
+    normalizeUnitBoolean(body.allow_decimal_qty, unitDefaults.allow_decimal_qty === 1) === 1;
+  const requestedPrecision =
+    body.quantity_precision === undefined ||
+    body.quantity_precision === null ||
+    body.quantity_precision === ""
+      ? unitDefaults.quantity_precision
+      : Number(body.quantity_precision);
+  const quantityPrecision = allowDecimalQty ? requestedPrecision : 0;
+  const defaultTrackingMethod =
+    itemType === "service" || itemType === "non_stock"
+      ? "SERVICE_ONLY"
+      : "SIMPLE_STOCK";
+  const trackingMethod =
+    normalizeTrackingMethod(body.tracking_method, itemType) || defaultTrackingMethod;
+
+  return {
+    itemType,
+    defaultSellingUnit,
+    defaultPurchaseUnit,
+    baseUnit,
+    allowDecimalQty: allowDecimalQty ? 1 : 0,
+    quantityPrecision,
+    trackingMethod:
+      itemType === "service" || itemType === "non_stock"
+        ? "SERVICE_ONLY"
+        : trackingMethod,
+  };
 };
 
 const checkDuplicateCodes = async ({ shopId, productCode, barcode, excludeId }) => {
@@ -360,7 +534,6 @@ exports.addProduct = async (req, res) => {
     barcode,
     category,
     category_id,
-    unit,
     buying_price,
     wholesale_price,
     selling_price,
@@ -373,16 +546,18 @@ exports.addProduct = async (req, res) => {
   const normalizedProductCode = normalizeOptionalText(product_code);
   const normalizedBarcode = normalizeOptionalText(barcode);
   const normalizedImageUrl = normalizeOptionalText(image_url);
-  const normalizedUnit = unit || "pcs";
   const costPrice = Number(wholesale_price ?? buying_price);
-  const errors = validateProduct(req.body);
-
-  if (errors.length > 0) {
-    return res.status(400).json({ message: "Validation failed", errors });
-  }
 
   try {
     await ensureProductCatalogSchema();
+
+    const errors = await validateProduct(req.body);
+
+    if (errors.length > 0) {
+      return res.status(400).json({ message: "Validation failed", errors });
+    }
+
+    const foundation = buildProductFoundation(req.body);
 
     const duplicateMessage = await checkDuplicateCodes({
       shopId,
@@ -408,8 +583,10 @@ exports.addProduct = async (req, res) => {
     const [result] = await db.promise().query(
       `INSERT INTO products
        (shop_id, product_name, product_code, barcode, category, category_id, unit,
-        buying_price, wholesale_price, selling_price, stock_quantity, low_stock_limit, image_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        buying_price, wholesale_price, selling_price, stock_quantity, low_stock_limit, image_url,
+        item_type, default_selling_unit, default_purchase_unit, base_unit,
+        allow_decimal_qty, quantity_precision, tracking_method)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         shopId,
         normalizedProductName,
@@ -417,13 +594,20 @@ exports.addProduct = async (req, res) => {
         normalizedBarcode,
         resolvedCategory.name,
         resolvedCategory.id,
-        normalizedUnit,
+        foundation.defaultSellingUnit,
         costPrice,
         costPrice,
         Number(selling_price),
         stock_quantity === undefined ? 0 : Number(stock_quantity),
         lowStockLimit,
         normalizedImageUrl,
+        foundation.itemType,
+        foundation.defaultSellingUnit,
+        foundation.defaultPurchaseUnit,
+        foundation.baseUnit,
+        foundation.allowDecimalQty,
+        foundation.quantityPrecision,
+        foundation.trackingMethod,
       ]
     );
 
@@ -551,7 +735,6 @@ exports.updateProduct = async (req, res) => {
     barcode,
     category,
     category_id,
-    unit,
     buying_price,
     wholesale_price,
     selling_price,
@@ -564,20 +747,22 @@ exports.updateProduct = async (req, res) => {
   const normalizedProductCode = normalizeOptionalText(product_code);
   const normalizedBarcode = normalizeOptionalText(barcode);
   const normalizedImageUrl = normalizeOptionalText(image_url);
-  const normalizedUnit = unit || "pcs";
   const costPrice = Number(wholesale_price ?? buying_price);
-  const errors = validateProduct(req.body);
 
   if (!isNonNegativeInteger(productId) || Number(productId) === 0) {
     return res.status(400).json({ message: "Valid product id is required" });
   }
 
-  if (errors.length > 0) {
-    return res.status(400).json({ message: "Validation failed", errors });
-  }
-
   try {
     await ensureProductCatalogSchema();
+
+    const errors = await validateProduct(req.body);
+
+    if (errors.length > 0) {
+      return res.status(400).json({ message: "Validation failed", errors });
+    }
+
+    const foundation = buildProductFoundation(req.body);
 
     const duplicateMessage = await checkDuplicateCodes({
       shopId,
@@ -600,7 +785,10 @@ exports.updateProduct = async (req, res) => {
       `UPDATE products
        SET product_name = ?, product_code = ?, barcode = ?, category = ?, category_id = ?,
            unit = ?, buying_price = ?, wholesale_price = ?, selling_price = ?,
-           stock_quantity = ?, low_stock_limit = ?, image_url = ?
+           stock_quantity = ?, low_stock_limit = ?, image_url = ?,
+           item_type = ?, default_selling_unit = ?, default_purchase_unit = ?,
+           base_unit = ?, allow_decimal_qty = ?, quantity_precision = ?,
+           tracking_method = ?
        WHERE id = ? AND shop_id = ?`,
       [
         normalizedProductName,
@@ -608,7 +796,7 @@ exports.updateProduct = async (req, res) => {
         normalizedBarcode,
         resolvedCategory.name,
         resolvedCategory.id,
-        normalizedUnit,
+        foundation.defaultSellingUnit,
         costPrice,
         costPrice,
         Number(selling_price),
@@ -617,6 +805,13 @@ exports.updateProduct = async (req, res) => {
           ? 5
           : Number(low_stock_limit),
         normalizedImageUrl,
+        foundation.itemType,
+        foundation.defaultSellingUnit,
+        foundation.defaultPurchaseUnit,
+        foundation.baseUnit,
+        foundation.allowDecimalQty,
+        foundation.quantityPrecision,
+        foundation.trackingMethod,
         productId,
         shopId,
       ]

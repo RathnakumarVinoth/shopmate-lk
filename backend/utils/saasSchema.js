@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { serializeEnabledModules } = require("./shopModules");
 
 let ensuredSaasSchema = false;
 
@@ -44,6 +45,20 @@ const ensureSaasSchema = async () => {
     existingShopColumns,
     "owner_name",
     "owner_name VARCHAR(150) NULL"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
+    "shop_type",
+    "shop_type VARCHAR(50) NOT NULL DEFAULT 'custom'"
+  );
+  await addColumnIfMissing(
+    connection,
+    "shops",
+    existingShopColumns,
+    "enabled_modules",
+    "enabled_modules TEXT NULL"
   );
   await addColumnIfMissing(
     connection,
@@ -289,6 +304,17 @@ const ensureSaasSchema = async () => {
     SET username = COALESCE(NULLIF(username, ''), NULLIF(email, ''), CONCAT('user', id))
     WHERE role <> 'admin'
   `);
+
+  await connection.query(
+    `UPDATE shops
+     SET shop_type = COALESCE(NULLIF(shop_type, ''), 'custom'),
+         enabled_modules = COALESCE(NULLIF(enabled_modules, ''), ?)
+     WHERE shop_type IS NULL
+        OR shop_type = ''
+        OR enabled_modules IS NULL
+        OR enabled_modules = ''`,
+    [serializeEnabledModules(undefined, "custom")]
+  );
 
   ensuredSaasSchema = true;
 };
